@@ -47,7 +47,7 @@ $$;
 -- deep merge for partial updates: objects merge key by key, everything else replaces,
 -- and {"__delete__": true} removes a key
 create or replace function public.jsonb_deep_merge(a jsonb, b jsonb)
-returns jsonb language plpgsql immutable as $$
+returns jsonb language plpgsql immutable set search_path = public as $$
 declare k text; v jsonb; out jsonb;
 begin
   if a is null or jsonb_typeof(a) <> 'object' then a := '{}'::jsonb; end if;
@@ -66,7 +66,7 @@ begin
 end $$;
 
 create or replace function public.touch_doc()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = public as $$
 begin new.updated_at := now(); new.updated_by := auth.uid(); return new; end $$;
 drop trigger if exists docs_touch on public.docs;
 create trigger docs_touch before insert or update on public.docs for each row execute function public.touch_doc();
