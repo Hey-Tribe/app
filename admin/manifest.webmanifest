@@ -1,0 +1,16 @@
+{
+  "name": "HeyTribe Admin",
+  "short_name": "HT Admin",
+  "id": "/heytribe-admin",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F6F8F6",
+  "theme_color": "#2F3B45",
+  "description": "Run HeyTribe: sign-ups, billing, support and the roadmap.",
+  "icons": [
+    { "src": "/admin/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/admin/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/admin/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

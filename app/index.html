@@ -744,6 +744,21 @@ async function remindersOff(){
   if(REM.sub){ await sb.from("push_subscriptions").delete().eq("endpoint", REM.sub.endpoint); try { await REM.sub.unsubscribe(); } catch(e){} }
   REM.sub = null; REM.row = null; toast("Reminders are off for this device"); render();
 }
+/* install on phone / computer (PWA) */
+let INSTALL_EVT = null;
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); INSTALL_EVT = e; try { if(SESSION) render(); } catch(_){} });
+addEventListener("appinstalled", () => { INSTALL_EVT = null; try { toast("HeyTribe is on your home screen"); render(); } catch(_){} });
+function installCard(){
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  if(standalone) return "";
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1), android = /Android/.test(ua);
+  let body;
+  if(INSTALL_EVT) body = `<p class="small" style="margin:0;line-height:1.5">Add HeyTribe to your ${innerWidth < 1024 ? "home screen" : "computer"} so it opens like a regular app, full screen, with reminders.</p><div class="row"><button class="btn primary" data-act="install-app">${ico("download",17)} Install HeyTribe</button></div>`;
+  else if(ios) body = `<ol class="small" style="margin:0;padding-left:18px;line-height:1.7"><li>Open this page in <b>Safari</b>.</li><li>Tap the <b>Share</b> button (the square with an arrow).</li><li>Choose <b>Add to Home Screen</b>, then <b>Add</b>.</li><li>Open HeyTribe from your home screen.</li></ol>`;
+  else if(android) body = `<ol class="small" style="margin:0;padding-left:18px;line-height:1.7"><li>Open this page in <b>Chrome</b>.</li><li>Tap the <b>⋮</b> menu at the top right.</li><li>Choose <b>Install app</b> or <b>Add to Home screen</b>.</li></ol>`;
+  else body = `<p class="small" style="margin:0;line-height:1.5">In Chrome or Edge, click the install icon at the right end of the address bar. On your phone, open www.heytribe.app/app and add it to your home screen.</p>`;
+  return `${secHead("Get the app")}<div class="paper col" style="padding:16px;gap:10px"><b style="font-weight:600">Put HeyTribe on your ${ios||android ? "phone" : "device"}</b>${body}</div>`;
+}
 function remindersCard(){
   if(!SESSION || TRIBE === "SAMPLE") return "";
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent), standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
@@ -1091,7 +1106,7 @@ function offline(){ return `<div class="col" style="gap:16px;padding-top:40px">$
 function authScreen(){
   const m = UI.auth || "signin";
   const logo = `<div class="row" style="gap:8px">${mark(26)}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div>`;
-  const email = (v="") => `<div class="field"><label for="au-email">Email</label><input id="au-email" name="email" type="email" autocomplete="email" required value="${esc(v)}" ${m!=="reset"?"autofocus":""}></div>`;
+  const email = (v="") => `<div class="field"><label for="au-email">Email</label><input id="au-email" name="email" type="${m==="signin"?"text":"email"}" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="username" required value="${esc(v)}" ${m!=="reset"?"autofocus":""}></div>`;
   const pw = (id, label, ac) => `<div class="field"><label for="${id}">${label}</label><input id="${id}" name="${id==="au-pw2"?"password2":"password"}" type="password" minlength="8" autocomplete="${ac}" required></div>`;
   const err = `<p class="form-err small" id="au-err" role="alert">${esc(UI.authErr||"")}</p>`;
   const link = (mode, t) => `<button type="button" class="small" data-act="auth-mode" data-mode="${mode}" style="font-weight:600;color:var(--sage-ink)">${t}</button>`;
@@ -1116,7 +1131,7 @@ function authScreen(){
       <div class="between" style="flex-wrap:wrap;gap:8px">${link("forgot","Forgot password?")}<span class="small">New here? ${link("signup","Make an account")}</span></div></form>`;
   const langSw = `<button class="small lang-sw" data-act="lang" data-l="${((window.HTi18n&&HTi18n.lang)||"en")==="es"?"en":"es"}" data-no-tr>${((window.HTi18n&&HTi18n.lang)||"en")==="es"?"English":"Español"}</button>`;
   return `<div class="col" style="gap:22px;padding-top:18px"><div class="between">${logo}${langSw}</div>${body}
-    ${m==="signin"||m==="signup"?`<button class="choice" data-act="try-sample"><span class="lic" style="background:var(--m-rose-bg);color:var(--m-rose)">${ico("smile",24)}</span><span class="col grow"><b style="font-weight:600;font-size:16px">Look around with a sample family</b><span class="small">No account needed</span></span>${ico("fwd",18,2)}</button>`:""}</div>`;
+    ${m==="signin"||m==="signup"?`<button class="choice" data-act="try-sample"><span class="lic" style="background:var(--m-rose-bg);color:var(--m-rose)">${ico("smile",24)}</span><span class="col grow"><b style="font-weight:600;font-size:16px">Look around with a sample family</b><span class="small">No account needed</span></span>${ico("fwd",18,2)}</button>`:""}${m==="signin"?installCard():""}</div>`;
 }
 
 /* ---------- WELCOME (start / join / sample) ---------- */
@@ -1778,6 +1793,7 @@ function family(){
   ${secHead("Language")}<div class="chips" style="margin-top:0">${[["en","English"],["es","Español"]].map(([l,n])=>`<button class="chip ${((window.HTi18n&&HTi18n.lang)||"en")===l?"on":""}" data-act="lang" data-l="${l}" data-no-tr>${n}</button>`).join("")}</div>
   ${accessCard()}
   ${planCard()}
+  ${installCard()}
   ${remindersCard()}
   ${supportCard()}
   ${SESSION?`${secHead("Your account")}<div class="paper col" style="padding:16px;gap:10px"><span style="font-weight:500;overflow-wrap:anywhere">${esc(SESSION.user.email||"")}</span><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="auth-change-pw">Change password</button><button class="btn ghost" data-act="sign-out">Log out</button></div>
@@ -2158,10 +2174,11 @@ document.addEventListener("click", async e => {
   const tc = e.target.closest("[data-tk-cat]"); if(tc){ const f = tc.closest("form"); f.querySelectorAll("[data-tk-cat]").forEach(x => x.classList.toggle("on", x === tc)); f.querySelector('input[name="category"]').value = tc.dataset.tkCat; return; }
   const b = e.target.closest("[data-act]"); if(!b) return;
   const id = b.dataset.id, act = b.dataset.act;
-  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal","tk-new","tk-open","pending-check","pending-cancel","export-data","delete-account","sitter-link","sitter-make","sitter-stop","cal-sub","cal-reset","rem-on","rem-off","rem-pref","rem-test","search","theme","setup-hide","ann-hide"].includes(act);
+  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal","tk-new","tk-open","pending-check","pending-cancel","export-data","delete-account","sitter-link","sitter-make","sitter-stop","cal-sub","cal-reset","rem-on","rem-off","rem-pref","rem-test","search","theme","setup-hide","ann-hide","install-app"].includes(act);
   if(needsDb && !db) return;
   switch(act){
     case "close": closeSheet(); break;
+    case "install-app": { const ev = INSTALL_EVT; if(!ev) break; INSTALL_EVT = null; try { await ev.prompt(); await ev.userChoice; } catch(_){} render(); break; }
     case "lang": if(window.HTi18n) HTi18n.set(b.dataset.l); break;
     case "auth-mode": { UI.auth = b.dataset.mode; UI.authErr = ""; const em = $("#au-email"); if(em) UI.authEmail = em.value; render(); break; }
     case "sign-out": closeSheet(); await sb.auth.signOut(); break;
@@ -2358,7 +2375,7 @@ document.addEventListener("submit", async e => {
   const by = meId();
   switch(kind){
     case "auth-signin": case "auth-signup": case "auth-forgot": case "auth-reset": {
-      const btn = $("#au-go"), err = $("#au-err"), label = btn.textContent; UI.authEmail = (v.email||"").trim();
+      const btn = $("#au-go"), err = $("#au-err"), label = btn.textContent; UI.authEmail = (v.email||"").trim(); if(kind === "auth-signin" && UI.authEmail.toLowerCase() === "admin") UI.authEmail = "admin@kopimore.com";
       btn.disabled = true; btn.textContent = "One moment…"; err.textContent = "";
       const fail = msg => { btn.disabled = false; btn.textContent = label; err.textContent = msg; };
       const friendly = e => /invalid login/i.test(e?.message||"") ? "That email and password don't match. Try again or reset your password."
