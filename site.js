@@ -1,3 +1,5 @@
+/* Spanish: translate first (when chosen), then start the page scripts */
+function __htBoot(){
 (function(){
 "use strict";
 var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -226,3 +228,8 @@ $$("[data-year]").forEach(function(el){ el.textContent = new Date().getFullYear(
   stage.addEventListener("mouseenter", function(){ hover = true; });
   stage.addEventListener("mouseleave", function(){ hover = false; });
 })();
+
+/* language switch in the header */
+(function(){ var L = (window.HTi18n && HTi18n.lang) || 'en'; document.querySelectorAll('[data-lang-toggle]').forEach(function(b){ b.textContent = L === 'es' ? 'EN' : 'ES'; b.setAttribute('aria-label', L === 'es' ? 'View in English' : 'Ver en español'); b.addEventListener('click', function(){ HTi18n.set(L === 'es' ? 'en' : 'es'); }); }); })();
+}
+if(window.HTi18n){ HTi18n.start('/i18n/es-site.json').then(__htBoot, __htBoot); } else { __htBoot(); }

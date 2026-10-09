@@ -521,7 +521,7 @@ a.mcard:hover{transform:translateY(-5px) rotate(-.8deg)}
 
 /* ---------- phones: show the app before the words ---------- */
 @media (max-width:860px){
-  .hero{display:flex;flex-direction:column;gap:22px}
+  .home-hero{display:flex;flex-direction:column;gap:22px}
   .hero .copy{display:contents}
   .hero .pill,.hero .facts{display:none}
   .hero h1{order:1}
@@ -574,3 +574,38 @@ a.mcard:hover{transform:translateY(-5px) rotate(-.8deg)}
   .hero .stores .store{flex:0 0 auto;min-width:0}
 }
 @media (prefers-reduced-motion:reduce){ .hc-ph,.hc-cap{transition:none} }
+
+/* language switch */
+.lang-btn{font:inherit;font-size:13px;font-weight:700;letter-spacing:.8px;color:var(--ink);background:transparent;border:1.5px solid var(--line);border-radius:999px;padding:6px 11px;cursor:pointer}
+.lang-btn:hover{background:var(--sage-soft)}
+html[lang="es"] .hero h1{font-size:clamp(46px,6.4vw,96px)}
+
+/* ---------- phones: notes sit under screenshots, features page reads as separate cards ---------- */
+@media (max-width:860px){
+  .stage .note-hand{display:none}
+  .fstage{flex-direction:column;align-items:center}
+  .fstage .fnote{position:relative;inset:auto;right:auto;bottom:auto;left:auto;top:auto;margin:14px auto 0;align-self:center;max-width:240px}
+  .feat,.feat.flip{flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:18px;background:#fff;border:1.5px solid var(--line);border-radius:30px;padding:24px 20px 6px;margin-top:26px;box-shadow:0 10px 28px rgba(47,59,69,.06)}
+  .feat .txt{order:1;flex:none;gap:14px}
+  .feat .pic{order:2;flex:none;padding-block:0 18px}
+  .feat .pic .bg{inset:30px 6% 0;border-radius:30px}
+  .feat .pic img{width:230px;max-width:72%}
+  .feat + .feat{margin-top:22px}
+}
+@media (max-width:860px){
+  .fbadge{width:54px;height:54px;border-radius:17px;left:2%;top:4px}
+  .fbadge svg{width:24px;height:24px}
+  .plan .price small{display:block;margin-top:6px}
+}
+@media (max-width:700px){
+  .tiers-table thead{display:none}
+  .tiers-table, .tiers-table tbody, .tiers-table tr, .tiers-table th, .tiers-table td{display:block;width:100%}
+  .tiers-table tr{border-bottom:1px solid var(--line);padding:14px 16px}
+  .tiers-table tr.grp{padding:8px 16px}
+  .tiers-table th[scope="row"]{padding:0 0 8px;font-size:17px}
+  .tiers-table td{padding:6px 0;width:100% !important;text-align:left !important}
+  .tiers-table td::before{content:attr(data-label);display:block;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .compare-wrap{overflow:visible}
+  .tiers-table{min-width:0 !important;width:100% !important}
+  .tiers-table tr.grp th{display:block;width:100%}
+}

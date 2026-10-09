@@ -11,6 +11,8 @@
 <meta name="apple-mobile-web-app-title" content="HeyTribe">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>HeyTribe</title>
+<meta property="og:type" content="website"><meta property="og:site_name" content="HeyTribe"><meta property="og:title" content="HeyTribe"><meta property="og:description" content="The whole family, finally in sync. Plans, chores, lists, meals and more, shared live."><meta property="og:url" content="https://heytribe.vercel.app/app/"><meta property="og:image" content="https://heytribe.vercel.app/og.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://heytribe.vercel.app/og.jpg">
+<script>try{if(localStorage.getItem("ht-lang")==="es"){document.documentElement.classList.add("es-wait");setTimeout(function(){document.documentElement.classList.remove("es-wait")},2500)}}catch(e){}</script><style>.es-wait body{opacity:0}</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@400;500;600;700;800&display=swap">
 <style>
@@ -237,6 +239,7 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
 .attn-r{display:flex;align-items:center;gap:10px;padding:11px 0;font-size:14.5px;border-bottom:1px solid var(--line)}
 .attn-r:last-child{border-bottom:0}.attn-r .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .attn-more{display:block;width:100%;text-align:left;padding:11px 0;font-size:13px;font-weight:600;color:var(--sage-ink)}
+.lang-sw{font-weight:600;color:var(--sage-ink);border:1.5px solid var(--line);border-radius:999px;padding:5px 12px}
 .samplebar{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--deep);color:#fff;border-radius:14px;padding:10px 12px 10px 14px;margin-bottom:12px;font-size:13px}.samplebar button{background:#fff;color:var(--deep);border-radius:999px;padding:6px 12px;font-weight:600;font-size:12.5px;flex-shrink:0}
 /* fridge */
 .fridge{position:relative;border-radius:26px;background:linear-gradient(180deg,var(--fridge-a),var(--fridge-b));border:1px solid var(--line);padding:26px 14px 22px}
@@ -332,6 +335,7 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
 <nav class="bar" aria-label="Main"><div class="in" id="nav"></div></nav>
 <div id="toast" class="toast" hidden></div>
 
+<script src="/i18n/ht-i18n.js"></script>
 <script src="/app/vendor/supabase.js"></script>
 <script src="/app/config.js"></script>
 <script>
@@ -706,7 +710,8 @@ function authScreen(){
       ${email(UI.authEmail)}${pw("au-pw","Password","current-password")}
       <button class="btn primary" id="au-go">Log in</button>${err}
       <div class="between" style="flex-wrap:wrap;gap:8px">${link("forgot","Forgot password?")}<span class="small">New here? ${link("signup","Make an account")}</span></div></form>`;
-  return `<div class="col" style="gap:22px;padding-top:18px">${logo}${body}
+  const langSw = `<button class="small lang-sw" data-act="lang" data-l="${((window.HTi18n&&HTi18n.lang)||"en")==="es"?"en":"es"}" data-no-tr>${((window.HTi18n&&HTi18n.lang)||"en")==="es"?"English":"Español"}</button>`;
+  return `<div class="col" style="gap:22px;padding-top:18px"><div class="between">${logo}${langSw}</div>${body}
     ${m==="signin"||m==="signup"?`<button class="choice" data-act="try-sample"><span class="lic" style="background:var(--m-rose-bg);color:var(--m-rose)">${ico("smile",24)}</span><span class="col grow"><b style="font-weight:600;font-size:16px">Look around with a sample family</b><span class="small">No account needed</span></span>${ico("fwd",18,2)}</button>`:""}</div>`;
 }
 
@@ -1341,6 +1346,7 @@ function family(){
     <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="onboard" data-mode="join">Join another tribe</button><button class="btn ghost" data-act="onboard" data-mode="create">Start a new tribe</button></div>
     <button class="small" data-act="leave-tribe" style="text-align:left;margin-top:8px;text-decoration:underline;text-underline-offset:3px">Leave this tribe</button>
   </div>
+  ${secHead("Language")}<div class="chips" style="margin-top:0">${[["en","English"],["es","Español"]].map(([l,n])=>`<button class="chip ${((window.HTi18n&&HTi18n.lang)||"en")===l?"on":""}" data-act="lang" data-l="${l}" data-no-tr>${n}</button>`).join("")}</div>
   ${SESSION?`${secHead("Your account")}<div class="paper col" style="padding:16px;gap:10px"><span style="font-weight:500;overflow-wrap:anywhere">${esc(SESSION.user.email||"")}</span><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="auth-change-pw">Change password</button><button class="btn ghost" data-act="sign-out">Log out</button></div></div>`:""}`;
 }
 
@@ -1704,10 +1710,11 @@ document.addEventListener("click", async e => {
   const g = e.target.closest("[data-go]"); if(g){ closeSheet(); if(g.dataset.trip){ UI.trip = g.dataset.trip; } go(g.dataset.go); return; }
   const b = e.target.closest("[data-act]"); if(!b) return;
   const id = b.dataset.id, act = b.dataset.act;
-  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out"].includes(act);
+  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang"].includes(act);
   if(needsDb && !db) return;
   switch(act){
     case "close": closeSheet(); break;
+    case "lang": if(window.HTi18n) HTi18n.set(b.dataset.l); break;
     case "auth-mode": { UI.auth = b.dataset.mode; UI.authErr = ""; const em = $("#au-email"); if(em) UI.authEmail = em.value; render(); break; }
     case "sign-out": closeSheet(); await sb.auth.signOut(); break;
     case "auth-change-pw": closeSheet(); UI.auth = "reset"; UI.authErr = ""; S.status = "auth"; render(); break;
@@ -1996,6 +2003,7 @@ async function afterLogin(){
   if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json', document.body);
 render();
 (async () => {
   if(!window.supabase || !CFG.supabaseUrl || !CFG.supabaseAnonKey){ S.status = "offline"; render(); return; }
