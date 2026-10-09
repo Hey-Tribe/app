@@ -5,6 +5,11 @@
 <meta name="description" content="HeyTribe keeps the whole family in sync: plans, chores, lists, meals, meds and more.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/app/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/app/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="HeyTribe">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>HeyTribe</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@400;500;600;700;800&display=swap">
@@ -1789,6 +1794,7 @@ document.addEventListener("submit", async e => {
       const fail = msg => { btn.disabled = false; btn.textContent = label; err.textContent = msg; };
       const friendly = e => /invalid login/i.test(e?.message||"") ? "That email and password don't match. Try again or reset your password."
         : /already registered|already exists/i.test(e?.message||"") ? "There's already an account with that email. Log in instead."
+        : /rate limit|too many/i.test(e?.message||"") ? "Lots of sign-ups right now. Wait a few minutes and try again."
         : /email not confirmed/i.test(e?.message||"") ? "Confirm your email first. Check your inbox for the link."
         : /password/i.test(e?.message||"") ? (e.message||"Choose a stronger password.")
         : "Something went wrong. Check your connection and try again.";
