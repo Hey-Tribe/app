@@ -204,3 +204,25 @@ $$("[data-year]").forEach(function(el){ el.textContent = new Date().getFullYear(
   }, { passive: true });
   mark(0);
 })();
+
+/* hero: slow carousel through every app screen */
+(function(){
+  var stage = document.querySelector(".hero-car"); if(!stage) return;
+  var ph = [].slice.call(stage.querySelectorAll(".hc-ph")), cap = stage.querySelector(".hc-cap"), n = ph.length, cur = 0, timer = null, hover = false;
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function place(){
+    ph.forEach(function(el, i){
+      var d = (i - cur + n) % n; if(d > n / 2) d -= n;
+      el.setAttribute("data-pos", Math.abs(d) <= 2 ? String(d) : (d > 0 ? "far" : "-far"));
+    });
+    var c = ph[cur];
+    if(cap){ cap.classList.add("fade"); setTimeout(function(){ cap.querySelector("b").textContent = c.getAttribute("data-name"); cap.querySelector("span").textContent = c.getAttribute("data-sub"); cap.classList.remove("fade"); }, 350); }
+    var ahead = ph[(cur + 2) % n].querySelector("img"); if(ahead && ahead.loading === "lazy") ahead.loading = "eager";
+  }
+  function step(){ if(hover || document.hidden) return; cur = (cur + 1) % n; place(); }
+  place();
+  if(reduce) return;
+  timer = setInterval(step, 3600);
+  stage.addEventListener("mouseenter", function(){ hover = true; });
+  stage.addEventListener("mouseleave", function(){ hover = false; });
+})();
