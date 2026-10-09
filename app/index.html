@@ -282,8 +282,7 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
   body.has-side .side{display:flex;flex-direction:column;gap:12px;position:fixed;top:0;left:0;bottom:0;width:264px;padding:22px 16px 16px;background:var(--surface);border-right:1px solid var(--line);overflow-y:auto;z-index:25}
   body.has-side nav.bar{display:none}
   body.has-side .gbar{display:none}
-  body.has-side #app{max-width:none;margin:0 0 0 264px;padding:30px max(44px, calc((100vw - 264px - 1120px) / 2)) 64px}
-  body.has-side #app:not([data-view="today"]):not([data-view="calendar"]):not([data-view="chores"]) > *{max-width:780px}
+  body.has-side #app{max-width:none;margin:0 0 0 264px;padding:28px clamp(28px, 2.6vw, 56px) 64px}
   body.has-side .toast{bottom:32px;left:calc(50% + 132px)}
   .side-top{display:flex;flex-direction:column;gap:14px;padding:0 6px}
   .side-tribe{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:14px;background:var(--sage-soft);color:var(--deep)}
@@ -302,6 +301,15 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
   .side-me b{display:block;font-weight:600;font-size:14px}
   .side-me small{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
   .dash{columns:2;column-gap:20px}
+  .mcols,.dash.mcols{columns:auto;display:flex;gap:24px;align-items:flex-start}
+  .dash.mcols{gap:20px;margin-top:20px}
+  .mcol{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
+  .dash .mcol .dsec{display:block;margin:0 0 20px}
+  .mgrp > .sechead:first-child{margin-top:20px}
+  .cardgrid{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:16px;align-items:start}
+  div.cardgrid:not(.col){margin-top:16px}
+  .cardgrid > .paper{margin-top:0 !important}
+  .pad .mcols{gap:36px}
   .dash .dsec{break-inside:avoid;display:inline-block;width:100%;margin-top:0;margin-bottom:20px}
   .dash .dsec + .dsec{margin-top:0}
   .scrim{align-items:center}
@@ -309,6 +317,8 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
   .sheet .grab{display:none}
 }
 @media (min-width:1024px) and (max-width:1180px){ .dash{columns:1} }
+@media (min-width:1600px){ .dash{columns:3} }
+@media (min-width:2300px){ .dash{columns:4} }
 @keyframes pop{from{transform:scale(.97);opacity:0}to{transform:none;opacity:1}}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
@@ -478,6 +488,48 @@ function makeDb(client){
     reset: teardown
   };
 }
+/* desktop: spread sections across the full width in balanced columns (shortest column first, reading order kept) */
+const PAGE_COLS = ["home","health","docs","school","contacts","family","baby","routines","menu","sitter","trip","trips"];
+function masonry(host, items, n){
+  host.classList.add("mcols"); host.style.setProperty("--n", n);
+  const cols = Array.from({ length: n }, () => { const c = document.createElement("div"); c.className = "mcol"; host.appendChild(c); return c; });
+  items.forEach(it => { let best = cols[0]; for(const c of cols) if(c.offsetHeight < best.offsetHeight - 1) best = c; best.appendChild(it); });
+}
+function deskLayout(app){
+  if(!document.body.classList.contains("has-side") || innerWidth < 1024) return;
+  const w = app.clientWidth - parseFloat(getComputedStyle(app).paddingLeft) - parseFloat(getComputedStyle(app).paddingRight);
+  const dash = app.querySelector(".dash");
+  if(UI.view === "today" && dash){
+    const n = Math.max(1, Math.min(4, Math.floor((w + 20) / 440)));
+    if(n > 1) masonry(dash, [...dash.children], n);
+    return;
+  }
+  if(UI.view === "lists"){
+    const pad = app.querySelector(".pad"), n = Math.max(1, Math.min(3, Math.floor((w + 24) / 440)));
+    if(!pad || n < 2) return;
+    const groups = []; let g = null;
+    [...pad.children].filter(k => k.tagName !== "FORM").forEach(k => { if(k.classList.contains("sec") || !g){ g = document.createElement("div"); g.className = "lgrp"; groups.push(g); } g.appendChild(k); });
+    if(groups.length < 2){ groups.forEach(x => pad.appendChild(x)); return; }
+    const wrap = document.createElement("div"); pad.appendChild(wrap); masonry(wrap, groups, n);
+    return;
+  }
+  if(!PAGE_COLS.includes(UI.view)) return;
+  // side-by-side cards: any run of 2+ full-width cards at the top level becomes a grid
+  let run = [];
+  const flush = () => { if(run.length > 1){ const grid = document.createElement("div"); grid.className = "cardgrid"; run[0].before(grid); run.forEach(x => grid.appendChild(x)); } run = []; };
+  [...app.children].forEach(k => { if(k.classList.contains("paper") && !k.classList.contains("cardgrid")) run.push(k); else flush(); }); flush();
+  [...app.children].forEach(k => { if(k.classList.contains("col") && k.children.length > 1 && [...k.children].every(c => c.classList.contains("paper"))) k.classList.add("cardgrid"); });
+  const n = Math.max(1, Math.min(3, Math.floor((w + 28) / 520)));
+  const kids = [...app.children], first = kids.findIndex(k => k.classList && k.classList.contains("sechead"));
+  if(n < 2 || first < 0) return;
+  const groups = []; let g = null;
+  kids.slice(first).forEach(k => { if(k.classList.contains("sechead") || !g){ g = document.createElement("div"); g.className = "mgrp"; groups.push(g); } g.appendChild(k); });
+  if(groups.length < 2){ groups.forEach(x => app.appendChild(x)); return; }
+  const wrap = document.createElement("div"); app.appendChild(wrap);
+  masonry(wrap, groups, n);
+}
+let deskT = 0; addEventListener("resize", () => { clearTimeout(deskT); deskT = setTimeout(() => { if(S.status === "ready" && innerWidth >= 1024 && !$("#scrim")) render(); }, 180); });
+
 /* plan and billing: limits only apply once checkout is switched on, so nobody is limited before they can upgrade */
 let PLAN = null, BILLING = false;
 const premium = () => TRIBE === "SAMPLE" || !PLAN || ["active","comped","past_due"].includes(PLAN.status) || (PLAN.status === "trialing" && new Date(PLAN.trial_ends_at) > new Date());
@@ -739,6 +791,7 @@ function render(){
   else { html = (VIEWFN[UI.view] || today)(); if(groupOf(UI.view)) html = groupBar() + html; if(TRIBE === "SAMPLE") html = `<div class="samplebar"><span>Sample family. Changes stay on this device.</span><button data-act="sample-exit">${SESSION ? "Back to my tribe" : "Make my own"}</button></div>` + html; }
   app.innerHTML = html;
   if(ready) renderNav();
+  if(ready) deskLayout(app);
   const on = $(".gtab.on"); if(on){ const bar = on.parentElement; bar.scrollLeft = Math.max(0, on.offsetLeft - bar.offsetLeft - 24); }
   if(fid && !$("#scrim")){ const el = document.getElementById(fid); if(el){ if(fval!==null && el.value!==fval) el.value = fval; el.focus(); try{ if(sel!=null) el.setSelectionRange(sel,sel); }catch(e){} } }
 }
@@ -1353,8 +1406,8 @@ function trips(){
   const card = t => { const pk = t.packing||[], done = pk.filter(x=>x.packed).length, n = t.start ? dayDiff(k, t.start) : null;
     return `<button class="paper col" data-act="trip-open" data-id="${esc(t.id)}" style="padding:18px;gap:8px;text-align:left;width:100%"><div class="between"><span class="serif" style="font-size:24px;min-width:0">${esc(t.name)}</span>${n!=null&&n>0?`<span class="tag">${rel(n)}</span>`:n!=null&&t.end>=k?`<span class="tag sand">happening now</span>`:""}</div><span class="small">${esc([t.where, t.start?fmtDay(t.start)+(t.end&&t.end!==t.start?" – "+fmtDay(t.end):""):""].filter(Boolean).join(" · "))}</span>${pk.length?`<div class="row" style="gap:10px"><span class="meter grow"><i style="width:${done/pk.length*100}%"></i></span><span class="small tabular">${done}/${pk.length} packed</span></div>`:""}</button>`; };
   return `${pageHead("Trips", addBtn('data-act="ent-new" data-kind="trip"', "Plan a trip"))}
-  <div class="col" style="gap:12px;margin-top:16px">${up.map(card).join("") || `<div class="empty"><span class="hand">no trips planned</span>Plan one to get a shared packing list, a day-by-day plan and pet-care notes.</div>`}</div>
-  ${past.length?secHead("Past trips")+`<div class="col" style="gap:10px">${past.map(card).join("")}</div>`:""}`;
+  <div class="col cardgrid" style="gap:12px;margin-top:16px">${up.map(card).join("") || `<div class="empty"><span class="hand">no trips planned</span>Plan one to get a shared packing list, a day-by-day plan and pet-care notes.</div>`}</div>
+  ${past.length?secHead("Past trips")+`<div class="col cardgrid" style="gap:10px">${past.map(card).join("")}</div>`:""}`;
 }
 function trip(){
   const t = S.trips.find(x=>x.id===UI.trip); if(!t){ UI.view = "trips"; return trips(); }
