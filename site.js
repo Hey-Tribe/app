@@ -48,8 +48,8 @@ function fitRotator(){
   var room = h1.getBoundingClientRect().width;
   if(widest > room && widest > 0) r.style.fontSize = (parseFloat(getComputedStyle(h1).fontSize) * room / widest * 0.98) + "px";
 }
-fitRotator(); addEventListener("resize", fitRotator); if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitRotator);
-new MutationObserver(function(){ if(!fitRotator.busy){ fitRotator.busy = 1; requestAnimationFrame(function(){ fitRotator(); fitRotator.busy = 0; }); } }).observe(rot, { attributes: true, attributeFilter: ["data-words"] });
+if(rot){ fitRotator(); addEventListener("resize", fitRotator); if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitRotator); }
+if(rot) new MutationObserver(function(){ if(!fitRotator.busy){ fitRotator.busy = 1; requestAnimationFrame(function(){ fitRotator(); fitRotator.busy = 0; }); } }).observe(rot, { attributes: true, attributeFilter: ["data-words"] });
 if(rot && !reduce){
   var words = (rot.getAttribute("data-words") || "").split("|"), i = 0;
   setInterval(function(){ i = (i + 1) % words.length; rot.textContent = words[i]; rot.style.animation = "none"; void rot.offsetWidth; rot.style.animation = ""; }, 2600);
