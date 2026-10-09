@@ -302,6 +302,20 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
   .side-me small{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
   .dash{columns:2;column-gap:20px}
   .mcols,.dash.mcols{columns:auto;display:flex;gap:24px;align-items:flex-start}
+  .dash.dk{columns:auto;display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:20px;margin-top:20px;align-items:start}
+  .dash.dk .dsec{display:block;margin:0;width:auto}
+  .dk [data-k="countdowns"],.dk [data-k="glance"],.dk [data-k="fridge"],.dk .dk-full{grid-column:1 / -1}
+  .dk [data-k="plans"]{grid-column:1}.dk [data-k="attention"]{grid-column:2}
+  .dk [data-k="plans"],.dk [data-k="attention"]{align-self:stretch}
+  .dk .cdrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));overflow:visible;margin:0;padding:2px 0 0;gap:14px}
+  .dk .cd{min-height:150px}
+  .dk .glance{grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+  .dk .cd ~ .cd-add{display:none}
+  .dk .gp.wide{grid-column:auto}
+  .dk .glance{grid-auto-flow:dense}
+  .dk .notes .note[style*="grid-column"]{grid-column:span 2 !important}
+  .dk .notes{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:26px 18px}
+  .dk .fridge::after{display:none}
   .dash.mcols{gap:20px;margin-top:20px}
   .mcol{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
   .dash .mcol .dsec{display:block;margin:0 0 20px}
@@ -500,8 +514,13 @@ function deskLayout(app){
   const w = app.clientWidth - parseFloat(getComputedStyle(app).paddingLeft) - parseFloat(getComputedStyle(app).paddingRight);
   const dash = app.querySelector(".dash");
   if(UI.view === "today" && dash){
-    const n = Math.max(1, Math.min(4, Math.floor((w + 20) / 440)));
-    if(n > 1) masonry(dash, [...dash.children], n);
+    // a planned desktop dashboard: countdowns across the top, plans beside what needs attention, then glance and the fridge
+    const get = k => dash.querySelector(`[data-k="${k}"]`);
+    const cd = get("countdowns"), pl = get("plans"), at = get("attention"), gl = get("glance"), fr = get("fridge");
+    dash.classList.add("dk");
+    [cd, pl, at, gl, fr].forEach(x => { if(x) dash.appendChild(x); });
+    if(pl && !at) pl.classList.add("dk-full");
+    if(at && !pl) at.classList.add("dk-full");
     return;
   }
   if(UI.view === "lists"){
@@ -1038,7 +1057,7 @@ function today(){
     fridge: () => sect("sage", "note", "On the fridge", sAct('data-act="note-new"', "Note"), fridgeBoard()),
     glance: () => { const g = glance(key, due, doneCount, groceries, L.panels); return g ? sect("sand", "grid", "At a glance", "", g) : ""; }
   };
-  return `<div class="dash">` + L.order.filter(k => !L.hidden.includes(k)).map(k => SEC[k]()).join("") + `</div><button class="custbtn" data-act="layout">${ico("sliders",17,2)} Customize this screen</button>`; })()}`;
+  return `<div class="dash">` + L.order.filter(k => !L.hidden.includes(k)).map(k => SEC[k]().replace('<section class="dsec', `<section data-k="${k}" class="dsec`)).join("") + `</div><button class="custbtn" data-act="layout">${ico("sliders",17,2)} Customize this screen</button>`; })()}`;
 }
 function glance(key, due, doneCount, groceries, hiddenPanels=[]){
   const panel = (tone, ic, title, big, body, wide) => `<div class="gp ${wide?"wide":""}"><div class="gp-h"><span class="ic" style="background:var(--m-${tone}-bg);color:var(--m-${tone})">${ico(ic,16)}</span><span>${title}</span></div>${big?`<div class="gp-big">${big}</div>`:""}${body||""}</div>`;
