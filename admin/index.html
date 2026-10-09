@@ -161,7 +161,7 @@ function loginView(mode, msg){
     <div class="row" style="gap:8px;font-size:19px">${mark(26)}<span>hey<b style="font-weight:800">tribe</b></span><span class="pill" style="margin-left:auto">Admin</span></div>
     <h1 style="font-size:28px">${mode === "up" ? "Create your admin login" : mode === "reset" ? "Reset your password" : "Sign in"}</h1>
     ${msg ? `<p class="sub" style="margin:0">${esc(msg)}</p>` : ""}
-    <div class="field"><label for="em">Email</label><input id="em" type="email" autocomplete="email" required></div>
+    <div class="field"><label for="em">${mode === "in" ? "Username or email" : "Email"}</label><input id="em" type="${mode === "in" ? "text" : "email"}" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
     ${mode !== "reset" ? `<div class="field"><label for="pw">Password</label><input id="pw" type="password" minlength="8" autocomplete="${mode === "up" ? "new-password" : "current-password"}" required></div>` : ""}
     <button class="btn" style="justify-content:center">${mode === "up" ? "Create login" : mode === "reset" ? "Send reset link" : "Sign in"}</button>
     <p class="err" id="le"></p>
@@ -172,7 +172,7 @@ function loginView(mode, msg){
   </form></div>`;
   document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => loginView(b.dataset.m));
   $("#lf").onsubmit = async e => {
-    e.preventDefault(); const em = $("#em").value.trim(), pw = $("#pw")?.value, er = $("#le"); er.textContent = "";
+    e.preventDefault(); let em = $("#em").value.trim(); if(mode === "in" && em.toLowerCase() === "admin") em = "admin@kopimore.com"; const pw = $("#pw")?.value, er = $("#le"); er.textContent = "";
     try {
       if(mode === "up"){ const r = await sb.auth.signUp({ email: em, password: pw, options: { emailRedirectTo: location.origin + "/" } }); if(r.error) throw r.error; if(!r.data.session) loginView("in", "Check your email for a confirmation link, then sign in."); }
       else if(mode === "reset"){ const r = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin + "/" }); if(r.error) throw r.error; loginView("in", "If that email has a login, a reset link is on its way."); }
