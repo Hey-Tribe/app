@@ -73,17 +73,5 @@
         }
       ]
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "admin.heytribe.app"
-        }
-      ],
-      "destination": "/admin/index.html"
-    }
   ]
 }
