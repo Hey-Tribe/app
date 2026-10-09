@@ -265,6 +265,40 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
 .night .grab{background:rgba(255,255,255,.25)}
 @keyframes up{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+/* ---------- desktop: sidebar, wide main area, centered dialogs ---------- */
+.side{display:none}
+@media (min-width:1024px){
+  body.has-side .side{display:flex;flex-direction:column;gap:12px;position:fixed;top:0;left:0;bottom:0;width:264px;padding:22px 16px 16px;background:var(--surface);border-right:1px solid var(--line);overflow-y:auto;z-index:25}
+  body.has-side nav.bar{display:none}
+  body.has-side .gbar{display:none}
+  body.has-side #app{max-width:none;margin:0 0 0 264px;padding:30px max(44px, calc((100vw - 264px - 1120px) / 2)) 64px}
+  body.has-side #app:not([data-view="today"]):not([data-view="calendar"]):not([data-view="chores"]) > *{max-width:780px}
+  body.has-side .toast{bottom:32px;left:calc(50% + 132px)}
+  .side-top{display:flex;flex-direction:column;gap:14px;padding:0 6px}
+  .side-tribe{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:14px;background:var(--sage-soft);color:var(--deep)}
+  .side-tribe b{display:block;font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .side-tribe small{display:block;font-size:12px;color:var(--muted);letter-spacing:.6px}
+  .side-ht{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:14px;background:var(--sage);color:#fff;font-weight:600;font-size:14.5px}
+  .side-ht:hover{background:var(--sage-ink)}
+  .side-nav{display:flex;flex-direction:column;gap:2px;flex:1}
+  .side-g{display:flex;flex-direction:column;gap:1px;margin-top:10px}
+  .side-h{font-size:11px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint);padding:0 12px 4px}
+  .side-i{display:flex;align-items:center;gap:12px;padding:7px 12px;border-radius:12px;color:var(--muted);font-size:14.5px;font-weight:500;text-align:left}
+  .side-i:hover{background:var(--bg);color:var(--ink)}
+  .side-i.on{background:var(--ink);color:#fff}
+  .side-me{display:flex;align-items:center;gap:10px;padding:10px;border-radius:16px;border:1px solid var(--line);color:var(--ink)}
+  .side-me.on,.side-me:hover{background:var(--bg)}
+  .side-me b{display:block;font-weight:600;font-size:14px}
+  .side-me small{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+  .dash{columns:2;column-gap:20px}
+  .dash .dsec{break-inside:avoid;display:inline-block;width:100%;margin-top:0;margin-bottom:20px}
+  .dash .dsec + .dsec{margin-top:0}
+  .scrim{align-items:center}
+  .sheet{border-radius:26px;max-width:540px;max-height:86vh;padding-bottom:24px;animation:pop .2s ease}
+  .sheet .grab{display:none}
+}
+@media (min-width:1024px) and (max-width:1180px){ .dash{columns:1} }
+@keyframes pop{from{transform:scale(.97);opacity:0}to{transform:none;opacity:1}}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
 .field input,.field select,.field textarea{border:1.5px solid var(--line);background:var(--surface);border-radius:14px;padding:11px 13px;font-size:16px;width:100%;min-width:0}
@@ -293,6 +327,7 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
 </style>
 
 </head><body>
+<aside class="side" id="side" hidden aria-label="HeyTribe"></aside>
 <main id="app" aria-live="polite"></main>
 <nav class="bar" aria-label="Main"><div class="in" id="nav"></div></nav>
 <div id="toast" class="toast" hidden></div>
@@ -583,6 +618,9 @@ function render(){
   const ready = S.status === "ready" && S.members.length;
   document.body.classList.toggle("kidmode", !!ready && UI.view === "kid");
   $("nav.bar").hidden = !ready;
+  $("#side").hidden = !ready || UI.view === "kid";
+  document.body.classList.toggle("has-side", !!ready && UI.view !== "kid");
+  app.dataset.view = ready ? UI.view : S.status;
   const f = document.activeElement, fid = f && f.id, fval = f && "value" in f ? f.value : null, sel = f && f.selectionStart;
   let html;
   if(S.status === "loading") html = loading();
@@ -609,10 +647,23 @@ function groupBar(){
   return `<div class="gbar"><div class="gtabs" role="tablist" aria-label="${GROUPS[g].label}">${GROUPS[g].views.map(([v,l])=>`<button class="gtab ${cur===v?"on":""}" data-go="${v}" role="tab" aria-selected="${cur===v}">${l}</button>`).join("")}${g==="kids"?`<button class="gtab kidv" data-act="kid-pick">${ico("smile",15,2)} Kid view</button>`:""}</div><button class="gme" data-go="family" aria-label="Family and settings">${face(mem(meId()),34)}</button></div>`;
 }
 function renderNav(){
+  renderSide();
   const cg = groupOf(UI.view);
   const t = (v,ic,l) => `<button class="tab ${UI.view===v?"on":""}" data-go="${v}" aria-label="${l}">${ico(ic,24,UI.view===v?2:1.7)}<span>${l}</span></button>`;
   const gt = g => `<button class="tab ${cg===g?"on":""}" data-go="${lastIn(g)}" aria-label="${GROUPS[g].label}">${ico(GROUPS[g].icon,24,cg===g?2:1.7)}<span>${GROUPS[g].label}</span></button>`;
   $("#nav").innerHTML = t("today","sun","Today") + gt("plan") + `<button class="mic" data-act="ht" aria-label="Hey Tribe">${mark(48)}</button>` + gt("kids") + gt("home");
+}
+function renderSide(){
+  const side = $("#side"); if(!side) return;
+  const me = mem(meId()), cur = UI.view === "trip" ? "trips" : UI.view;
+  const item = (v, ic, l) => `<button class="side-i ${cur===v?"on":""}" data-go="${v}">${ico(ic,19,cur===v?2.1:1.8)}<span>${l}</span></button>`;
+  const ICON = { calendar:"cal", lists:"cart", menu:"pot", trips:"plane", chores:"check", routines:"sun", school:"book", baby:"bottle", home:"dollar", health:"heart", docs:"file", contacts:"phone", sitter:"shield" };
+  const sec = g => `<div class="side-g"><span class="side-h">${GROUPS[g].label}</span>${GROUPS[g].views.map(([v,l]) => item(v, ICON[v] || "note", l)).join("")}${g==="kids"?`<button class="side-i" data-act="kid-pick">${ico("smile",19,1.8)}<span>Kid view</span></button>`:""}</div>`;
+  side.innerHTML = `<div class="side-top"><div class="row" style="gap:8px">${mark(26)}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div>
+    <button class="side-tribe" data-go="family"><span class="col" style="min-width:0;text-align:left"><b>${esc(S.tribe?.name || "Your tribe")}</b><small>Code ${esc(TRIBE||"")}</small></span>${ico("fwd",16,2)}</button></div>
+    <button class="side-ht" data-act="ht">${mark(22,"#fff","var(--sage)")}<span>Tell Hey Tribe</span></button>
+    <nav class="side-nav">${item("today","sun","Today")}${sec("plan")}${sec("kids")}${sec("home")}</nav>
+    <button class="side-me ${cur==="family"?"on":""}" data-go="family">${face(me,34)}<span class="col" style="min-width:0;text-align:left"><b>${esc(me?.name || "You")}</b><small>${esc(SESSION?.user?.email || "Family and settings")}</small></span>${ico("gear",18,1.8)}</button>`;
 }
 function go(v){ if(!VIEWS.includes(v) || v === "fridge") v = "today"; UI.view = v; if(!["trip","kid"].includes(v)) store.set("ht-view", v); const g = groupOf(v); if(g && v !== "trip") store.set("ht-last-"+g, v); window.scrollTo(0,0); render(); }
 
@@ -825,7 +876,7 @@ function today(){
     fridge: () => sect("sage", "note", "On the fridge", sAct('data-act="note-new"', "Note"), fridgeBoard()),
     glance: () => { const g = glance(key, due, doneCount, groceries, L.panels); return g ? sect("sand", "grid", "At a glance", "", g) : ""; }
   };
-  return L.order.filter(k => !L.hidden.includes(k)).map(k => SEC[k]()).join("") + `<button class="custbtn" data-act="layout">${ico("sliders",17,2)} Customize this screen</button>`; })()}`;
+  return `<div class="dash">` + L.order.filter(k => !L.hidden.includes(k)).map(k => SEC[k]()).join("") + `</div><button class="custbtn" data-act="layout">${ico("sliders",17,2)} Customize this screen</button>`; })()}`;
 }
 function glance(key, due, doneCount, groceries, hiddenPanels=[]){
   const panel = (tone, ic, title, big, body, wide) => `<div class="gp ${wide?"wide":""}"><div class="gp-h"><span class="ic" style="background:var(--m-${tone}-bg);color:var(--m-${tone})">${ico(ic,16)}</span><span>${title}</span></div>${big?`<div class="gp-big">${big}</div>`:""}${body||""}</div>`;
