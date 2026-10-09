@@ -259,9 +259,9 @@ function barChart(el, rows, o){
     <details style="margin-top:8px"><summary class="sub" style="cursor:pointer;font-size:12.5px">Show as a table</summary><table class="tbl" style="margin-top:6px"><tr><th>Day</th>${o.head.map(h => `<th class="num">${h}</th>`).join("")}</tr>${rows.slice().reverse().map(r => `<tr><td>${fmtD(r.day+"T00:00:00")}</td>${o.cells(r).map(c => `<td class="num tab">${c}</td>`).join("")}</tr>`).join("")}</table></details>`;
   const tip = el.querySelector(".tip"), svg = el.querySelector("svg");
   svg.querySelectorAll("rect[data-i]").forEach(rc => {
-    rc.addEventListener("mouseenter", () => { const r = rows[+rc.dataset.i], b = rc.getBoundingClientRect(), o = el.getBoundingClientRect();
+    rc.addEventListener("mouseenter", () => { const r = rows[+rc.dataset.i], b = rc.getBoundingClientRect(), box = el.getBoundingClientRect();
       tip.innerHTML = `<b>${new Date(r.day+"T00:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}</b> · ${o.tip(r)}`;
-      tip.style.left = (b.left - o.left + b.width/2) + "px"; tip.style.top = (y(Number(r[K])) / H * svg.getBoundingClientRect().height) + "px"; tip.style.opacity = 1; });
+      tip.style.left = (b.left - box.left + b.width/2) + "px"; tip.style.top = (y(Number(r[K])) / H * svg.getBoundingClientRect().height) + "px"; tip.style.opacity = 1; });
     rc.addEventListener("mouseleave", () => tip.style.opacity = 0);
   });
 }
