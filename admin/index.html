@@ -73,9 +73,18 @@ input:focus,select:focus,textarea:focus{border-color:var(--sage)}
 .banner b{color:#5A3D0A}
 .banner.ok{background:var(--good-soft);color:#2F5A43}.banner.ok b{color:#234632}.banner a{color:inherit;font-weight:600}
 .grid>*{min-width:0}
+.b-open{background:var(--rose-soft);color:#8A5D57}.b-waiting{background:var(--blue-soft);color:#3E6382}.b-resolved{background:var(--good-soft);color:var(--good)}
+.b-urgent{background:var(--bad-soft);color:var(--bad)}.b-high{background:var(--warn-soft);color:var(--warn)}.b-normal,.b-low{background:var(--bg);color:var(--muted)}
+.tk-sub{font-weight:600;display:block;max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tk-prev{display:block;max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:13px}
+.thread{display:flex;flex-direction:column;gap:10px}
+.msg{border-radius:14px;padding:12px 14px;font-size:14.5px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--line);background:var(--bg)}
+.msg.team{background:var(--good-soft);border-color:transparent}.msg.note{background:var(--sand-soft);border:1px dashed #D9C08A}
+.msg .who{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-bottom:4px;white-space:normal}
+.ctl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ctl select{width:100%}
+.ctx{font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 14px}
 .err-msg{min-width:220px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;overflow-wrap:anywhere}
 .bars{display:flex;flex-direction:column;gap:8px}.bars .r{display:grid;grid-template-columns:minmax(90px,1.2fr) 3fr auto;gap:10px;align-items:center;font-size:13.5px}.bars .t{height:10px;background:var(--line);border-radius:999px;overflow:hidden}.bars .t i{display:block;height:100%;background:#5E8C7A;border-radius:999px}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}.seg button{padding:5px 12px;border-radius:999px;font-size:13px;font-weight:600;color:var(--muted)}.seg button.on{background:var(--ink);color:#fff}
+.seg{max-width:100%;overflow-x:auto;display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}.seg button{padding:5px 12px;border-radius:999px;font-size:13px;font-weight:600;color:var(--muted)}.seg button.on{background:var(--ink);color:#fff}
 /* chart */
 .chart{position:relative}
 .chart svg{display:block;width:100%;height:auto;overflow:visible}
@@ -146,7 +155,7 @@ const ICON = {
 const ico = (n, s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]||""}</svg>`;
 const mark = w => `<svg width="${w}" height="${Math.round(w*112/120)}" viewBox="0 0 120 112" aria-hidden="true"><path d="M30 0H90A30 30 0 0 1 120 30V58A30 30 0 0 1 90 88H46L22 110V88A22 24 0 0 1 0 64V30A30 30 0 0 1 30 0Z" fill="#5E8C7A"/><circle cx="35" cy="44" r="11" fill="#fff"/><circle cx="63" cy="44" r="11" fill="#fff"/><circle cx="88" cy="49" r="7" fill="#fff"/></svg>`;
 const ST = { stats:null, view: (location.hash.slice(1) || "overview"), me:null };
-const VIEWS = [["overview","Overview","home"],["traffic","Traffic","chart"],["families","Families","users"],["people","People","user"],["billing","Billing","card"],["roadmap","Roadmap","map"],["inbox","Inbox","inbox"],["errors","Errors","alert"],["settings","Settings","gear"]];
+const VIEWS = [["overview","Overview","home"],["traffic","Traffic","chart"],["families","Families","users"],["people","People","user"],["billing","Billing","card"],["roadmap","Roadmap","map"],["support","Support","inbox"],["errors","Errors","alert"],["settings","Settings","gear"]];
 let BILLING_ON = null;
 async function billingOn(){ if(BILLING_ON === null){ try { BILLING_ON = !!(await (await fetch("/api/billing", { cache: "no-store" })).json()).enabled; } catch(e){ BILLING_ON = false; } } return BILLING_ON; }
 const STATUS_LABEL = { trialing:"Trial", active:"Paying", past_due:"Past due", canceled:"Canceled", comped:"Comped", free:"Free", none:"No plan", expired:"Trial ended" };
@@ -195,10 +204,10 @@ function deniedView(email){
 
 /* ---------- shell ---------- */
 function shell(){
-  const n = ST.stats?.inbox_new || 0;
+  const n = ST.stats?.tickets_open || 0;
   $("#root").innerHTML = `<div class="shell"><aside class="side">
     <div class="brand">${mark(24)}<span>hey<b>tribe</b></span><span class="tag">Admin</span></div>
-    ${VIEWS.map(([v,l,i]) => `<button class="nav ${ST.view===v?"on":""}" data-v="${v}">${ico(i)}<span>${l}</span>${v==="inbox"&&n?`<span class="n">${n}</span>`:""}${v==="errors"&&ST.stats?.errors_24h?`<span class="n">${ST.stats.errors_24h}</span>`:""}</button>`).join("")}
+    ${VIEWS.map(([v,l,i]) => `<button class="nav ${ST.view===v?"on":""}" data-v="${v}">${ico(i)}<span>${l}</span>${v==="support"&&n?`<span class="n">${n}</span>`:""}${v==="errors"&&ST.stats?.errors_24h?`<span class="n">${ST.stats.errors_24h}</span>`:""}</button>`).join("")}
     <div class="me"><span>${esc(ST.me?.email||"")}</span><a href="https://www.heytribe.app/app/" target="_blank" rel="noopener">Open the app</a><button style="text-align:left;color:var(--sage-ink);font-weight:600" id="so">Sign out</button></div>
   </aside><main class="main" id="main"><div class="empty">Loading…</div></main></div>`;
   document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => go(b.dataset.v));
@@ -207,7 +216,7 @@ function shell(){
 function go(v){ ST.view = v; history.replaceState(null, "", "#" + v); shell(); render(); }
 async function render(){
   const m = $("#main"); if(!m) return;
-  try { await ({ overview, traffic, families, people, billing, roadmap, inbox, errors, settings })[ST.view](m); }
+  try { await ({ overview, traffic, families, people, billing, roadmap, inbox, support, errors, settings })[ST.view](m); }
   catch(x){ m.innerHTML = `<div class="card"><h2>Couldn't load this page</h2><p class="sub">${esc(x.message || x)}</p></div>`; }
 }
 
@@ -221,6 +230,7 @@ async function overview(m){
   m.innerHTML = `<div class="head"><div><h1>Overview</h1><p class="sub">${new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</p></div><button class="btn ghost sm" id="rf">Refresh</button></div>
     ${s.errors_24h ? `<div class="banner"><span>⚠</span><div><b>${s.errors_24h} error report${s.errors_24h==1?"":"s"} in the last 24 hours.</b> <a href="#errors" data-goto="errors">See what's breaking</a></div></div>` : ""}
     <div class="grid kpis">
+      ${kpi("Support", s.tickets_open ?? 0, s.tickets_open ? `need a reply · oldest ${s.tickets_oldest_hours < 24 ? s.tickets_oldest_hours + "h" : Math.round(s.tickets_oldest_hours/24) + "d"}` : "all caught up")}
       ${kpi("Visitors", s.visitors_7d ?? 0, "on the website and app, 7 days")}
       ${kpi("Sign-ups", s.users_total, `${s.users_7d} this week · ${s.users_today} today`)}
       ${kpi("Families", s.tribes_total, `${s.tribes_7d} new this week`)}
@@ -443,6 +453,114 @@ async function traffic(m){
     </div>`;
   barChart($("#tch"), t.daily, { key: "visitors", aria: `Daily visitors for the last ${days} days`, tip: r => `${r.visitors} visitor${r.visitors==1?"":"s"} · ${r.views} page view${r.views==1?"":"s"}`, head: ["Visitors","Page views"], cells: r => [r.visitors, r.views] });
   m.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { ST.tDays = +b.dataset.d; render(); });
+}
+
+/* ---------- support ---------- */
+const TK_STATUS = { open: "Needs reply", waiting: "Waiting on family", resolved: "Resolved" };
+const TK_CAT = { question: "Question", bug: "Bug", billing: "Billing", account: "Account", idea: "Idea", other: "Other" };
+const tkBadge = st => `<span class="badge b-${st}">${TK_STATUS[st] || st}</span>`;
+const prBadge = p => p === "normal" ? "" : `<span class="badge b-${p}">${p[0].toUpperCase() + p.slice(1)}</span>`;
+async function support(m){
+  const f = ST.tkFilter || "open";
+  m.innerHTML = `<div class="head"><div><h1>Support</h1><p class="sub">Requests from the app and the website's contact form. Replies to app users show up in their app.</p></div>
+      <div class="row" style="flex-wrap:wrap"><button class="btn ghost sm" id="sr">Saved replies</button><button class="btn sm" id="tn">+ New ticket</button></div></div>
+    <div class="between" style="flex-wrap:wrap;gap:10px;margin-bottom:12px"><div class="seg">${[["open","Needs reply"],["waiting","Waiting"],["mine","Mine"],["resolved","Resolved"],["all","All"]].map(([k,l]) => `<button class="${f===k?"on":""}" data-tf="${k}">${l}</button>`).join("")}</div>
+      <input class="search" id="q" placeholder="Search subject, email or #number" value="${esc(ST.tkQ||"")}"></div>
+    <div id="tl"><div class="empty">Loading…</div></div>`;
+  const load = async () => {
+    const rows = await rpc("admin_tickets", { p_status: f, p_q: $("#q").value.trim() });
+    $("#tl").innerHTML = rows.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>#</th><th>Request</th><th>From</th><th>Type</th><th>Status</th><th>Updated</th><th>Owner</th></tr></thead><tbody>
+      ${rows.map(t => `<tr class="click" data-id="${t.id}"><td class="tab">${t.number}</td><td><span class="tk-sub">${t.last_from==="customer"&&t.status==="open"?"● ":""}${esc(t.subject)}</span><span class="tk-prev">${esc(t.preview||"")}</span></td>
+        <td>${esc(t.name || t.email)}<br><small class="sub">${t.tribe_name ? esc(t.tribe_name) : t.source === "website" ? "website" : esc(t.email)}</small></td>
+        <td>${TK_CAT[t.category]||t.category} ${prBadge(t.priority)}</td><td>${tkBadge(t.status)}</td><td>${ago(t.updated_at)}</td><td>${t.assignee ? esc(t.assignee.split("@")[0]) : `<span class="sub">—</span>`}</td></tr>`).join("")}</tbody></table></div>`
+      : `<div class="card empty">${f === "open" ? "Nothing needs a reply. Nice." : "No requests here."}</div>`;
+    m.querySelectorAll("[data-id]").forEach(r => r.onclick = () => ticketDrawer(r.dataset.id));
+  };
+  m.querySelectorAll("[data-tf]").forEach(b => b.onclick = () => { ST.tkFilter = b.dataset.tf; render(); });
+  let tm; $("#q").oninput = () => { ST.tkQ = $("#q").value; clearTimeout(tm); tm = setTimeout(load, 250); };
+  $("#tn").onclick = newTicketModal; $("#sr").onclick = savedRepliesModal;
+  await load();
+  if(ST.openTicket){ const id = ST.openTicket; ST.openTicket = null; ticketDrawer(id); }
+}
+async function ticketDrawer(id){
+  const [tr, mr, ar, sr] = await Promise.all([sb.from("tickets").select("*").eq("id", id).maybeSingle(), sb.from("ticket_messages").select("*").eq("ticket_id", id).order("created_at"), sb.from("admin_emails").select("email"), sb.from("saved_replies").select("*").order("title")]);
+  const t = tr.data; if(!t) return toast("Couldn't open that ticket");
+  const msgs = mr.data || [], admins = (ar.data || []).map(a => a.email), saved = sr.data || [];
+  const c = t.context || {};
+  const inApp = !!t.user_id;
+  const sel = (id, opts, cur) => `<select id="${id}">${opts.map(([v,l]) => `<option value="${v}" ${v===cur?"selected":""}>${l}</option>`).join("")}</select>`;
+  const old = document.querySelector(".scrim"); if(old) old.remove();
+  const s = document.createElement("div"); s.className = "scrim"; s.innerHTML = `<div class="drawer">
+    <div class="between" style="align-items:flex-start"><div style="min-width:0"><p class="sub" style="margin:0">#${t.number} · ${t.source === "website" ? "from the website" : t.source === "admin" ? "started by the team" : "from the app"} · ${fmtD(t.created_at)}</p><h1 style="font-size:24px;overflow-wrap:anywhere">${esc(t.subject)}</h1></div><button class="btn ghost sm" data-x>Close</button></div>
+    <div><b>${esc(t.name || t.email)}</b> <span class="sub">${t.name ? esc(t.email) : ""}</span>${t.tribe_code ? ` · <button class="pill" data-fam="${esc(t.tribe_code)}">Family ${esc(t.tribe_code)}</button>` : ""}
+      <div class="ctx" style="margin-top:6px">${[c.device, c.plan && "plan: " + c.plan, c.lang && "language: " + c.lang, c.view && "screen: " + c.view, c.phone && "phone: " + c.phone].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}</div></div>
+    <div class="ctl">
+      <div class="field"><label for="t-st">Status</label>${sel("t-st", Object.entries(TK_STATUS), t.status)}</div>
+      <div class="field"><label for="t-pr">Priority</label>${sel("t-pr", [["low","Low"],["normal","Normal"],["high","High"],["urgent","Urgent"]], t.priority)}</div>
+      <div class="field"><label for="t-ca">Type</label>${sel("t-ca", Object.entries(TK_CAT), t.category)}</div>
+      <div class="field"><label for="t-as">Owner</label>${sel("t-as", [["","Nobody"], ...admins.map(a => [a, a])], t.assignee || "")}</div>
+    </div>
+    <div class="thread">${msgs.map(x => `<div class="msg ${x.internal ? "note" : x.author}"><div class="who"><b>${x.internal ? "Internal note · " : ""}${x.author === "team" ? esc((x.author_email||"Team").split("@")[0]) : esc(t.name || t.email)}</b><span>${ago(x.created_at)}</span></div>${esc(x.body)}</div>`).join("")}</div>
+    <form id="tk-form" style="display:flex;flex-direction:column;gap:10px">
+      ${saved.length ? `<select id="t-sv" aria-label="Insert a saved reply" style="border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px"><option value="">Insert a saved reply…</option>${saved.map(r => `<option value="${r.id}">${esc(r.title)}</option>`).join("")}</select>` : ""}
+      <textarea id="t-body" rows="6" maxlength="5000" placeholder="${inApp ? "Write a reply. They'll see it in the app." : "Write a reply, then send it by email too."}" style="border:1.5px solid var(--line);border-radius:14px;padding:11px 13px;font:inherit;font-size:15px"></textarea>
+      <label class="row" style="gap:8px;font-size:14px"><input type="checkbox" id="t-note" style="width:18px;height:18px;accent-color:var(--sage)">Internal note (only the team sees it)</label>
+      ${inApp ? "" : `<p class="sub" style="margin:0;font-size:13px">${esc(t.email)} doesn't have the app, so after sending, your email app opens with the reply ready to go.</p>`}
+      <div class="row" style="flex-wrap:wrap"><button class="btn" data-send="waiting">Send</button><button class="btn ghost" data-send="resolved">Send and resolve</button></div>
+    </form></div>`;
+  document.body.appendChild(s);
+  const close = () => s.remove();
+  s.onclick = e => { if(e.target === s || e.target.closest("[data-x]")) close(); };
+  const fam = s.querySelector("[data-fam]"); if(fam) fam.onclick = async () => { const rows = await rpc("admin_tribes", { p_q: fam.dataset.fam, p_limit: 5, p_offset: 0 }); const ft = rows.find(r => r.code === fam.dataset.fam); if(ft){ close(); familyDrawer(ft); } };
+  const sv = s.querySelector("#t-sv"); if(sv) sv.onchange = () => { const r = saved.find(x => String(x.id) === sv.value); if(r){ const b = s.querySelector("#t-body"); b.value = (b.value ? b.value + "\n\n" : "") + r.body; b.focus(); } sv.value = ""; };
+  const upd = async () => { await rpc("admin_ticket_update", { p_ticket: id, p_status: s.querySelector("#t-st").value, p_priority: s.querySelector("#t-pr").value, p_category: s.querySelector("#t-ca").value, p_assignee: s.querySelector("#t-as").value }); toast("Saved"); refreshCounts(); };
+  ["#t-st","#t-pr","#t-ca","#t-as"].forEach(q => s.querySelector(q).onchange = upd);
+  s.querySelectorAll("[data-send]").forEach(b => b.onclick = async e => {
+    e.preventDefault();
+    const body = s.querySelector("#t-body").value.trim(), note = s.querySelector("#t-note").checked;
+    if(!body) return s.querySelector("#t-body").focus();
+    b.disabled = true;
+    try { await rpc("admin_ticket_reply", { p_ticket: id, p_body: body, p_internal: note, p_status: b.dataset.send }); }
+    catch(x){ b.disabled = false; return toast(x.message || "Couldn't send"); }
+    if(!note && !inApp) location.href = `mailto:${encodeURIComponent(t.email)}?subject=${encodeURIComponent("Re: " + t.subject + " [#" + t.number + "]")}&body=${encodeURIComponent(body)}`;
+    toast(note ? "Note added" : b.dataset.send === "resolved" ? "Sent and resolved" : "Reply sent");
+    refreshCounts(); ticketDrawer(id); if(ST.view === "support"){ const mm = $("#main"); if(mm) support(mm); }
+  });
+}
+async function refreshCounts(){ try { ST.stats = await rpc("admin_stats"); const n = ST.stats.tickets_open || 0, el = document.querySelector('[data-v="support"]'); if(el){ const old = el.querySelector(".n"); if(old) old.remove(); if(n) el.insertAdjacentHTML("beforeend", `<span class="n">${n}</span>`); } } catch(e){} }
+function newTicketModal(){
+  const s = document.createElement("div"); s.className = "scrim center";
+  s.innerHTML = `<form class="modal" id="nt"><h1 style="font-size:26px">New ticket</h1><p class="sub" style="margin:0">Reach out to a family first. If their email has a HeyTribe login, they'll see it in the app.</p>
+    <div class="field"><label for="n-e">Email</label><input id="n-e" type="email" required></div>
+    <div class="field"><label for="n-s">Subject</label><input id="n-s" maxlength="140" required></div>
+    <div class="field"><label for="n-c">Type</label><select id="n-c">${Object.entries(TK_CAT).map(([k,l]) => `<option value="${k}">${l}</option>`).join("")}</select></div>
+    <div class="field"><label for="n-b">Message</label><textarea id="n-b" rows="5" maxlength="5000" required></textarea></div>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost" data-x>Cancel</button><button class="btn">Create</button></div></form>`;
+  document.body.appendChild(s);
+  s.onclick = e => { if(e.target === s || e.target.closest("[data-x]")) s.remove(); };
+  s.querySelector("#nt").onsubmit = async e => {
+    e.preventDefault();
+    const em = s.querySelector("#n-e").value.trim(), sub = s.querySelector("#n-s").value.trim(), body = s.querySelector("#n-b").value.trim();
+    try { const r = await rpc("admin_ticket_new", { p_email: em, p_subject: sub, p_body: body, p_category: s.querySelector("#n-c").value });
+      s.remove();
+      if(!r.in_app) location.href = `mailto:${encodeURIComponent(em)}?subject=${encodeURIComponent(sub + " [#" + r.number + "]")}&body=${encodeURIComponent(body)}`;
+      toast("Ticket #" + r.number + " created"); ST.tkFilter = "waiting"; ST.openTicket = r.id; go("support");
+    } catch(x){ toast(x.message || "Couldn't create it"); }
+  };
+}
+async function savedRepliesModal(){
+  const r = await sb.from("saved_replies").select("*").order("title");
+  const s = document.createElement("div"); s.className = "scrim center";
+  s.innerHTML = `<div class="modal"><div class="between"><h1 style="font-size:26px">Saved replies</h1><button class="btn ghost sm" data-x>Done</button></div>
+    <div class="list">${(r.data||[]).map(x => `<div class="li" style="align-items:flex-start"><div class="t"><b>${esc(x.title)}</b><small style="white-space:pre-wrap">${esc(x.body)}</small></div><button class="btn danger sm" data-del="${x.id}">Delete</button></div>`).join("") || `<div class="sub">None yet.</div>`}</div>
+    <form id="sf" style="display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:14px"><b>Add one</b>
+      <div class="field"><label for="s-t">Title</label><input id="s-t" maxlength="80" required></div>
+      <div class="field"><label for="s-b">Reply</label><textarea id="s-b" rows="4" maxlength="5000" required style="border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;font:inherit"></textarea></div>
+      <button class="btn" style="align-self:flex-start">Save</button></form></div>`;
+  document.body.appendChild(s);
+  s.onclick = e => { if(e.target === s || e.target.closest("[data-x]")) s.remove(); };
+  s.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { await sb.from("saved_replies").delete().eq("id", b.dataset.del); s.remove(); savedRepliesModal(); });
+  s.querySelector("#sf").onsubmit = async e => { e.preventDefault(); const q = await sb.from("saved_replies").insert({ title: s.querySelector("#s-t").value.trim(), body: s.querySelector("#s-b").value.trim() }); if(q.error) return toast(q.error.message); s.remove(); savedRepliesModal(); };
 }
 
 /* ---------- errors ---------- */

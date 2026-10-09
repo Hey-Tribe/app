@@ -61,6 +61,14 @@ h1.title em{color:var(--sage-ink)}
 .chip{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line);border-radius:999px;padding:3px 13px 3px 3px;font-weight:500;font-size:14px;background:var(--surface);min-height:36px}
 .chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .chip.plain{padding:6px 14px}
+.tk-row{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:12px 0;border-top:1px solid var(--line)}
+.tk-row:first-child{border-top:0}
+.tk-dot{width:9px;height:9px;border-radius:50%;background:var(--rose,#C9877D);flex-shrink:0}
+.tk-thread{display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow:auto;padding:2px}
+.tk-msg{max-width:88%;padding:10px 13px;border-radius:16px;font-size:15px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.tk-msg.me{align-self:flex-end;background:var(--sage);color:var(--on-sage);border-bottom-right-radius:6px}
+.tk-msg.team{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:6px}
+.tk-msg small{display:block;font-size:11.5px;opacity:.7;margin-top:4px}
 .chip.late{border-color:var(--rose);color:var(--rose-ink)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .paper{background:var(--surface);border:1px solid var(--line);border-radius:20px}
@@ -517,6 +525,52 @@ function planCard(){
   else if(st === "trialing" && d > 0){ head = "Premium trial"; sub = d === 1 ? "1 day left" : d + " days left"; btn = up("Keep Premium · $4.99/mo"); }
   else { head = "Free plan"; sub = "Every feature, in an everyday version."; btn = up("Get Premium · $4.99/mo"); }
   return `${secHead("Your plan")}<div class="paper col" style="padding:16px;gap:10px"><div class="between" style="gap:10px;flex-wrap:wrap"><span class="col"><b style="font-weight:600;font-size:17px">${head}</b><span class="small">${sub}</span></span>${head==="Free plan"?"":`<span class="tag">${ico("star",13,2.2)} Premium</span>`}</div>${btn?`<div class="row" style="gap:8px;flex-wrap:wrap">${btn}</div>`:""}</div>`;
+}
+
+/* support requests: families write in from the app; the team answers in admin.heytribe.app */
+const SUP = { list: null, nagged: false };
+const TK_CATS = [["question","Question"],["bug","Something's broken"],["billing","Billing"],["account","My account"],["idea","Idea"]];
+const tkUnread = t => t.team_last_at && (!t.customer_seen_at || new Date(t.team_last_at) > new Date(t.customer_seen_at));
+const tkState = t => t.status === "resolved" ? "Resolved" : tkUnread(t) ? "New reply" : t.last_from === "team" ? "Replied" : "We'll reply soon";
+async function loadTickets(){
+  if(!sb || !SESSION){ SUP.list = null; return; }
+  const r = await sb.from("tickets").select("id, number, subject, status, updated_at, last_from, team_last_at, customer_seen_at").order("updated_at", { ascending: false }).limit(20);
+  if(r.error) return;
+  SUP.list = r.data || [];
+  const n = SUP.list.filter(tkUnread).length;
+  if(n && !SUP.nagged){ SUP.nagged = true; setTimeout(() => toast(n === 1 ? "Support replied to your request" : "Support replied to your requests"), 1500); }
+  if(S.status === "ready" && UI.view === "family") render();
+}
+function supportCard(){
+  if(!SESSION || TRIBE === "SAMPLE") return "";
+  const L = SUP.list || [];
+  return `${secHead("Help and support")}<div class="paper col" style="padding:${L.length?"6px 16px 14px":"16px"};gap:10px">
+    ${L.length ? `<div class="col">${L.slice(0,5).map(t => `<button class="tk-row" data-act="tk-open" data-id="${esc(t.id)}">${tkUnread(t)?`<span class="tk-dot" aria-label="New reply"></span>`:""}<span class="col grow" style="min-width:0"><b style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.subject)}</b><span class="small"><span data-no-tr>#${t.number}</span> · ${tkState(t)}</span></span>${ico("fwd",16,2)}</button>`).join("")}</div>` : `<p class="small" style="margin:0">Stuck, found a bug or have an idea? Write to us and a real person will answer, right here in the app.</p>`}
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="tk-new">${ico("note",18)} Contact support</button><a class="btn ghost" href="/help.html" target="_blank" rel="noopener">Help center</a></div></div>`;
+}
+function ticketNewSheet(cat){
+  openSheet(`<form data-form="ticket" class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">Contact support</h2>
+    <p class="small" style="margin:0">We usually answer within a day. You'll see our reply under Family & settings.</p>
+    <div class="col" style="gap:6px"><span class="eyebrow">What's it about?</span><div class="chips" style="margin-top:0">${TK_CATS.map(([k,l]) => `<button type="button" class="chip plain ${k===(cat||"question")?"on":""}" data-tk-cat="${k}">${l}</button>`).join("")}</div><input type="hidden" name="category" value="${esc(cat||"question")}"></div>
+    <div class="field"><label for="tk-s">Subject</label><input id="tk-s" name="subject" maxlength="120" placeholder="A few words, like “Calendar won't load”"></div>
+    <div class="field"><label for="tk-b">Message</label><textarea id="tk-b" name="body" rows="5" maxlength="5000" required placeholder="What happened, and what did you expect?"></textarea></div>
+    <p class="form-err small" id="tk-err" role="alert"></p>
+    <button class="btn primary" id="tk-go">Send</button></form>`);
+}
+async function ticketSheet(id){
+  const t = (SUP.list || []).find(x => x.id === id); if(!t) return;
+  const r = await sb.from("ticket_messages").select("author, body, created_at").eq("ticket_id", id).order("created_at");
+  const msgs = r.data || [];
+  const when = d => { const x = new Date(d); return fmtDay(ymd(x)) + ", " + fmtT(x.getHours()*60 + x.getMinutes()); };
+  openSheet(`<div class="col" style="gap:14px">
+    <div><span class="small" data-no-tr>#${t.number}</span><h2 class="serif" style="font-size:26px;margin:2px 0 0;overflow-wrap:anywhere">${esc(t.subject)}</h2></div>
+    <div class="tk-thread" id="tk-thread">${msgs.map(m => `<div class="tk-msg ${m.author==="customer"?"me":"team"}"><span data-no-tr>${esc(m.body)}</span><small>${m.author==="customer"?"You":"HeyTribe support"} · ${when(m.created_at)}</small></div>`).join("")}</div>
+    <form data-form="ticket-reply" data-id="${esc(id)}" class="col" style="gap:10px">
+      <div class="field"><label for="tk-r">${t.status === "resolved" ? "Still need help? Reply to reopen" : "Reply"}</label><textarea id="tk-r" name="body" rows="3" maxlength="5000" required></textarea></div>
+      <button class="btn primary">Send reply</button></form></div>`);
+  const th = $("#tk-thread"); if(th) th.scrollTop = th.scrollHeight;
+  if(tkUnread(t)){ t.customer_seen_at = new Date().toISOString(); sb.rpc("ticket_seen", { p_ticket: id }).then(() => {}, () => {}); render(); }
 }
 
 /* files: private bucket, one folder per tribe; shown through short-lived signed links */
@@ -1398,6 +1452,7 @@ function family(){
   </div>
   ${secHead("Language")}<div class="chips" style="margin-top:0">${[["en","English"],["es","Español"]].map(([l,n])=>`<button class="chip ${((window.HTi18n&&HTi18n.lang)||"en")===l?"on":""}" data-act="lang" data-l="${l}" data-no-tr>${n}</button>`).join("")}</div>
   ${planCard()}
+  ${supportCard()}
   ${SESSION?`${secHead("Your account")}<div class="paper col" style="padding:16px;gap:10px"><span style="font-weight:500;overflow-wrap:anywhere">${esc(SESSION.user.email||"")}</span><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="auth-change-pw">Change password</button><button class="btn ghost" data-act="sign-out">Log out</button></div></div>`:""}`;
 }
 
@@ -1767,9 +1822,10 @@ document.addEventListener("click", async e => {
   const dt = e.target.closest("[data-day-toggle]"); if(dt){ dt.classList.toggle("on"); dt.setAttribute("aria-pressed", dt.classList.contains("on")); return; }
   const st = e.target.closest("[data-status]"); if(st){ const f = st.closest("form"); f.querySelector("#st-t").value = st.dataset.status; f.requestSubmit(); return; }
   const g = e.target.closest("[data-go]"); if(g){ closeSheet(); if(g.dataset.trip){ UI.trip = g.dataset.trip; } go(g.dataset.go); return; }
+  const tc = e.target.closest("[data-tk-cat]"); if(tc){ const f = tc.closest("form"); f.querySelectorAll("[data-tk-cat]").forEach(x => x.classList.toggle("on", x === tc)); f.querySelector('input[name="category"]').value = tc.dataset.tkCat; return; }
   const b = e.target.closest("[data-act]"); if(!b) return;
   const id = b.dataset.id, act = b.dataset.act;
-  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal"].includes(act);
+  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal","tk-new","tk-open"].includes(act);
   if(needsDb && !db) return;
   switch(act){
     case "close": closeSheet(); break;
@@ -1884,6 +1940,8 @@ document.addEventListener("click", async e => {
     case "setme": setMe(TRIBE, id); if(b.dataset.close) closeSheet(); render(); toast("Got it, "+memName(id)); break;
     case "member-new": if(!gate(S.members.length < 6, "Free tribes have room for 6 people. Premium makes room for everyone.")) break; memberSheet(); break;
     case "upgrade": billingGo("checkout", b); break;
+    case "tk-new": ticketNewSheet(); break;
+    case "tk-open": ticketSheet(id); break;
     case "billing-portal": billingGo("portal", b); break;
     case "member-edit": memberSheet(id); break;
     case "member-del": { const m = mem(id); if(!m) break; openSheet(`<div class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Remove ${esc(m.name)}?</h2><p style="margin:0;color:var(--muted)">Their plans and chores stay, but show as “Someone”.</p><div class="row" style="gap:10px"><button class="btn ghost grow" data-act="close">Keep</button><button class="btn dark grow" data-act="member-del-yes" data-id="${esc(m.id)}">Remove</button></div></div>`); break; }
@@ -1904,6 +1962,21 @@ document.addEventListener("submit", async e => {
   const f = e.target.closest("form[data-form]"); if(!f) return; e.preventDefault();
   const v = Object.fromEntries(new FormData(f).entries()), kind = f.dataset.form;
   if(kind === "ht"){ if(String(v.text||"").trim()) htUnderstand(v.text.trim()); return; }
+  if(kind === "ticket"){
+    const err = $("#tk-err"), btn = $("#tk-go"); if(!String(v.body||"").trim()){ err.textContent = "Write a short message first."; return; }
+    btn.disabled = true; btn.textContent = "Sending…";
+    const ctx = { view: UI.view, lang: (window.HTi18n && HTi18n.lang) || "en", plan: PLAN ? PLAN.status : null, device: innerWidth < 700 ? "phone" : innerWidth < 1024 ? "tablet" : "desktop", ua: navigator.userAgent.slice(0, 160), page: location.pathname };
+    const r = await sb.rpc("create_ticket", { p_subject: v.subject || "", p_body: v.body, p_category: v.category || "question", p_tribe: TRIBE && TRIBE !== "SAMPLE" ? TRIBE : null, p_context: ctx });
+    if(r.error){ btn.disabled = false; btn.textContent = "Send"; err.textContent = /too many/.test(r.error.message||"") ? "You've sent a lot of requests today. We'll get to them soon." : "Couldn't send that. Check your connection and try again."; return; }
+    closeSheet(); toast("Sent! Request #" + r.data.number + ". We'll reply here."); await loadTickets(); render(); return;
+  }
+  if(kind === "ticket-reply"){
+    const btn = f.querySelector("button"); if(!String(v.body||"").trim()) return;
+    btn.disabled = true;
+    const r = await sb.rpc("ticket_reply", { p_ticket: f.dataset.id, p_body: v.body });
+    if(r.error){ btn.disabled = false; toast("Couldn't send that. Try again."); return; }
+    await loadTickets(); ticketSheet(f.dataset.id); toast("Reply sent"); return;
+  }
   if(!db) return;
   const by = meId();
   switch(kind){
@@ -2043,7 +2116,7 @@ function apply(c, docs){
 }
 function connect(code){
   unsubs.forEach(u=>{ try{ u(); }catch(e){} }); unsubs = [];
-  TRIBE = code; store.set("ht-tribe", code); rememberTribe(code); PLAN = null; loadPlan(code);
+  TRIBE = code; store.set("ht-tribe", code); rememberTribe(code); PLAN = null; loadPlan(code); loadTickets();
   Object.assign(S, EMPTY()); S.status = "loading"; UI.who = null; UI.choreMember = null; render();
   const got = new Set(), need = COLS.length + 3;
   const done = k => {
@@ -2084,7 +2157,7 @@ render();
   sb.auth.onAuthStateChange((event, session) => {
     const was = SESSION?.user?.id; SESSION = session;
     if(event === "PASSWORD_RECOVERY"){ UI.auth = "reset"; S.status = "auth"; render(); return; }
-    if(event === "SIGNED_OUT"){ db.reset(); unsubs.forEach(u=>{ try{u();}catch(e){} }); unsubs = []; TRIBE = null; Object.assign(S, EMPTY()); store.del("ht-tribe"); store.set("ht-tribes","[]"); try { Object.keys(localStorage).filter(k => /^ht-(me-|last-|view)/.test(k)).forEach(k => localStorage.removeItem(k)); } catch(e){} UI.view = "today"; UI.auth = "signin"; S.status = "auth"; render(); return; }
+    if(event === "SIGNED_OUT"){ db.reset(); unsubs.forEach(u=>{ try{u();}catch(e){} }); unsubs = []; TRIBE = null; SUP.list = null; SUP.nagged = false; PLAN = null; Object.assign(S, EMPTY()); store.del("ht-tribe"); store.set("ht-tribes","[]"); try { Object.keys(localStorage).filter(k => /^ht-(me-|last-|view)/.test(k)).forEach(k => localStorage.removeItem(k)); } catch(e){} UI.view = "today"; UI.auth = "signin"; S.status = "auth"; render(); return; }
     if(event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;
     if(session && (first || session.user.id !== was)){ first = false; setTimeout(afterLogin, 0); return; }
     if(!session && first){ first = false;
@@ -2094,7 +2167,7 @@ render();
       S.status = "auth"; render();
     }
   });
-  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible" && TRIBE && TRIBE !== "SAMPLE"){ db.refresh(); loadPlan(TRIBE); } });
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible" && TRIBE && TRIBE !== "SAMPLE"){ db.refresh(); loadPlan(TRIBE); loadTickets(); } });
 })();
 })();
 </script>

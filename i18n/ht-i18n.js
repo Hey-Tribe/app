@@ -56,6 +56,7 @@
     [/^Sleep( ·)? (\d+h \d+m)$/, function(s, dot, t){ return "Sueño" + (dot || "") + " " + t; }],
     [/^(Feeds|Diapers) (\d+)$/, function(s, w, n){ return (w === "Feeds" ? "Tomas " : "Pañales ") + n; }],
     [/^Your tribe is ready\. Invite code ([A-Z0-9]+)$/, function(s, c){ return "Tu tribu está lista. Código de invitación " + c; }],
+    [/^Sent! Request #(\d+)\. We'll reply here\.$/, function(s, n){ return "¡Enviado! Solicitud #" + n + ". Te responderemos aquí."; }],
     [/^(\d+) days left$/, function(s, n){ return "Quedan " + n + " días"; }],
     [/^(\d+) days? to go$/, function(s, n){ return n === "1" ? "falta 1 día" : "faltan " + n + " días"; }]
   ];
