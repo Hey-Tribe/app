@@ -3,5 +3,10 @@
   "private": true,
   "type": "module",
   "description": "HeyTribe: the family planning app and its marketing site",
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "web-push": "3.6.7"
+  }
 }

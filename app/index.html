@@ -61,6 +61,30 @@ h1.title em{color:var(--sage-ink)}
 .chip{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line);border-radius:999px;padding:3px 13px 3px 3px;font-weight:500;font-size:14px;background:var(--surface);min-height:36px}
 .chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .chip.plain{padding:6px 14px}
+[hidden]{display:none !important}
+/* dark mode: same calm palette at night */
+:root[data-theme="dark"]{--bg:#151B1F;--surface:#1E262C;--ink:#E6EBE8;--muted:#A3ADB2;--line:#2D373E;--faint:#6E797F;--sage:#6E9F8B;--sage-ink:#93C2AD;--sage-soft:#22332D;--deep:#2B3F39;
+  --rose-ink:#D2ABA4;--blue-ink:#9DBAD0;--sand-ink:#D9B97E;--m-sage-bg:#23352E;--m-blue-bg:#223040;--m-rose-bg:#3A2A28;--m-olive-bg:#2E3226;--m-sand-bg:#3A3224;
+  --note-white:#283036;--note-sage:#25362F;--note-rose:#3A2C2A;--note-blue:#25313F;--note-sand:#393226;--fridge-a:#1B2327;--fridge-b:#172024;--shadow:rgba(0,0,0,.45);--grain:.02;color-scheme:dark}
+:root[data-theme="dark"] .side-i.on,:root[data-theme="dark"] .btn.dark{color:var(--bg)}
+:root[data-theme="dark"] .samplebar{background:#2B3F39}
+:root[data-theme="dark"] .side-tribe,:root[data-theme="dark"] .brief .hi{color:var(--sage-ink)}
+a.btn{color:inherit;text-decoration:none}
+:root[data-theme="dark"] .face svg circle[fill="#2F3B45"]{fill:#2F3B45}
+.searchres{display:flex;flex-direction:column;gap:2px;max-height:56vh;overflow:auto;margin-top:6px}
+.sr{display:flex;align-items:center;gap:12px;padding:10px 6px;border-radius:12px;text-align:left;width:100%}
+.sr:hover,.sr:focus-visible{background:var(--sage-soft)}
+.sr .k{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);width:78px;flex-shrink:0}
+.setup{background:var(--surface);border:1.5px dashed var(--line);border-radius:22px;padding:16px;margin-top:16px}
+.setup-s{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line);width:100%;text-align:left}
+.setup-s .bx{width:24px;height:24px;border-radius:8px;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff}
+.setup-s.done .bx{background:var(--sage);border-color:var(--sage)}.setup-s.done .t{color:var(--muted);text-decoration:line-through}
+.ann{display:flex;gap:12px;align-items:flex-start;background:var(--sage-soft);border-radius:18px;padding:14px 16px;margin-top:14px}
+.cus{display:block;height:4px;border-radius:2px;width:70%;margin:3px auto 0}
+.offbar{background:var(--sand-ink)}
+.alld{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.alld-i{display:flex;align-items:center;gap:8px;border:1.5px solid;border-radius:14px;padding:6px 8px 6px 12px;font-size:14px;text-align:left}
+.alld-i b{font-weight:600}
 .tk-row{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:12px 0;border-top:1px solid var(--line)}
 .tk-row:first-child{border-top:0}
 .tk-dot{width:9px;height:9px;border-radius:50%;background:var(--rose,#C9877D);flex-shrink:0}
@@ -207,14 +231,14 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
 /* today dashboard */
 .dsec{margin-top:18px;padding:18px 16px 20px;border-radius:26px;overflow:hidden;--tone:var(--sage)}
 .dsec.plain{background:var(--surface);border:1px solid var(--line)}
-.dsec.t-rose{--tone:var(--m-rose);background:color-mix(in srgb,var(--m-rose) 10%,#fff)}
-.dsec.t-blue{--tone:var(--m-blue);background:color-mix(in srgb,var(--m-blue) 9%,#fff)}
-.dsec.t-sage{--tone:var(--m-sage);background:color-mix(in srgb,var(--m-sage) 10%,#fff)}
-.dsec.t-sand{--tone:var(--m-sand);background:color-mix(in srgb,var(--m-sand) 12%,#fff)}
+.dsec.t-rose{--tone:var(--m-rose);background:color-mix(in srgb,var(--m-rose) 10%,var(--surface))}
+.dsec.t-blue{--tone:var(--m-blue);background:color-mix(in srgb,var(--m-blue) 9%,var(--surface))}
+.dsec.t-sage{--tone:var(--m-sage);background:color-mix(in srgb,var(--m-sage) 10%,var(--surface))}
+.dsec.t-sand{--tone:var(--m-sand);background:color-mix(in srgb,var(--m-sand) 12%,var(--surface))}
 .dsec + .dsec{margin-top:14px}
 .dsec-h{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .dsec-h h2{font-family:var(--f-display);font-weight:500;font-size:22px;margin:0;flex:1;letter-spacing:-.2px}
-.dsec-i{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#fff;color:var(--tone);box-shadow:0 1px 0 var(--line);flex-shrink:0}
+.dsec-i{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--surface);color:var(--tone);box-shadow:0 1px 0 var(--line);flex-shrink:0}
 .dsec.plain .dsec-i{background:var(--sage-soft);color:var(--sage-ink)}
 .dsec .cdrow{margin:0 -16px;padding-inline:16px}
 .dsec .fridge{background:rgba(255,255,255,.55)}
@@ -398,9 +422,11 @@ const store = { get(k){ try { return localStorage.getItem(k); } catch(e){ return
    and stores everything in Supabase: one row per document in public.docs, live updates over Realtime.
    The SAMPLE tribe is read-only on the server, so changes there stay on this device. */
 const CFG = window.HEYTRIBE || {};
+function applyTheme(){ const t = (()=>{ try { return localStorage.getItem("ht-theme") || "auto"; } catch(e){ return "auto"; } })(); const dark = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches); document.documentElement.dataset.theme = dark ? "dark" : "light"; const m = document.querySelector('meta[name="theme-color"]'); if(m) m.content = dark ? "#151B1F" : "#FBFCFA"; }
+applyTheme(); try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme); } catch(e){}
 const APP_URL = location.origin + "/app/";
 const SAMPLE_BASE = "2026-10-09";
-let sb = null, SESSION = null;
+let sb = null, SESSION = null, OFFLINE = false;
 const deepMerge = (a, b) => {
   const out = (a && typeof a === "object" && !Array.isArray(a)) ? { ...a } : {};
   for(const [k, v] of Object.entries(b || {})){
@@ -435,15 +461,19 @@ function makeDb(client){
     teardown(); T.code = code; T.local = code === "SAMPLE";
     T.shift = T.local ? Math.round((new Date(new Date().toDateString()) - new Date(SAMPLE_BASE + "T00:00:00")) / 864e5) : 0;
     T.ready = (async () => {
+      const snapKey = "ht-snap-" + code, fromSnap = () => { try { const sn = JSON.parse(localStorage.getItem(snapKey) || "null"); if(!sn) return false; T.tribe = sn.tribe; sn.rows.forEach(put); OFFLINE = true; return true; } catch(e){ return false; } };
       const tr = await client.from("tribes").select("name, created_at").eq("code", code).maybeSingle();
-      if(tr.error) throw tr.error;
+      if(tr.error){ if(!T.local && fromSnap()) return; throw tr.error; }
       T.tribe = tr.data ? { name: tr.data.name } : null;
+      const rows = [];
       for(let from = 0; ; from += 1000){
         const r = await client.from("docs").select("col, id, data").eq("tribe_code", code).range(from, from + 999);
-        if(r.error) throw r.error;
-        r.data.forEach(put);
+        if(r.error){ if(!T.local && fromSnap()) return; throw r.error; }
+        r.data.forEach(put); rows.push(...r.data);
         if(r.data.length < 1000) break;
       }
+      OFFLINE = false;
+      if(!T.local){ try { localStorage.setItem(snapKey, JSON.stringify({ tribe: T.tribe, rows, at: Date.now() })); } catch(e){} }
       if(!T.local){
         T.channel = client.channel("tribe-" + code)
           .on("postgres_changes", { event: "*", schema: "public", table: "docs", filter: "tribe_code=eq." + code }, p => {
@@ -598,6 +628,182 @@ function planCard(){
   return `${secHead("Your plan")}<div class="paper col" style="padding:16px;gap:10px"><div class="between" style="gap:10px;flex-wrap:wrap"><span class="col"><b style="font-weight:600;font-size:17px">${head}</b><span class="small">${sub}</span></span>${head==="Free plan"?"":`<span class="tag">${ico("star",13,2.2)} Premium</span>`}</div>${btn?`<div class="row" style="gap:8px;flex-wrap:wrap">${btn}</div>`:""}</div>`;
 }
 
+/* search across everything */
+function searchIndex(){
+  const out = [], add = (k, title, sub, attrs) => { if(title) out.push({ k, title: String(title), sub: sub || "", attrs, hay: (title + " " + (sub||"")).toLowerCase() }); };
+  S.events.forEach(e => add("Plan", e.title, [e.date ? fmtDayW(e.date) : "", e.allDay ? "All day" : fmtT(e.start), e.repeat ? repLabel(e.repeat) : "", e.place, e.note].filter(Boolean).join(" · "), `data-act="event" data-id="${esc(e.id)}" data-day="${esc(e.date)}"`));
+  S.items.forEach(i => add("List", i.text, i.list || "Groceries", `data-go="lists"`));
+  S.notes.forEach(n => add("Fridge", n.text, "Note on the fridge", `data-go="today"`));
+  S.chores.forEach(c => add("Chore", c.title, memName(c.member), `data-go="chores"`));
+  S.routines.forEach(r => add("Routine", r.name, [memName(r.member), (r.steps||[]).map(x=>x.text).join(", ")].join(" · "), `data-go="routines"`));
+  S.meds.forEach(m => add("Medicine", m.name, [memName(m.member), m.dose, (m.times||[]).map(t=>fmtT(fromHHMM(t))).join(", ")].filter(Boolean).join(" · "), `data-act="ent-edit" data-kind="med" data-id="${esc(m.id)}"`));
+  S.health.forEach(h => add("Health", h.title, [memName(h.member), h.note].filter(Boolean).join(" · "), `data-act="ent-edit" data-kind="record" data-id="${esc(h.id)}"`));
+  S.contacts.forEach(c => add("Contact", c.name, [c.phone, c.email, c.note].filter(Boolean).join(" · "), `data-act="ent-edit" data-kind="contact" data-id="${esc(c.id)}"`));
+  S.docs.forEach(d => add("Document", d.title, [d.where, d.expires ? "expires " + fmtDay(d.expires) : "", d.note].filter(Boolean).join(" · "), `data-act="ent-edit" data-kind="doc" data-id="${esc(d.id)}"`));
+  S.school.forEach(x => add("School", x.title, x.due ? "due " + fmtDay(x.due) : "", `data-go="school"`));
+  S.home.forEach(x => add(x.kind === "bill" ? "Bill" : x.kind === "sub" ? "Subscription" : "Home", x.name, x.amount ? money(x.amount) : "", `data-go="home"`));
+  S.trips.forEach(t => add("Trip", t.name, [t.where, t.start ? fmtDay(t.start) : ""].filter(Boolean).join(" · "), `data-act="trip-open" data-id="${esc(t.id)}"`));
+  S.countdowns.forEach(c => add("Big day", c.title, c.date ? fmtDay(c.date) : "", `data-act="ent-edit" data-kind="countdown" data-id="${esc(c.id)}"`));
+  Object.entries(S.meals || {}).forEach(([k, m]) => m && m.dish && add("Dinner", m.dish, fmtDayW(k), `data-go="menu"`));
+  const si = S.sitter || {}; [["Address", si.address], ["Wi-Fi", si.wifi], ["House rules", si.rules], ["House notes", si.notes]].forEach(([l, v]) => v && add("House", l, v, `data-go="sitter"`));
+  S.members.forEach(m => add("Person", m.name, m.status || "", `data-act="member-edit" data-id="${esc(m.id)}"`));
+  return out;
+}
+function searchSheet(){
+  openSheet(`<div class="col" style="gap:10px"><div class="field"><label for="srch">Search everything</label><input id="srch" type="search" autocomplete="off" placeholder="Passport, dentist, Wi-Fi, milk…" autofocus></div><div class="searchres" id="srch-r"><p class="small" style="margin:6px 0">Plans, lists, medicine, documents, contacts, bills and more.</p></div></div>`, false, el => {
+    const inp = el.querySelector("#srch"), box = el.querySelector("#srch-r"), idx = searchIndex(); inp.focus();
+    inp.addEventListener("input", () => {
+      const q = inp.value.trim().toLowerCase(); if(!q){ box.innerHTML = `<p class="small" style="margin:6px 0">Plans, lists, medicine, documents, contacts, bills and more.</p>`; return; }
+      const words = q.split(/\s+/), hits = idx.filter(x => words.every(w => x.hay.includes(w))).slice(0, 40);
+      box.innerHTML = hits.length ? hits.map(x => `<button class="sr" ${x.attrs}><span class="k">${esc(x.k)}</span><span class="col grow" style="min-width:0"><b style="font-weight:500;overflow-wrap:anywhere">${esc(x.title)}</b>${x.sub?`<span class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.sub)}</span>`:""}</span></button>`).join("") : `<p class="small" style="margin:6px 0">Nothing found for “${esc(inp.value.trim())}”.</p>`;
+    });
+  });
+}
+document.addEventListener("keydown", e => { if(S.status !== "ready" || $("#scrim")) return; const tg = e.target.tagName; if(/INPUT|TEXTAREA|SELECT/.test(tg)) return; if(e.key === "/" || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k")){ e.preventDefault(); searchSheet(); } });
+
+/* guided first-run setup */
+function setupCard(){
+  if(!SESSION || TRIBE === "SAMPLE" || store.get("ht-setup-hide-" + TRIBE)) return "";
+  const steps = [
+    [S.members.length > 1, "Add the people in your house", 'data-act="member-new"'],
+    [S.events.length > 0, "Add your first plan", 'data-act="event-new"'],
+    [S.items.length > 0, "Put something on the grocery list", 'data-go="lists"'],
+    [LOGINS.length > 1, "Invite your partner or family", 'data-act="copy-code"'],
+    [!!REM.row, "Turn on reminders", 'data-go="family"']
+  ];
+  const done = steps.filter(x => x[0]).length;
+  if(done === steps.length) return "";
+  return `<div class="setup"><div class="between"><span class="col"><b style="font-weight:600;font-size:17px">Get your family set up</b><span class="small">${done} of ${steps.length} done · about 2 minutes</span></span><button class="small" data-act="setup-hide" style="font-weight:600">Hide</button></div>
+    <div style="margin-top:8px">${steps.map(([ok, t, a]) => `<button class="setup-s ${ok?"done":""}" ${ok?"disabled":a}><span class="bx">${ok?TICK:""}</span><span class="t grow">${t}</span>${ok?"":ico("fwd",16,2)}</button>`).join("")}</div></div>`;
+}
+
+/* announcements from the HeyTribe team */
+let ANN = [];
+async function loadAnnouncements(){
+  if(!sb || !SESSION) return;
+  const r = await sb.from("announcements").select("id, title, body, link").eq("active", true).order("created_at", { ascending: false }).limit(3);
+  let gone = []; try { gone = JSON.parse(store.get("ht-ann-hide") || "[]"); } catch(e){}
+  ANN = (r.data || []).filter(a => !gone.includes(a.id));
+  if(S.status === "ready" && UI.view === "today") render();
+}
+function annCard(){ return ANN.slice(0, 1).map(a => `<div class="ann"><span class="lic" style="background:var(--surface);color:var(--sage-ink);width:34px;height:34px">${mark(18)}</span><span class="col grow" style="min-width:0;gap:2px"><b style="font-weight:600" data-no-tr>${esc(a.title)}</b>${a.body?`<span class="small" style="font-size:14px;line-height:1.45" data-no-tr>${esc(a.body)}</span>`:""}${a.link?`<a class="small" href="${esc(a.link)}" target="_blank" rel="noopener" style="font-weight:600;color:var(--sage-ink)">Learn more</a>`:""}</span><button class="iconbtn" data-act="ann-hide" data-id="${a.id}" aria-label="Dismiss" style="width:30px;height:30px">${ico("x",14,2.2)}</button></div>`).join(""); }
+
+/* co-parenting schedule: who the kids are with each day */
+const CUSTODY = [["week","Week on, week off"],["223","2-2-3"],["2255","2-2-5-5"],["weekend","Every other weekend"]];
+function custodyOn(day){
+  const c = S.custody; if(!c || !c.a || !c.b || !c.start || !c.pattern) return null;
+  const n = Math.floor((fromYmd(day) - fromYmd(c.start)) / 864e5), i = ((n % 14) + 14) % 14, wk = Math.floor(n / 7), d = dowIdx(fromYmd(day));
+  let a = true;
+  if(c.pattern === "week") a = ((wk % 2) + 2) % 2 === 0;
+  else if(c.pattern === "223") a = [0,1,4,5,6,9,10].includes(i);
+  else if(c.pattern === "2255") a = i < 2 || (i >= 4 && i < 9);
+  else if(c.pattern === "weekend") a = !(((wk % 2) + 2) % 2 === 0 && d >= 4);
+  return a ? c.a : c.b;
+}
+function custodyLine(day){
+  const who = custodyOn(day); if(!who) return "";
+  const tmr = custodyOn(ymd(addDays(fromYmd(day), 1)));
+  return `Kids are with ${esc(memName(who))}${tmr && tmr !== who ? `, switching to ${esc(memName(tmr))} tomorrow${S.custody.handoff ? " at " + fmtT(fromHHMM(S.custody.handoff)) : ""}` : ""}.`;
+}
+function custodySheet(){
+  const c = S.custody || {}, ad = sorted(S.members).filter(m => m.style !== "kid" && m.style !== "baby");
+  const opts = sel => ad.map(m => `<option value="${esc(m.id)}" ${m.id===sel?"selected":""}>${esc(m.name)}</option>`).join("");
+  openSheet(`<form data-form="custody" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Co-parenting schedule</h2>
+    <p style="margin:0;color:var(--muted);line-height:1.5">Show whose time it is on the calendar and in the morning briefing.</p>
+    <div class="grid2"><div class="field"><label for="cu-a">Parent</label><select id="cu-a" name="a">${opts(c.a || ad[0]?.id)}</select></div><div class="field"><label for="cu-b">Other parent</label><select id="cu-b" name="b">${opts(c.b || ad[1]?.id)}</select></div></div>
+    <div class="field"><label for="cu-p">Schedule</label><select id="cu-p" name="pattern">${CUSTODY.map(([k,l]) => `<option value="${k}" ${k===(c.pattern||"week")?"selected":""}>${l}</option>`).join("")}</select></div>
+    <div class="grid2"><div class="field"><label for="cu-s">First day with the first parent</label><input id="cu-s" name="start" type="date" value="${esc(c.start || ymd(monday(new Date())))}" required></div><div class="field"><label for="cu-h">Handoff time</label><input id="cu-h" name="handoff" type="time" value="${esc(c.handoff || "18:00")}"></div></div>
+    <div class="row" style="gap:10px">${c.pattern?`<button type="button" class="btn ghost" data-act="custody-off">Turn off</button>`:""}<button class="btn primary grow">Save</button></div></form>`);
+}
+
+/* reminders on this device (web push) */
+const REM = { ok: "serviceWorker" in navigator && "PushManager" in window && "Notification" in window, sub: null, row: null, loaded: false };
+const REM_TYPES = [["plans","Plans"],["meds","Medicine"],["bills","Bills"],["school","School forms"],["countdowns","Big days"]];
+const b64u = s => { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from([...b].map(c => c.charCodeAt(0))); };
+async function loadReminders(){
+  if(!REM.ok || !SESSION){ REM.loaded = true; return; }
+  try { const reg = await navigator.serviceWorker.ready; REM.sub = await reg.pushManager.getSubscription(); } catch(e){ REM.sub = null; }
+  REM.row = null;
+  if(REM.sub){ const r = await sb.from("push_subscriptions").select("id, prefs, tribe_code").eq("endpoint", REM.sub.endpoint).maybeSingle(); REM.row = r.data || null; }
+  REM.loaded = true; if(S.status === "ready" && UI.view === "family") render();
+}
+async function remindersOn(){
+  if(!REM.ok){ toast("This browser can't show reminders."); return; }
+  const perm = await Notification.requestPermission();
+  if(perm !== "granted"){ toast("Reminders are blocked. Allow notifications for HeyTribe in your settings."); return; }
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(CFG.vapidPublicKey) });
+  const j = sub.toJSON();
+  const row = { tribe_code: TRIBE, member_id: meId(), endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York", dead: false };
+  const r = await sb.from("push_subscriptions").upsert(row, { onConflict: "endpoint" }).select("id, prefs, tribe_code").maybeSingle();
+  if(r.error){ toast("Couldn't turn on reminders. Try again."); return; }
+  REM.sub = sub; REM.row = r.data; toast("Reminders are on for this device"); render();
+}
+async function remindersOff(){
+  if(REM.sub){ await sb.from("push_subscriptions").delete().eq("endpoint", REM.sub.endpoint); try { await REM.sub.unsubscribe(); } catch(e){} }
+  REM.sub = null; REM.row = null; toast("Reminders are off for this device"); render();
+}
+function remindersCard(){
+  if(!SESSION || TRIBE === "SAMPLE") return "";
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent), standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  let body;
+  if(!REM.ok) body = ios && !standalone ? `<p class="small" style="margin:0;line-height:1.5">To get reminders on iPhone, add HeyTribe to your Home Screen: tap the Share button, then <b>Add to Home Screen</b>. Open HeyTribe from there and turn reminders on.</p>` : `<p class="small" style="margin:0">This browser can't show reminders. Try Chrome, Edge, Firefox or Safari.</p>`;
+  else if(!REM.row) body = `<p class="small" style="margin:0;line-height:1.5">Get a nudge on this ${innerWidth < 1024 ? "phone" : "computer"} before plans, when medicine is due, for bills and school forms, and on big days.</p><div class="row" style="gap:8px"><button class="btn primary" data-act="rem-on">${ico("bellr",17)} Turn on reminders</button></div>`;
+  else { const pr = REM.row.prefs || {}; body = `<div class="chips" style="margin-top:0">${REM_TYPES.map(([k,l]) => `<button class="chip plain ${pr[k]!==false?"on":""}" data-act="rem-pref" data-k="${k}" aria-pressed="${pr[k]!==false}">${l}</button>`).join("")}</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="rem-test">Send a test</button><button class="btn ghost" data-act="rem-off">Turn off on this device</button></div>`; }
+  return `${secHead("Reminders")}<div class="paper col" style="padding:16px;gap:10px"><div class="between"><b style="font-weight:600">${REM.row ? "On for this device" : "Phone reminders"}</b>${REM.row?`<span class="tag">${ico("bellr",13,2)} On</span>`:""}</div>${body}</div>`;
+}
+
+/* sitter link (read-only, no login) and calendar subscription */
+async function sitterLinkSheet(){
+  const cur = await sb.from("sitter_links").select("token, expires_at").eq("tribe_code", TRIBE).maybeSingle();
+  const live = cur.data && new Date(cur.data.expires_at) > new Date() ? cur.data : null;
+  const url = t => location.origin + "/sitter/?t=" + t;
+  openSheet(`<div class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">Share with a sitter</h2>
+    <p style="margin:0;color:var(--muted);line-height:1.5">A private link that shows the care sheet: kids, allergies, medicine, bedtime routines, emergency contacts and house notes. No app or login needed. Health records, documents and everything else stay private.</p>
+    ${live ? `<div class="paper col" style="padding:14px;gap:8px"><span class="eyebrow">Link is on until ${fmtDay(ymd(new Date(live.expires_at)))}</span><span class="small" style="overflow-wrap:anywhere" data-no-tr>${esc(url(live.token))}</span>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="copy" data-text="${esc(url(live.token))}">${ico("copy",17)} Copy link</button><button class="btn ghost" data-act="sitter-stop">Turn off</button></div></div>` : ""}
+    <div class="col" style="gap:8px"><span class="eyebrow">${live ? "Make a new link" : "How long should it work?"}</span><div class="row" style="gap:8px;flex-wrap:wrap">${[[1,"Tonight"],[2,"2 days"],[7,"A week"],[30,"A month"]].map(([d,l])=>`<button class="chip plain" data-act="sitter-make" data-days="${d}">${l}</button>`).join("")}</div></div>
+  </div>`);
+}
+async function calSubSheet(reset){
+  const r = await sb.rpc("calendar_link", { p_code: TRIBE, p_reset: !!reset });
+  if(r.error){ toast("Couldn't make a calendar link. Try again."); return; }
+  const https = location.origin + "/api/calendar?t=" + r.data, webcal = https.replace(/^https?:/, "webcal:");
+  openSheet(`<div class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">Add to your calendar</h2>
+    <p style="margin:0;color:var(--muted);line-height:1.5">See the family's plans, trips and big days in Google, Apple or Outlook calendar. It updates on its own, about every few hours.</p>
+    <div class="col" style="gap:8px"><a class="btn primary" href="${esc(webcal)}">${ico("cal",17)} Add to Apple or Outlook</a>
+      <a class="btn ghost" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}" target="_blank" rel="noopener">Add to Google Calendar</a>
+      <button class="btn ghost" data-act="copy" data-text="${esc(https)}">${ico("copy",17)} Copy the link</button></div>
+    <p class="small" style="margin:0;line-height:1.45">Anyone with this link can see your plans. If it gets shared by mistake, <button class="small" data-act="cal-reset" style="font-weight:600;text-decoration:underline;text-underline-offset:3px">make a new link</button> and the old one stops working.</p></div>`);
+}
+
+/* who has access: approve requests, roles, remove people */
+function accessCard(){
+  if(!SESSION || !TRIBE || TRIBE === "SAMPLE" || !LOGINS.length) return "";
+  const parent = isParent(), pend = LOGINS.filter(l => l.status === "pending"), act = LOGINS.filter(l => l.status === "active");
+  const who = l => { const m = l.member_id && mem(l.member_id); return m ? esc(m.name) : esc(l.email.split("@")[0]); };
+  return `${secHead("Who has access")}<div class="paper col" style="padding:6px 16px 12px">
+    ${pend.map(l => `<div class="lrow" style="flex-wrap:wrap;gap:10px"><span class="lic" style="background:var(--m-sand-bg);color:var(--sand-ink)">${ico("users",18)}</span><span class="col grow" style="min-width:160px"><b style="font-weight:600;overflow-wrap:anywhere">${esc(l.email)}</b><span class="small">wants to join</span></span>${parent?`<span class="row" style="gap:6px;flex-wrap:wrap"><button class="chip plain on" data-act="login-approve" data-u="${esc(l.user_id)}" data-role="family">Approve</button><button class="chip plain" data-act="login-approve" data-u="${esc(l.user_id)}" data-role="parent">As a parent</button><button class="chip plain" data-act="login-remove" data-u="${esc(l.user_id)}">Decline</button></span>`:`<span class="small">a parent can approve</span>`}</div>`).join("")}
+    ${act.map(l => `<div class="lrow"><span class="col grow" style="min-width:0"><b style="font-weight:500;overflow-wrap:anywhere">${who(l)}${l.is_me?` <span class="hand" style="font-size:17px;color:var(--sage-ink)">you</span>`:""}</b><span class="small" style="overflow-wrap:anywhere">${esc(l.email)}</span></span><span class="tag ${l.role==="parent"?"":"muted"}">${l.role==="parent"?"Parent":"Family"}</span>${parent && !l.is_me?`<button class="iconbtn" data-act="login-menu" data-u="${esc(l.user_id)}" aria-label="Manage ${esc(l.email)}" style="width:34px;height:34px">${ico("gear",16)}</button>`:""}</div>`).join("")}
+    <p class="small" style="margin:8px 0 0;line-height:1.45">${parent ? "New people who use your invite code wait here until a parent approves them. Parents can approve, remove people and delete the family." : "Parents approve new people and manage access."}</p></div>`;
+}
+async function manageLogin(u, action, role){
+  const r = await sb.rpc("manage_login", { p_code: TRIBE, p_user: u, p_action: action, p_role: role || null });
+  if(r.error){ toast(/at least one parent/.test(r.error.message||"") ? "A family needs at least one parent." : "Couldn't change that. Try again."); return; }
+  closeSheet(); toast(action === "approve" ? "Approved" : action === "remove" ? "Removed" : "Updated"); loadLogins(TRIBE);
+}
+function exportData(){
+  const out = { exported_at: new Date().toISOString(), family: S.tribe?.name || "", code: TRIBE, members: S.members, events: S.events, chores: S.chores, lists: S.items, dinners: S.meals, fridge_notes: S.notes, poll: S.poll, baby_log: S.baby, routines: S.routines, medicine: S.meds, health: S.health, contacts: S.contacts, school: S.school, home: S.home, documents: S.docs.map(d => { const x = {...d}; delete x.file; return x; }), trips: S.trips, countdowns: S.countdowns, sitter_info: S.sitter };
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "heytribe-" + (S.tribe?.name || TRIBE || "family").toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + todayKey() + ".json";
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast("Downloaded");
+}
+
 /* support requests: families write in from the app; the team answers in admin.heytribe.app */
 const SUP = { list: null, nagged: false };
 const TK_CATS = [["question","Question"],["bug","Something's broken"],["billing","Billing"],["account","My account"],["idea","Idea"]];
@@ -679,11 +885,23 @@ const aiApi = {
     return r.json();
   }
 };
+let PENDING = [], MYROLE = {}, LOGINS = [];
+const isParent = () => TRIBE === "SAMPLE" || MYROLE[TRIBE] !== "family";
+async function loadLogins(code){
+  if(!sb || !SESSION || !code || code === "SAMPLE"){ LOGINS = []; return; }
+  const r = await sb.rpc("tribe_logins", { p_code: code });
+  if(TRIBE !== code) return;
+  LOGINS = r.error ? [] : r.data;
+  const me = LOGINS.find(l => l.is_me); if(me) MYROLE[code] = me.role;
+  if(S.status === "ready") render();
+}
 async function loadMemberships(){
   if(!SESSION) return [];
-  const r = await sb.from("memberships").select("tribe_code, member_id, tribes(name)").eq("user_id", SESSION.user.id);
+  const r = await sb.from("memberships").select("tribe_code, member_id, role, status, removed_at, tribes(name)").eq("user_id", SESSION.user.id);
   if(r.error) return null;
-  const list = r.data.map(m => ({ code: m.tribe_code, name: m.tribes?.name || m.tribe_code, me: m.member_id }));
+  PENDING = r.data.filter(m => m.status === "pending" && !m.removed_at).map(m => m.tribe_code);
+  r.data.forEach(m => { MYROLE[m.tribe_code] = m.role; });
+  const list = r.data.filter(m => m.status === "active").map(m => ({ code: m.tribe_code, name: m.tribes?.name || m.tribe_code, me: m.member_id }));
   store.set("ht-tribes", JSON.stringify(list.map(({code, name}) => ({ code, name }))));
   list.forEach(m => { if(m.me) store.set("ht-me-" + m.code, m.me); });
   return list;
@@ -714,6 +932,14 @@ const I = {
   cart:'<path d="M3 4h2l2.5 11h11L21 8H6.5"/><circle cx="9" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/>',
   plus:'<path d="M12 5v14M5 12h14"/>', back:'<path d="M15 5l-7 7 7 7"/>', fwd:'<path d="M9 5l7 7-7 7"/>',
   arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>', x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  bellr:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  shieldk:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  moon2:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  download:'<path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>',
   star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
   moon:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
   bottle:'<path d="M10 2h4v3l2 3v12a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V8l2-3z"/><path d="M8 12h8"/>',
@@ -771,7 +997,7 @@ function everyone(size=24){ return `<span class="faces">${sorted(S.members).slic
 const whoFace = (id, size) => id==="all" ? everyone(Math.round(size*0.7)) : face(mem(id), size);
 
 /* ---------- state ---------- */
-const EMPTY = () => ({ usage:{}, members:[], events:[], chores:[], items:[], meals:{}, notes:[], poll:null, baby:{}, routines:[], meds:[], health:[], contacts:[], school:[], home:[], docs:[], trips:[], countdowns:[], sitter:{}, tribe:null });
+const EMPTY = () => ({ usage:{}, custody:null, members:[], events:[], chores:[], items:[], meals:{}, notes:[], poll:null, baby:{}, routines:[], meds:[], health:[], contacts:[], school:[], home:[], docs:[], trips:[], countdowns:[], sitter:{}, tribe:null });
 const S = Object.assign({ status:"loading" }, EMPTY());
 const VIEWS = ["today","calendar","chores","lists","menu","baby","fridge","routines","health","school","sitter","home","docs","trips","trip","contacts","kid","family"];
 const UI = { view:"today", calDay: todayKey(), choreMember:null, list:"Groceries", mealWeek:0, calWeek:0, who:null, trip:null, kid:null, onboard:null, askWho:false };
@@ -806,8 +1032,9 @@ function render(){
   else if(S.status === "offline") html = offline();
   else if(S.status === "auth") html = authScreen();
   else if(S.status === "welcome") html = welcome();
+  else if(S.status === "pending") html = pendingScreen();
   else if(!S.members.length) html = setup();
-  else { html = (VIEWFN[UI.view] || today)(); if(groupOf(UI.view)) html = groupBar() + html; if(TRIBE === "SAMPLE") html = `<div class="samplebar"><span>Sample family. Changes stay on this device.</span><button data-act="sample-exit">${SESSION ? "Back to my tribe" : "Make my own"}</button></div>` + html; }
+  else { html = (VIEWFN[UI.view] || today)(); if(groupOf(UI.view)) html = groupBar() + html; if(OFFLINE && TRIBE !== "SAMPLE") html = `<div class="samplebar offbar"><span>You're offline. Showing what was saved on this device; changes need a connection.</span></div>` + html; if(TRIBE === "SAMPLE") html = `<div class="samplebar"><span>Sample family. Changes stay on this device.</span><button data-act="sample-exit">${SESSION ? "Back to my tribe" : "Make my own"}</button></div>` + html; }
   app.innerHTML = html;
   if(ready) renderNav();
   if(ready) deskLayout(app);
@@ -842,6 +1069,7 @@ function renderSide(){
   side.innerHTML = `<div class="side-top"><div class="row" style="gap:8px">${mark(26)}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div>
     <button class="side-tribe" data-go="family"><span class="col" style="min-width:0;text-align:left"><b>${esc(S.tribe?.name || "Your tribe")}</b><small>Code ${esc(TRIBE||"")}</small></span>${ico("fwd",16,2)}</button></div>
     <button class="side-ht" data-act="ht">${mark(22,"#fff","var(--sage)")}<span>Tell Hey Tribe</span></button>
+    <button class="side-i" data-act="search" style="border:1px solid var(--line)">${ico("search",18,1.9)}<span class="grow">Search</span><span class="small" style="border:1px solid var(--line);border-radius:6px;padding:0 6px">/</span></button>
     <nav class="side-nav">${item("today","sun","Today")}${sec("plan")}${sec("kids")}${sec("home")}</nav>
     <button class="side-me ${cur==="family"?"on":""}" data-go="family">${face(me,34)}<span class="col" style="min-width:0;text-align:left"><b>${esc(me?.name || "You")}</b><small>${esc(SESSION?.user?.email || "Family and settings")}</small></span>${ico("gear",18,1.8)}</button>`;
 }
@@ -892,6 +1120,14 @@ function authScreen(){
 }
 
 /* ---------- WELCOME (start / join / sample) ---------- */
+function pendingScreen(){
+  return `<div class="col" style="gap:18px;padding-top:30px">${mark(48)}
+    <h1 class="title">Waiting for <em>approval</em></h1>
+    <p style="margin:0;color:var(--muted);line-height:1.55">You asked to join the family with code <b class="sel" data-no-tr>${esc(PENDING[0]||"")}</b>. A parent in that family needs to approve you. Ask them to open HeyTribe and check Family &amp; settings.</p>
+    <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn primary" data-act="pending-check">Check again</button><button class="btn ghost" data-act="pending-cancel">Cancel request</button></div>
+    <button class="small" data-act="onboard" data-mode="" style="text-align:left;font-weight:600;text-decoration:underline;text-underline-offset:3px">Start or join a different family</button>
+    ${SESSION?`<p class="small" style="margin:0">Signed in as ${esc(SESSION.user.email||"")} · <button class="small" data-act="sign-out" style="font-weight:600;text-decoration:underline;text-underline-offset:3px">Log out</button></p>`:""}</div>`;
+}
 function welcome(){
   const o = UI.onboard, known = knownTribes();
   const logo = `<div class="row" style="gap:8px">${mark(26)}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div>`;
@@ -934,14 +1170,23 @@ function setup(){
 }
 
 /* ---------- events ---------- */
+const REPEATS = [["","Just once"],["weekly","Every week"],["biweekly","Every 2 weeks"],["monthly","Every month"],["yearly","Every year"]];
+const repLabel = r => ({ weekly:"every week", biweekly:"every 2 weeks", monthly:"every month", yearly:"every year" })[r] || "";
 function occursOn(e, day){
+  if(e.skip && e.skip[day]) return false;
   if(e.date === day) return true;
-  if(e.repeat === "weekly" && e.date < day) return dowIdx(fromYmd(e.date)) === dowIdx(fromYmd(day)) && (!e.until || e.until >= day);
+  if(e.endDate && e.date < day && day <= e.endDate) return true;
+  if(!e.repeat || !e.date || e.date > day || (e.until && e.until < day)) return false;
+  const a = fromYmd(e.date), b = fromYmd(day);
+  if(e.repeat === "weekly") return dowIdx(a) === dowIdx(b);
+  if(e.repeat === "biweekly") return dowIdx(a) === dowIdx(b) && Math.round((b - a) / 864e5 / 7) % 2 === 0;
+  if(e.repeat === "monthly"){ const last = daysIn(b.getFullYear(), b.getMonth()); return b.getDate() === Math.min(a.getDate(), last); }
+  if(e.repeat === "yearly") return a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   return false;
 }
-function eventsOn(day){ return S.events.filter(e => occursOn(e, day)).sort((a,b)=>a.start-b.start); }
-function conflictFor(e, day){ if(!e.driver) return null; return eventsOn(day).find(o => o.id!==e.id && o.member===e.driver && o.start < e.end && o.end > e.start - 30) || null; }
-function nextFor(test, horizon=90){ const now = nowMin(), k = todayKey(); for(let i=0;i<=horizon;i++){ const day = ymd(addDays(new Date(), i)); const hit = eventsOn(day).find(e => test(e) && (day!==k || e.start > now)); if(hit) return { e: hit, day }; } return null; }
+function eventsOn(day){ return S.events.filter(e => occursOn(e, day)).sort((a,b)=>(b.allDay?1:0)-(a.allDay?1:0) || a.start-b.start); }
+function conflictFor(e, day){ if(!e.driver || e.allDay) return null; return eventsOn(day).find(o => o.id!==e.id && o.member===e.driver && o.start < e.end && o.end > e.start - 30) || null; }
+function nextFor(test, horizon=90){ const now = nowMin(), k = todayKey(); for(let i=0;i<=horizon;i++){ const day = ymd(addDays(new Date(), i)); const hit = eventsOn(day).find(e => !e.allDay && test(e) && (day!==k || e.start > now)); if(hit) return { e: hit, day }; } return null; }
 
 /* ---------- smart layer ---------- */
 function medActive(m, day){ return (!m.start || m.start <= day) && (!m.until || m.until >= day); }
@@ -953,6 +1198,7 @@ function billState(b){
 }
 function upkeepNext(u){ const k = todayKey(); if(!u.last) return { date:k, days:0 }; const d = fromYmd(u.last); d.setMonth(d.getMonth() + (Number(u.every)||3)); return { date: ymd(d), days: dayDiff(k, ymd(d)) }; }
 function subNext(s){ if(!s.renews) return null; const t = fromYmd(todayKey()); const d = fromYmd(s.renews); let guard = 0; while(d < t && guard++ < 400){ if(s.cycle === "yearly") d.setFullYear(d.getFullYear()+1); else d.setMonth(d.getMonth()+1); } return { date: ymd(d), days: dayDiff(ymd(t), ymd(d)) }; }
+function headsUpAccess(){ return isParent() ? LOGINS.filter(l => l.status === "pending").map(l => ({ tone:"sand", text: l.email + " asked to join the family" })) : []; }
 function headsUp(){
   const out = [], k = todayKey(), now = nowMin();
   S.meds.forEach(m => { if(!medActive(m,k)) return; (m.times||[]).forEach(t => { const tm = fromHHMM(t), g = m.log && m.log[k] && m.log[k][t]; if(!g && tm <= now + 90) out.push({ p: tm < now ? 1 : 2, tone:"blue", go:"health", who:m.member, text:`${m.name} for ${memName(m.member)} ${tm < now ? "was due at" : "due at"} ${fmtT(tm)}` }); }); });
@@ -1020,7 +1266,7 @@ const sect = (tone, icon, title, action, body) => `<section class="dsec ${tone?"
 const sAct = (attrs, label) => `<button class="dsec-a" ${attrs}>+ ${label}</button>`;
 function today(){
   const d = new Date(), key = todayKey(), me = mem(meId()), now = nowMin();
-  const evs = eventsOn(key), next = evs.find(e => e.end > now);
+  const evs = eventsOn(key), next = evs.find(e => !e.allDay && e.end > now);
   const groceries = S.items.filter(i => !i.checked && (i.list||"Groceries")==="Groceries");
   const due = S.chores.filter(c => (c.days||[0,1,2,3,4,5,6]).includes(dowIdx(d)));
   const doneCount = due.filter(c => c.done && c.done[key]).length;
@@ -1031,20 +1277,23 @@ function today(){
   const cdToday = countdownsUpcoming().filter(x => x.n === 0);
   if(cdToday.length) brief = `<b style="font-weight:600">Today's the day: ${cdToday.map(x=>esc(x.c.title)).join(", ")}!</b> ` + brief;
   if(S.meals[key]?.dish) brief += ` Dinner is <b style="font-weight:600">${esc(S.meals[key].dish)}</b>.`;
-  const hu = headsUp();
+  if(custodyOn(key)) brief += " " + custodyLine(key);
+  const hu = [...headsUpAccess(), ...headsUp()];
   let tl = "", nowPlaced = false;
   const nowRow = `<div class="nowline" aria-hidden="true"><i></i><b></b><span>now</span></div>`;
   evs.forEach(e => {
-    if(!nowPlaced && e.start > now){ tl += nowRow; nowPlaced = true; }
+    if(!nowPlaced && !e.allDay && e.start > now){ tl += nowRow; nowPlaced = true; }
     const sub = [e.member==="all"?"Everyone":memName(e.member), e.driver?memName(e.driver)+" drives":"", e.place||""].filter(Boolean).join(" · ");
-    tl += `<button class="tl ${e.end<=now?"past":""}" data-act="event" data-id="${esc(e.id)}" data-day="${key}"><span class="t tabular">${fmtT(e.start)}</span><span class="d"></span><span class="col grow" style="gap:2px"><span class="name" style="font-size:16px;font-weight:500">${esc(e.title)}${e.repeat==="weekly"?` <span style="color:var(--faint)">${ico("repeat",13,2)}</span>`:""}</span><span class="small">${esc(sub)}</span></span>${whoFace(e.member,30)}</button>`;
+    tl += `<button class="tl ${e.end<=now?"past":""}" data-act="event" data-id="${esc(e.id)}" data-day="${key}"><span class="t tabular">${e.allDay?"All day":fmtT(e.start)}</span><span class="d"></span><span class="col grow" style="gap:2px"><span class="name" style="font-size:16px;font-weight:500">${esc(e.title)}${e.repeat?` <span style="color:var(--faint)">${ico("repeat",13,2)}</span>`:""}</span><span class="small">${esc(sub)}</span></span>${whoFace(e.member,30)}</button>`;
   });
   if(evs.length && !nowPlaced) tl += nowRow;
   return `
   <div class="between" style="align-items:flex-end">
     <div><div class="eyebrow">${esc(S.tribe?.name || "")} · ${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}</div><h1 class="title" style="font-size:44px;margin-top:4px">${DOW_LONG[dowIdx(d)]}</h1></div>
-    <button data-go="family" aria-label="Family and settings">${face(me,46)}</button>
+    <div class="row" style="gap:10px"><button class="iconbtn" data-act="search" aria-label="Search everything">${ico("search",19,2)}</button><button data-go="family" aria-label="Family and settings">${face(me,46)}</button></div>
   </div>
+  ${setupCard()}
+  ${annCard()}
   ${layoutOf().brief ? `<div class="brief" style="margin-top:18px">
     <div class="hi">${hi}, ${esc(me?.name||"there")} —</div>
     <div style="font-size:15px;line-height:1.5;margin-top:6px">${brief}</div>
@@ -1100,14 +1349,15 @@ function calendar(){
   const lanes = sorted(S.members), n = lanes.length || 1;
   const days = [...Array(7)].map((_,i)=>addDays(base,i)).map(dd => {
     const k = ymd(dd), evs = eventsOn(k), cols = [...new Set(evs.map(e=>e.member==="all"?"sage":okColor(mem(e.member)?.color)))].slice(0,3);
-    return `<button class="day ${k===sel?"on":""} ${k===key?"today":""}" data-act="calday" data-day="${k}" aria-label="${DOW_LONG[dowIdx(dd)]} ${dd.getDate()}"><span class="small" style="font-size:11px">${DOW[dowIdx(dd)][0]}</span><span class="n">${dd.getDate()}</span><span class="dots">${cols.map(c=>`<i style="background:var(--m-${c})"></i>`).join("")}</span></button>`;
+    return `<button class="day ${k===sel?"on":""} ${k===key?"today":""}" data-act="calday" data-day="${k}" aria-label="${DOW_LONG[dowIdx(dd)]} ${dd.getDate()}"><span class="small" style="font-size:11px">${DOW[dowIdx(dd)][0]}</span><span class="n">${dd.getDate()}</span><span class="dots">${cols.map(c=>`<i style="background:var(--m-${c})"></i>`).join("")}</span>${(()=>{ const w = custodyOn(k); return w ? `<span class="cus" style="background:var(--m-${okColor(mem(w)?.color)})" title="With ${esc(memName(w))}"></span>` : ""; })()}</button>`;
   }).join("");
   const sd = fromYmd(sel), evs = eventsOn(sel);
   const laneW = `((100% - 38px) / ${n})`;
   let grid = "";
   for(let h=H0; h<=H1; h++) grid += `<div class="hourline" style="top:${(h-H0)*PX}px"></div><div class="hourlbl" style="top:${(h-H0)*PX-8}px">${fmtT(h*60)}</div>`;
   let blocks = "";
-  evs.forEach(e => {
+  const alld = evs.filter(e => e.allDay);
+  evs.filter(e => !e.allDay).forEach(e => {
     if(e.end/60 <= H0 || e.start/60 >= H1) return;
     const top = Math.max(0,(e.start/60-H0)*PX)+1, h = Math.max(24, ((Math.min(e.end, H1*60) - Math.max(e.start, H0*60))/60)*PX - 3);
     if(e.member === "all"){ blocks += `<button class="blk all" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="left:38px;right:0;top:${top}px;height:${h}px;z-index:2"><span>${esc(e.title)} · everyone</span><span class="hand" style="font-size:16px">${fmtT(e.start)}</span></button>`; return; }
@@ -1115,12 +1365,14 @@ function calendar(){
     blocks += `<button class="blk" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="left:calc(38px + ${laneW} * ${li});width:calc(${laneW} - 4px);top:${top}px;height:${h}px;background:color-mix(in srgb, var(--m-${c}) 18%, var(--surface));border-color:var(--m-${c})">${esc(e.title)}${h>40?`<span class="s">${fmtT(e.start)}${e.driver?" · "+esc(memName(e.driver)):""}</span>`:""}${cf?`<span class="warn">${esc(memName(e.driver))} is busy!</span>`:""}</button>`;
   });
   if(sel === key){ const nm = nowMin()/60; if(nm>H0 && nm<H1) blocks += `<div aria-hidden="true" style="position:absolute;left:32px;right:0;top:${(nm-H0)*PX}px;display:flex;align-items:center;z-index:3;pointer-events:none"><span style="width:9px;height:9px;border-radius:50%;background:var(--rose)"></span><span style="flex:1;height:1.5px;background:var(--rose)"></span></div>`; }
-  const early = evs.filter(e => e.end/60 <= H0 || e.start/60 >= H1);
+  const early = evs.filter(e => !e.allDay && (e.end/60 <= H0 || e.start/60 >= H1));
   const head = lanes.map(m=>`<div class="col" style="align-items:center;gap:3px;min-width:0">${face(m,30)}<span style="font-size:11px;font-weight:500;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.name)}</span></div>`).join("");
   return `
   <div class="between"><h1 class="title">${MONTHS[sd.getMonth()]} <em>${sd.getDate()}</em></h1>
-    <div class="row" style="gap:8px"><button class="iconbtn" data-act="calweek" data-dir="-1" aria-label="Previous week">${ico("back",18,2)}</button><button class="iconbtn" data-act="calweek" data-dir="1" aria-label="Next week">${ico("fwd",18,2)}</button><button class="iconbtn solid" data-act="event-new" data-day="${sel}" aria-label="Add a plan">${ico("plus",20,2.2)}</button></div></div>
+    <div class="row" style="gap:8px">${TRIBE!=="SAMPLE"&&SESSION?`<button class="iconbtn" data-act="cal-sub" aria-label="Add to Google, Apple or Outlook calendar" title="Add to your phone's calendar">${ico("link",18)}</button>`:""}${S.members.length>1?`<button class="iconbtn" data-act="custody" aria-label="Co-parenting schedule" title="Co-parenting schedule">${ico("users",18)}</button>`:""}<button class="iconbtn" data-act="calweek" data-dir="-1" aria-label="Previous week">${ico("back",18,2)}</button><button class="iconbtn" data-act="calweek" data-dir="1" aria-label="Next week">${ico("fwd",18,2)}</button><button class="iconbtn solid" data-act="event-new" data-day="${sel}" aria-label="Add a plan">${ico("plus",20,2.2)}</button></div></div>
   <div class="week" style="margin-top:14px">${days}</div>
+  ${custodyOn(sel) ? `<p class="small" style="margin:10px 2px 0;font-size:13.5px">${custodyLine(sel)}</p>` : ""}
+  ${alld.length?`<div class="alld">${alld.map(e=>{ const c = e.member==="all"?"sage":okColor(mem(e.member)?.color); return `<button class="alld-i" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="background:color-mix(in srgb, var(--m-${c}) 18%, var(--surface));border-color:var(--m-${c})"><span class="eyebrow" style="font-size:10px">${e.endDate?"Multi-day":"All day"}</span><b>${esc(e.title)}</b>${whoFace(e.member,22)}</button>`; }).join("")}</div>`:""}
   <div class="lanehead" style="grid-template-columns:repeat(${n},minmax(0,1fr));margin-top:16px;margin-bottom:10px">${head}</div>
   <div class="lanes" style="height:${(H1-H0)*PX}px">${grid}${blocks}</div>
   ${early.length?`<div class="col" style="gap:6px;margin-top:12px"><span class="eyebrow">Outside these hours</span>${early.map(e=>`<button class="hu" data-act="event" data-id="${esc(e.id)}" data-day="${sel}"><span class="tabular small">${fmtT(e.start)}</span><span class="grow">${esc(e.title)}</span>${whoFace(e.member,24)}</button>`).join("")}</div>`:""}
@@ -1373,7 +1625,7 @@ function sitter(){
   </div>`;
   const infoRow = (l, v) => v ? `<div class="lrow" style="align-items:flex-start"><span class="eyebrow" style="width:74px;padding-top:3px">${l}</span><span class="grow" style="white-space:pre-line">${esc(v)}</span></div>` : "";
   return `${pageHead("Sitter <em>sheet</em>", `<button class="iconbtn" data-act="sitter-edit" aria-label="Edit house info">${ico("gear",18)}</button>`, "today", "Everything a sitter or grandparent needs, built from your tribe.")}
-  <button class="btn dark" data-act="copy-care" style="width:100%;margin-top:16px">${ico("copy",18)} Copy care sheet</button>
+  <div class="row" style="gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn dark grow" data-act="copy-care">${ico("copy",18)} Copy care sheet</button>${TRIBE!=="SAMPLE"&&SESSION?`<button class="btn primary grow" data-act="sitter-link">${ico("link",18)} Share a sitter link</button>`:""}</div>
   <div class="col" style="gap:12px;margin-top:16px">${ks.map(kidCard).join("") || `<div class="empty">Add kids to your tribe to build their care sheet.</div>`}</div>
   ${secHead("Emergency and doctors", 'data-act="ent-new" data-kind="contact" data-role="emergency"', "Add")}
   <div class="paper" style="padding:4px 16px">${em.map(contactRow).join("") || `<div class="small" style="padding:14px 0">Add who to call: parents, grandparents, the pediatrician and poison control.</div>`}</div>
@@ -1522,10 +1774,14 @@ function family(){
     <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="onboard" data-mode="join">Join another tribe</button><button class="btn ghost" data-act="onboard" data-mode="create">Start a new tribe</button></div>
     <button class="small" data-act="leave-tribe" style="text-align:left;margin-top:8px;text-decoration:underline;text-underline-offset:3px">Leave this tribe</button>
   </div>
+  ${secHead("Appearance")}<div class="chips" style="margin-top:0">${[["auto","Match my device"],["light","Light"],["dark","Dark"]].map(([k,l])=>`<button class="chip plain ${(store.get("ht-theme")||"auto")===k?"on":""}" data-act="theme" data-t="${k}">${l}</button>`).join("")}</div>
   ${secHead("Language")}<div class="chips" style="margin-top:0">${[["en","English"],["es","Español"]].map(([l,n])=>`<button class="chip ${((window.HTi18n&&HTi18n.lang)||"en")===l?"on":""}" data-act="lang" data-l="${l}" data-no-tr>${n}</button>`).join("")}</div>
+  ${accessCard()}
   ${planCard()}
+  ${remindersCard()}
   ${supportCard()}
-  ${SESSION?`${secHead("Your account")}<div class="paper col" style="padding:16px;gap:10px"><span style="font-weight:500;overflow-wrap:anywhere">${esc(SESSION.user.email||"")}</span><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="auth-change-pw">Change password</button><button class="btn ghost" data-act="sign-out">Log out</button></div></div>`:""}`;
+  ${SESSION?`${secHead("Your account")}<div class="paper col" style="padding:16px;gap:10px"><span style="font-weight:500;overflow-wrap:anywhere">${esc(SESSION.user.email||"")}</span><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="auth-change-pw">Change password</button><button class="btn ghost" data-act="sign-out">Log out</button></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px"><button class="btn ghost" data-act="export-data">${ico("download",17)} Download our data</button>${isParent()?`<button class="small" data-act="close-family" style="color:var(--rose-ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Delete this family</button>`:""}<button class="small" data-act="delete-account" style="color:var(--rose-ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Delete my account</button></div></div>`:""}`;
 }
 
 const VIEWFN = { today, calendar, chores, lists, menu, baby, fridge: today, routines, health, school, sitter, home, docs, trips, trip, contacts, kid, family };
@@ -1555,11 +1811,11 @@ function eventSheet(id, day){
   const c = e.member==="all" ? "sage" : okColor(mem(e.member)?.color), cf = conflictFor(e, day), d = fromYmd(day);
   openSheet(`<div class="ticket">
     <div class="top" style="background:var(--m-${c})">
-      <div class="between"><span class="eyebrow" style="color:rgba(255,255,255,.8)">${esc(DOW_LONG[dowIdx(d)])}, ${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}${e.repeat==="weekly"?" · every week":""}</span>${whoFace(e.member,40)}</div>
+      <div class="between"><span class="eyebrow" style="color:rgba(255,255,255,.8)">${esc(DOW_LONG[dowIdx(d)])}, ${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}${e.repeat?" · "+repLabel(e.repeat):""}${e.endDate?" – "+fmtDay(e.endDate):""}</span>${whoFace(e.member,40)}</div>
       <div class="serif" style="font-size:32px;line-height:1.05;margin-top:10px;letter-spacing:-.5px;overflow-wrap:anywhere">${esc(e.title)}</div>
       <div class="row" style="gap:26px;margin-top:18px;flex-wrap:wrap">
-        <div class="col"><span style="font-size:12px;opacity:.8">Starts</span><span class="serif tabular" style="font-size:24px">${fmtT(e.start)}</span></div>
-        <div class="col"><span style="font-size:12px;opacity:.8">Ends</span><span class="serif tabular" style="font-size:24px">${fmtT(e.end)}</span></div>
+        ${e.allDay?`<div class="col"><span style="font-size:12px;opacity:.8">When</span><span class="serif" style="font-size:24px">${e.endDate?"Through "+fmtDay(e.endDate):"All day"}</span></div>`:`<div class="col"><span style="font-size:12px;opacity:.8">Starts</span><span class="serif tabular" style="font-size:24px">${fmtT(e.start)}</span></div>
+        <div class="col"><span style="font-size:12px;opacity:.8">Ends</span><span class="serif tabular" style="font-size:24px">${fmtT(e.end)}</span></div>`}
         <div class="col"><span style="font-size:12px;opacity:.8">Who</span><span class="serif" style="font-size:24px">${esc(memName(e.member))}</span></div>
       </div>
     </div>
@@ -1572,21 +1828,26 @@ function eventSheet(id, day){
       ${e.note?`<p style="margin:0;color:var(--muted);line-height:1.5">${esc(e.note)}</p>`:""}
     </div>
   </div>
-  <div class="row" style="gap:10px;margin-top:16px"><button class="btn danger" data-act="event-del" data-id="${esc(e.id)}">${ico("trash",18)} ${e.repeat==="weekly"?"Delete series":"Delete"}</button><button class="btn dark grow" data-act="close">Done</button></div>`);
+  <div class="row" style="gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn danger" data-act="event-del" data-id="${esc(e.id)}">${ico("trash",18)} ${e.repeat?"Delete series":"Delete"}</button>${e.repeat?`<button class="btn ghost" data-act="event-skip" data-id="${esc(e.id)}" data-day="${esc(day)}">Skip this day</button>`:""}<button class="btn ghost" data-act="event-edit" data-id="${esc(e.id)}">${ico("edit",18)} Edit</button><button class="btn dark grow" data-act="close">Done</button></div>`);
 }
-function eventNewSheet(day){
-  openSheet(`<form data-form="event" class="col" style="gap:14px">
-    <h2 class="serif" style="font-size:28px;margin:0">New plan</h2>
-    <div class="field"><label for="ev-title">What</label><input id="ev-title" name="title" required maxlength="60" placeholder="Soccer practice" autofocus></div>
-    <div class="grid2"><div class="field"><label for="ev-who">Who</label><select id="ev-who" name="member">${memberOptions(meId(),'<option value="all">Everyone</option>')}</select></div>
-      <div class="field"><label for="ev-date">Day</label><input id="ev-date" name="date" type="date" value="${esc(day||todayKey())}" required></div></div>
-    <div class="grid2"><div class="field"><label for="ev-start">Starts</label><input id="ev-start" name="start" type="time" value="16:00" required></div>
-      <div class="field"><label for="ev-end">Ends</label><input id="ev-end" name="end" type="time" value="17:00" required></div></div>
-    <div class="grid2"><div class="field"><label for="ev-drv">Driving</label><select id="ev-drv" name="driver"><option value="">Nobody</option>${memberOptions("")}</select></div>
-      <div class="field"><label for="ev-rep">Repeats</label><select id="ev-rep" name="repeat"><option value="">Just once</option><option value="weekly">Every week</option></select></div></div>
-    <div class="field"><label for="ev-place">Where</label><input id="ev-place" name="place" maxlength="60" placeholder="Optional"></div>
-    <div class="field"><label for="ev-note">Notes</label><input id="ev-note" name="note" maxlength="140" placeholder="Bring the insurance card"></div>
-    <button class="btn primary">Add to calendar</button></form>`);
+function eventNewSheet(day, id){
+  const e = id ? S.events.find(x => x.id === id) : null;
+  const v = e || { member: meId(), date: day || todayKey(), start: 960, end: 1020, repeat: "" };
+  openSheet(`<form data-form="event" data-id="${esc(e ? e.id : "")}" class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">${e ? "Edit plan" : "New plan"}</h2>
+    <div class="field"><label for="ev-title">What</label><input id="ev-title" name="title" required maxlength="60" placeholder="Soccer practice" value="${esc(v.title||"")}" ${e?"":"autofocus"}></div>
+    <div class="grid2"><div class="field"><label for="ev-who">Who</label><select id="ev-who" name="member">${memberOptions(v.member,`<option value="all" ${v.member==="all"?"selected":""}>Everyone</option>`)}</select></div>
+      <div class="field"><label for="ev-date">Day</label><input id="ev-date" name="date" type="date" value="${esc(v.date)}" required></div></div>
+    <label class="row" style="gap:10px;font-size:15px"><input type="checkbox" name="allDay" id="ev-allday" ${v.allDay?"checked":""} style="width:20px;height:20px;accent-color:var(--sage)"> All day or several days</label>
+    <div class="grid2" id="ev-times" ${v.allDay?"hidden":""}><div class="field"><label for="ev-start">Starts</label><input id="ev-start" name="start" type="time" value="${toHHMM(v.start||960)}"></div>
+      <div class="field"><label for="ev-end">Ends</label><input id="ev-end" name="end" type="time" value="${toHHMM(v.end||1020)}"></div></div>
+    <div class="field" id="ev-enddate" ${v.allDay?"":"hidden"}><label for="ev-ed">Last day (optional)</label><input id="ev-ed" name="endDate" type="date" value="${esc(v.endDate||"")}"></div>
+    <div class="grid2"><div class="field"><label for="ev-drv">Driving</label><select id="ev-drv" name="driver"><option value="">Nobody</option>${memberOptions(v.driver||"")}</select></div>
+      <div class="field"><label for="ev-rep">Repeats</label><select id="ev-rep" name="repeat">${REPEATS.map(([k,l])=>`<option value="${k}" ${k===(v.repeat||"")?"selected":""}>${l}</option>`).join("")}</select></div></div>
+    <div class="field" id="ev-untilf" ${v.repeat?"":"hidden"}><label for="ev-until">Stop repeating after (optional)</label><input id="ev-until" name="until" type="date" value="${esc(v.until||"")}"></div>
+    <div class="field"><label for="ev-place">Where</label><input id="ev-place" name="place" maxlength="60" placeholder="Optional" value="${esc(v.place||"")}"></div>
+    <div class="field"><label for="ev-note">Notes</label><input id="ev-note" name="note" maxlength="140" placeholder="Bring the insurance card" value="${esc(v.note||"")}"></div>
+    <button class="btn primary">${e ? "Save changes" : "Add to calendar"}</button></form>`);
 }
 function choreSheet(id){
   const c = id ? S.chores.find(x=>x.id===id) : null, days = c?.days || [0,1,2,3,4,5,6];
@@ -1897,7 +2158,7 @@ document.addEventListener("click", async e => {
   const tc = e.target.closest("[data-tk-cat]"); if(tc){ const f = tc.closest("form"); f.querySelectorAll("[data-tk-cat]").forEach(x => x.classList.toggle("on", x === tc)); f.querySelector('input[name="category"]').value = tc.dataset.tkCat; return; }
   const b = e.target.closest("[data-act]"); if(!b) return;
   const id = b.dataset.id, act = b.dataset.act;
-  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal","tk-new","tk-open"].includes(act);
+  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal","tk-new","tk-open","pending-check","pending-cancel","export-data","delete-account","sitter-link","sitter-make","sitter-stop","cal-sub","cal-reset","rem-on","rem-off","rem-pref","rem-test","search","theme","setup-hide","ann-hide"].includes(act);
   if(needsDb && !db) return;
   switch(act){
     case "close": closeSheet(); break;
@@ -1914,7 +2175,7 @@ document.addEventListener("click", async e => {
     case "try-sample": UI.onboard = null; UI.view = "today"; clearHash(); connect("SAMPLE"); break;
     case "switch-tribe": UI.onboard = null; UI.view = "today"; closeSheet(); connect(b.dataset.code); break;
     case "leave-tribe": openSheet(`<div class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Leave ${esc(S.tribe?.name||"this tribe")}?</h2><p style="margin:0;color:var(--muted)">Your family keeps everything. You can come back any time with the invite code <b class="sel">${esc(TRIBE)}</b>.</p><div class="row" style="gap:10px"><button class="btn ghost grow" data-act="close">Keep it</button><button class="btn dark grow" data-act="leave-yes">Remove</button></div></div>`); break;
-    case "leave-yes": closeSheet(); if(SESSION && TRIBE !== "SAMPLE") await sb.from("memberships").delete().match({ tribe_code: TRIBE, user_id: SESSION.user.id }); forgetTribe(TRIBE); store.del("ht-tribe"); unsubs.forEach(u=>{ try{u();}catch(err){} }); unsubs = []; TRIBE = null; Object.assign(S, EMPTY()); UI.onboard = null; S.status = "welcome"; render(); break;
+    case "leave-yes": closeSheet(); if(SESSION && TRIBE !== "SAMPLE") await sb.rpc("leave_tribe", { p_code: TRIBE }); forgetTribe(TRIBE); store.del("ht-tribe"); unsubs.forEach(u=>{ try{u();}catch(err){} }); unsubs = []; TRIBE = null; Object.assign(S, EMPTY()); UI.onboard = null; S.status = "welcome"; render(); break;
     case "copy-code": copyText(`Join our family on HeyTribe! Open ${APP_URL} and tap “Join with an invite code”. Our code is ${TRIBE}.`, "Invite copied"); break;
     case "tribe-rename": openSheet(`<form data-form="tribe-name" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Rename your tribe</h2><div class="field"><label for="tn-n">Family name</label><input id="tn-n" name="name" maxlength="40" value="${esc(S.tribe?.name||"")}" required autofocus></div><button class="btn primary">Save</button></form>`); break;
     /* hey tribe */
@@ -1924,6 +2185,8 @@ document.addEventListener("click", async e => {
     /* calendar */
     case "event": eventSheet(id, b.dataset.day); break;
     case "event-new": eventNewSheet(b.dataset.day); break;
+    case "event-edit": closeSheet(); eventNewSheet(null, id); break;
+    case "event-skip": { const ev = S.events.find(x => x.id === id); if(ev){ W.upd("events/"+id, { skip: { [b.dataset.day]: true } }); } closeSheet(); toast("Skipped that day"); break; }
     case "event-del": W.del("events/"+id); closeSheet(); toast("Deleted"); break;
     case "calday": UI.calDay = b.dataset.day; render(); break;
     case "calweek": UI.calWeek += +b.dataset.dir; UI.calDay = ymd(addDays(monday(new Date()), UI.calWeek*7 + (UI.calWeek===0?dowIdx(new Date()):0))); render(); break;
@@ -2013,6 +2276,30 @@ document.addEventListener("click", async e => {
     case "member-new": if(!gate(S.members.length < 6, "Free tribes have room for 6 people. Premium makes room for everyone.")) break; memberSheet(); break;
     case "upgrade": billingGo("checkout", b); break;
     case "tk-new": ticketNewSheet(); break;
+    case "pending-check": { const l = await loadMemberships(); if(l && l.length){ UI.view = "today"; connect(l[0].code); } else toast("Still waiting for a parent to approve you"); break; }
+    case "pending-cancel": { for(const c of PENDING) await sb.from("memberships").delete().match({ tribe_code: c, user_id: SESSION.user.id }); PENDING = []; UI.onboard = null; S.status = "welcome"; render(); break; }
+    case "login-approve": manageLogin(b.dataset.u, "approve", b.dataset.role); break;
+    case "login-remove": manageLogin(b.dataset.u, "remove"); break;
+    case "login-role": manageLogin(b.dataset.u, "role", b.dataset.role); break;
+    case "login-menu": { const l = LOGINS.find(x => x.user_id === b.dataset.u); if(!l) break; openSheet(`<div class="col" style="gap:14px"><h2 class="serif" style="font-size:26px;margin:0;overflow-wrap:anywhere">${esc(l.email)}</h2><p style="margin:0;color:var(--muted)">${l.role==="parent"?"Parents can approve new people, manage access and delete the family.":"Family members can see and change everything in the family, but can't manage who has access."}</p><div class="col" style="gap:8px">${l.role==="parent"?`<button class="btn ghost" data-act="login-role" data-u="${esc(l.user_id)}" data-role="family">Make them a family member</button>`:`<button class="btn ghost" data-act="login-role" data-u="${esc(l.user_id)}" data-role="parent">Make them a parent</button>`}<button class="btn danger" data-act="login-remove" data-u="${esc(l.user_id)}">${ico("trash",17)} Remove from the family</button></div><p class="small" style="margin:0">Removing someone takes away their access right away. Think about changing your invite code too: you can share a new one by starting fresh with a parent.</p></div>`); break; }
+    case "export-data": exportData(); break;
+    case "search": searchSheet(); break;
+    case "theme": store.set("ht-theme", b.dataset.t); applyTheme(); render(); break;
+    case "setup-hide": store.set("ht-setup-hide-" + TRIBE, "1"); render(); break;
+    case "ann-hide": { let g = []; try { g = JSON.parse(store.get("ht-ann-hide") || "[]"); } catch(e){} g.push(+b.dataset.id); store.set("ht-ann-hide", JSON.stringify(g.slice(-50))); ANN = ANN.filter(a => a.id !== +b.dataset.id); render(); break; }
+    case "custody": custodySheet(); break;
+    case "custody-off": W.del("info/custody"); closeSheet(); toast("Co-parenting schedule turned off"); break;
+    case "rem-on": remindersOn(); break;
+    case "rem-off": remindersOff(); break;
+    case "rem-pref": { if(!REM.row) break; const pr = { plans:true, meds:true, bills:true, school:true, countdowns:true, ...(REM.row.prefs||{}) }; pr[b.dataset.k] = !pr[b.dataset.k]; REM.row.prefs = pr; render(); await sb.from("push_subscriptions").update({ prefs: pr, member_id: meId() }).eq("endpoint", REM.sub.endpoint); break; }
+    case "rem-test": { const tok = (await sb.auth.getSession()).data.session?.access_token; const r = await fetch("/api/push-test", { method:"POST", headers:{ "content-type":"application/json", authorization:"Bearer " + tok }, body: JSON.stringify({ endpoint: REM.sub.endpoint }) }).catch(() => null); toast(r && r.ok ? "Test sent. It should pop up in a moment." : "Couldn't send a test right now."); break; }
+    case "sitter-link": sitterLinkSheet(); break;
+    case "sitter-make": { const r = await sb.rpc("make_sitter_link", { p_code: TRIBE, p_days: +b.dataset.days }); if(r.error){ toast("Couldn't make a link. Try again."); break; } await copyText(location.origin + "/sitter/?t=" + r.data.token, "Link copied. Send it to your sitter."); sitterLinkSheet(); break; }
+    case "sitter-stop": await sb.rpc("stop_sitter_link", { p_code: TRIBE }); toast("Sitter link turned off"); sitterLinkSheet(); break;
+    case "cal-sub": calSubSheet(false); break;
+    case "cal-reset": calSubSheet(true); toast("New link made. The old one stopped working."); break;
+    case "close-family": openSheet(`<form data-form="close-family" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Delete ${esc(S.tribe?.name || "this family")}?</h2><p style="margin:0;color:var(--muted);line-height:1.5">Everyone loses access right away, and everything in the family is erased within 30 days. This can't be undone. Download your data first if you want a copy.</p><div class="field"><label for="cf-name">Type the family name to confirm</label><input id="cf-name" name="name" autocomplete="off" required></div><p class="form-err small" id="cf-err" role="alert"></p><button class="btn danger">Delete the family</button></form>`); break;
+    case "delete-account": openSheet(`<form data-form="delete-account" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Delete your account?</h2><p style="margin:0;color:var(--muted);line-height:1.5">You'll be logged out and lose access to your families. Families where you're the only member are deleted too. Your login and data are erased within 30 days.</p><div class="field"><label for="da-word">Type DELETE to confirm</label><input id="da-word" name="word" autocomplete="off" autocapitalize="characters" required></div><p class="form-err small" id="da-err" role="alert"></p><button class="btn danger">Delete my account</button></form>`); break;
     case "tk-open": ticketSheet(id); break;
     case "billing-portal": billingGo("portal", b); break;
     case "member-edit": memberSheet(id); break;
@@ -2026,6 +2313,8 @@ document.addEventListener("click", async e => {
 });
 document.addEventListener("change", e => {
   const t = e.target;
+  if(t.id === "ev-allday"){ const f = t.closest("form"); f.querySelector("#ev-times").hidden = t.checked; f.querySelector("#ev-enddate").hidden = !t.checked; return; }
+  if(t.id === "ev-rep"){ t.closest("form").querySelector("#ev-untilf").hidden = !t.value; return; }
   if(t.dataset.actChange === "driver"){ const ev = S.events.find(x=>x.id===t.dataset.id); if(ev){ ev.driver = t.value || null; W.upd("events/"+ev.id, {driver: t.value || null}); eventSheet(ev.id, t.dataset.day); render(); } }
 });
 
@@ -2034,6 +2323,22 @@ document.addEventListener("submit", async e => {
   const f = e.target.closest("form[data-form]"); if(!f) return; e.preventDefault();
   const v = Object.fromEntries(new FormData(f).entries()), kind = f.dataset.form;
   if(kind === "ht"){ if(String(v.text||"").trim()) htUnderstand(v.text.trim()); return; }
+  if(kind === "custody"){
+    if(v.a === v.b){ toast("Pick two different parents."); return; }
+    W.set("info/custody", { a: v.a, b: v.b, pattern: v.pattern, start: v.start, handoff: v.handoff || "" }); closeSheet(); toast("Schedule saved"); return;
+  }
+  if(kind === "close-family"){
+    if(String(v.name||"").trim().toLowerCase() !== String(S.tribe?.name||"").trim().toLowerCase()){ $("#cf-err").textContent = "That doesn't match the family name."; return; }
+    const r = await sb.rpc("close_tribe", { p_code: TRIBE });
+    if(r.error){ $("#cf-err").textContent = "Couldn't delete the family. Only parents can do this."; return; }
+    closeSheet(); forgetTribe(TRIBE); store.del("ht-tribe"); unsubs.forEach(u=>{ try{u();}catch(err){} }); unsubs = []; TRIBE = null; Object.assign(S, EMPTY()); UI.onboard = null; S.status = "welcome"; render(); toast("The family was deleted"); return;
+  }
+  if(kind === "delete-account"){
+    if(String(v.word||"").trim().toUpperCase() !== "DELETE"){ $("#da-err").textContent = "Type DELETE in capital letters."; return; }
+    const r = await sb.rpc("request_account_deletion");
+    if(r.error){ $("#da-err").textContent = "Couldn't delete your account. Check your connection and try again."; return; }
+    closeSheet(); await sb.auth.signOut(); toast("Your account is being deleted"); return;
+  }
   if(kind === "ticket"){
     const err = $("#tk-err"), btn = $("#tk-go"); if(!String(v.body||"").trim()){ err.textContent = "Write a short message first."; return; }
     btn.disabled = true; btn.textContent = "Sending…";
@@ -2103,13 +2408,22 @@ document.addEventListener("submit", async e => {
         const r = await sb.rpc("join_tribe", { p_code: code });
         if(r.error) throw r.error;
         if(!r.data){ btn.disabled = false; btn.textContent = "Join"; err.textContent = "We couldn't find a tribe with that code. Check the letters and try again."; return; }
-        await loadMemberships(); UI.onboard = null; UI.view = "today"; UI.askWho = !store.get("ht-me-"+code); clearHash(); connect(code);
+        const mine = await loadMemberships(); UI.onboard = null; clearHash();
+        if(mine && mine.some(t => t.code === code)){ UI.view = "today"; UI.askWho = !store.get("ht-me-"+code); connect(code); }
+        else { TRIBE = null; S.status = "pending"; render(); }
       } catch(x){ btn.disabled = false; btn.textContent = "Join"; err.textContent = "Couldn't check that code. Check your connection and try again."; }
       break; }
     case "tribe-name": { const n = String(v.name||"").trim(); if(!n) return; try { await db.doc("tribes/"+TRIBE).update({ name:n }); } catch(x){ writeErr(x); } closeSheet(); break; }
     case "item": { const text = (v.text||"").trim(); if(!text) return; f.reset(); const tmp = {id:"tmp"+uid(),text,list:UI.list,section:sectionFor(text),by,checked:false,at:Date.now()}; S.items.push(tmp); render(); const {id,...rest} = tmp; W.add("items", rest); break; }
-    case "event": { const start = fromHHMM(v.start), end = Math.max(fromHHMM(v.end), start+15);
-      W.add("events", {title:v.title.trim(), member:v.member, date:v.date, start, end:Math.min(end,1439), driver:v.driver||null, repeat:v.repeat==="weekly"?"weekly":null, place:(v.place||"").trim(), note:(v.note||"").trim(), by}); UI.calDay = v.date; closeSheet(); toast("Added to the calendar"); break; }
+    case "event": {
+      const allDay = !!f.querySelector('[name="allDay"]')?.checked;
+      const start = allDay ? 0 : fromHHMM(v.start || "16:00"), end = allDay ? 1439 : Math.max(fromHHMM(v.end || "17:00"), start+15);
+      const repeat = REPEATS.some(([k]) => k && k === v.repeat) ? v.repeat : null;
+      const endDate = allDay && v.endDate && v.endDate > v.date ? v.endDate : null;
+      const data = {title:v.title.trim(), member:v.member, date:v.date, start, end:Math.min(end,1439), allDay, endDate, driver:v.driver||null, repeat, until: repeat && v.until ? v.until : null, place:(v.place||"").trim(), note:(v.note||"").trim()};
+      if(f.dataset.id){ const old = S.events.find(x => x.id === f.dataset.id); W.set("events/"+f.dataset.id, {...(old||{}), ...data, id: undefined}); toast("Saved"); }
+      else { W.add("events", {...data, by}); toast("Added to the calendar"); }
+      UI.calDay = v.date; closeSheet(); break; }
     case "chore": { const days = [...f.querySelectorAll("[data-day-toggle].on")].map(x=>+x.dataset.dayToggle); if(!days.length){ toast("Pick at least one day"); return; }
       if(f.dataset.id) W.upd("chores/"+f.dataset.id, {title:v.title.trim(), member:v.member, days}); else W.add("chores", {title:v.title.trim(), member:v.member, days, done:{}});
       UI.choreMember = v.member; closeSheet(); render(); break; }
@@ -2188,7 +2502,7 @@ function apply(c, docs){
 }
 function connect(code){
   unsubs.forEach(u=>{ try{ u(); }catch(e){} }); unsubs = [];
-  TRIBE = code; store.set("ht-tribe", code); rememberTribe(code); PLAN = null; loadPlan(code); loadTickets();
+  TRIBE = code; store.set("ht-tribe", code); rememberTribe(code); PLAN = null; LOGINS = []; OFFLINE = false; loadPlan(code); loadTickets(); loadLogins(code); loadReminders(); loadAnnouncements();
   Object.assign(S, EMPTY()); S.status = "loading"; UI.who = null; UI.choreMember = null; render();
   const got = new Set(), need = COLS.length + 3;
   const done = k => {
@@ -2199,6 +2513,7 @@ function connect(code){
   COLS.forEach(c => unsubs.push(db.collection(P(c)).onSnapshot(s => { apply(c, s.docs.map(d=>({id:d.id, ...d.data()}))); done(c); }, () => done(c))));
   unsubs.push(db.doc(P("poll/current")).onSnapshot(s => { const d = s.exists ? s.data() : null; S.poll = d && Array.isArray(d.options) && d.options.length ? d : null; done("poll"); }, () => done("poll")));
   unsubs.push(db.doc(P("info/sitter")).onSnapshot(s => { S.sitter = s.exists ? s.data() : {}; done("sitter"); }, () => done("sitter")));
+  unsubs.push(db.doc(P("info/custody")).onSnapshot(s => { S.custody = s.exists ? s.data() : null; if(S.status === "ready") render(); }, () => {}));
   unsubs.push(db.doc(P("info/usage")).onSnapshot(s => { S.usage = s.exists ? s.data() : {}; }, () => {}));
   unsubs.push(db.doc("tribes/"+code).onSnapshot(s => { S.tribe = s.exists ? {id:code, ...s.data()} : {id:code, name:"Your tribe"}; rememberTribe(code, S.tribe.name); done("tribe"); }, () => done("tribe")));
   setTimeout(() => { if(S.status === "loading" && TRIBE === code){ S.status = "ready"; render(); } }, 6000);
@@ -2207,8 +2522,11 @@ function connect(code){
 /* ---------- boot ---------- */
 async function afterLogin(){
   const h = (location.hash||"").slice(1);
+  const del = await sb.rpc("my_deletion_pending");
+  if(del && del.data === true){ await sb.auth.signOut(); UI.auth = "signin"; UI.authErr = "This account is being deleted. Write to hello@heytribe.app if that's a mistake."; S.status = "auth"; render(); return; }
   const list = await loadMemberships();
   if(list === null){ S.status = "offline"; render(); return; }
+  if(!list.length && PENDING.length && h !== "create" && h !== "join"){ TRIBE = null; S.status = "pending"; render(); return; }
   if(h === "create" || h === "join"){ clearHash(); UI.onboard = h; S.status = "welcome"; render(); return; }
   const saved = store.get("ht-tribe");
   const pick = list.find(t => t.code === saved) || list[0];
@@ -2216,6 +2534,8 @@ async function afterLogin(){
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
 if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json', document.body);
+if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
+addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
 render();
 (async () => {
   if(!window.supabase || !CFG.supabaseUrl || !CFG.supabaseAnonKey){ S.status = "offline"; render(); return; }
@@ -2229,7 +2549,7 @@ render();
   sb.auth.onAuthStateChange((event, session) => {
     const was = SESSION?.user?.id; SESSION = session;
     if(event === "PASSWORD_RECOVERY"){ UI.auth = "reset"; S.status = "auth"; render(); return; }
-    if(event === "SIGNED_OUT"){ db.reset(); unsubs.forEach(u=>{ try{u();}catch(e){} }); unsubs = []; TRIBE = null; SUP.list = null; SUP.nagged = false; PLAN = null; Object.assign(S, EMPTY()); store.del("ht-tribe"); store.set("ht-tribes","[]"); try { Object.keys(localStorage).filter(k => /^ht-(me-|last-|view)/.test(k)).forEach(k => localStorage.removeItem(k)); } catch(e){} UI.view = "today"; UI.auth = "signin"; S.status = "auth"; render(); return; }
+    if(event === "SIGNED_OUT"){ db.reset(); unsubs.forEach(u=>{ try{u();}catch(e){} }); unsubs = []; TRIBE = null; SUP.list = null; SUP.nagged = false; PLAN = null; Object.assign(S, EMPTY()); store.del("ht-tribe"); store.set("ht-tribes","[]"); try { Object.keys(localStorage).filter(k => /^ht-(me-|last-|view|snap-)/.test(k)).forEach(k => localStorage.removeItem(k)); } catch(e){} UI.view = "today"; UI.auth = "signin"; S.status = "auth"; render(); return; }
     if(event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;
     if(session && (first || session.user.id !== was)){ first = false; setTimeout(afterLogin, 0); return; }
     if(!session && first){ first = false;
@@ -2239,7 +2559,7 @@ render();
       S.status = "auth"; render();
     }
   });
-  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible" && TRIBE && TRIBE !== "SAMPLE"){ db.refresh(); loadPlan(TRIBE); loadTickets(); } });
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible" && TRIBE && TRIBE !== "SAMPLE"){ db.refresh(); loadPlan(TRIBE); loadTickets(); loadLogins(TRIBE); } });
 })();
 })();
 </script>

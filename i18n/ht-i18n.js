@@ -57,6 +57,13 @@
     [/^(Feeds|Diapers) (\d+)$/, function(s, w, n){ return (w === "Feeds" ? "Tomas " : "Pañales ") + n; }],
     [/^Your tribe is ready\. Invite code ([A-Z0-9]+)$/, function(s, c){ return "Tu tribu está lista. Código de invitación " + c; }],
     [/^Sent! Request #(\d+)\. We'll reply here\.$/, function(s, n){ return "¡Enviado! Solicitud #" + n + ". Te responderemos aquí."; }],
+    [/^(\d+) of (\d+) done · about 2 minutes$/, function(s, a, b){ return a + " de " + b + " listos · unos 2 minutos"; }],
+    [/^Link is on until (.+)$/, function(s, d){ return "El enlace funciona hasta el " + date(d); }],
+    [/^(.+) asked to join the family$/, function(s, e){ return e + " pidió unirse a la familia"; }],
+    [/^Kids are with ([^,.]+)(?:, switching to (.+) tomorrow(?: at (.+))?)?\.$/, function(s, a, b, t){ return "Los niños están con " + a + (b ? ", cambian con " + b + " mañana" + (t ? " a las " + t : "") : "") + "."; }],
+    [/^Nothing found for “(.+)”\.$/, function(s, q){ return "No se encontró nada para “" + q + "”."; }],
+    [/^Through (.+)$/, function(s, d){ return "Hasta el " + date(d); }],
+    [/^due (.+)$/, function(s, d){ return "vence " + date(d); }],
     [/^(\d+) days left$/, function(s, n){ return "Quedan " + n + " días"; }],
     [/^(\d+) days? to go$/, function(s, n){ return n === "1" ? "falta 1 día" : "faltan " + n + " días"; }]
   ];
