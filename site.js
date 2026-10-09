@@ -178,48 +178,29 @@ $$("[data-year]").forEach(function(el){ el.textContent = new Date().getFullYear(
   });
 })();
 
-/* homepage features showcase: tabs by part of family life, phone swaps to the picked feature */
+/* homepage features: a swipeable row of screens, with a chip strip to jump around */
 (function(){
-  var root = document.querySelector("[data-fx]"); if(!root) return;
-  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var phone = root.querySelector(".fx-phone"), img = phone.querySelector("img"), blob = root.querySelector(".fx-blob");
-  var tabs = [].slice.call(root.querySelectorAll(".fx-tab")), lists = [].slice.call(root.querySelectorAll(".fx-list"));
-  var timer = null, touched = false, cache = {};
-  function preload(src){ if(cache[src]) return; var i = new Image(); i.src = src; cache[src] = i; }
-  [].slice.call(root.querySelectorAll(".fx-item")).forEach(function(b){ preload(b.getAttribute("data-shot")); });
-  function pick(btn){
-    var list = btn.closest(".fx-list");
-    [].slice.call(list.querySelectorAll(".fx-item")).forEach(function(b){ var on = b === btn; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); });
-    var src = btn.getAttribute("data-shot"); blob.style.background = btn.getAttribute("data-tone");
-    if(img.getAttribute("src") === src) return;
-    if(reduce){ img.src = src; return; }
-    phone.classList.add("swap");
-    setTimeout(function(){ img.src = src; setTimeout(function(){ phone.classList.remove("swap"); }, 40); }, 200);
+  var root = document.querySelector("[data-fc]"); if(!root) return;
+  var track = root.querySelector(".fc-track"), cards = [].slice.call(track.children), chips = [].slice.call(root.querySelectorAll(".fc-chip"));
+  var strip = root.querySelector(".fc-chips"), sec = root.closest("section");
+  var prev = sec.querySelector(".fc-arrow.prev"), next = sec.querySelector(".fc-arrow.next"), cur = 0;
+  function mark(i){
+    cur = i;
+    chips.forEach(function(c, k){ c.classList.toggle("on", k === i); });
+    var c = chips[i]; if(c) strip.scrollTo({ left: c.offsetLeft - strip.clientWidth / 2 + c.clientWidth / 2, behavior: "smooth" });
+    if(prev) prev.disabled = track.scrollLeft < 8;
+    if(next) next.disabled = track.scrollLeft > track.scrollWidth - track.clientWidth - 8;
   }
-  function group(i){
-    tabs.forEach(function(t, k){ var on = k === i; t.classList.toggle("on", on); t.setAttribute("aria-pressed", on ? "true" : "false"); });
-    lists.forEach(function(l, k){ l.classList.toggle("on", k === i); });
-    var cur = lists[i].querySelector(".fx-item.on") || lists[i].querySelector(".fx-item"); pick(cur);
-  }
-  function stop(){ touched = true; if(timer){ clearInterval(timer); timer = null; } }
-  tabs.forEach(function(t, i){ t.addEventListener("click", function(){ stop(); group(i); }); });
-  root.addEventListener("click", function(e){ var b = e.target.closest(".fx-item"); if(b){ stop(); pick(b); } });
-  root.addEventListener("mouseover", function(e){ var b = e.target.closest(".fx-item"); if(b && window.matchMedia("(hover: hover)").matches){ stop(); pick(b); } });
-  // gentle tour until someone interacts: walk through the open group, then the next
-  if(!reduce && "IntersectionObserver" in window){
-    var io = new IntersectionObserver(function(es){
-      es.forEach(function(en){
-        if(en.isIntersecting && !touched && !timer){
-          timer = setInterval(function(){
-            var gi = tabs.findIndex(function(t){ return t.classList.contains("on"); });
-            var items = [].slice.call(lists[gi].querySelectorAll(".fx-item"));
-            var ci = items.findIndex(function(b){ return b.classList.contains("on"); });
-            if(ci < items.length - 1) pick(items[ci + 1]);
-            else { var ng = (gi + 1) % tabs.length; var first = lists[ng].querySelector(".fx-item"); lists[ng].querySelectorAll(".fx-item").forEach(function(b){ b.classList.remove("on"); }); first.classList.add("on"); group(ng); }
-          }, 4200);
-        } else if(!en.isIntersecting && timer){ clearInterval(timer); timer = null; }
-      });
-    }, { threshold: .35 });
-    io.observe(root);
-  }
+  function go(i){ i = Math.max(0, Math.min(cards.length - 1, i)); track.scrollTo({ left: cards[i].offsetLeft - track.offsetLeft - parseFloat(getComputedStyle(track).paddingLeft), behavior: "smooth" }); mark(i); }
+  chips.forEach(function(c, i){ c.addEventListener("click", function(){ go(i); }); });
+  if(prev) prev.addEventListener("click", function(){ go(cur - 1); });
+  if(next) next.addEventListener("click", function(){ go(cur + 1); });
+  var t; track.addEventListener("scroll", function(){
+    clearTimeout(t); t = setTimeout(function(){
+      var left = track.scrollLeft, best = 0, bd = 1e9;
+      cards.forEach(function(c, i){ var d = Math.abs(c.offsetLeft - track.offsetLeft - parseFloat(getComputedStyle(track).paddingLeft) - left); if(d < bd){ bd = d; best = i; } });
+      mark(best);
+    }, 80);
+  }, { passive: true });
+  mark(0);
 })();
