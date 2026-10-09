@@ -36,6 +36,20 @@ if(mb && nav){ mb.addEventListener("click", function(){ var o = nav.classList.to
 
 /* rotating headline */
 var rot = $(".rotator .w");
+/* the rotating words sit on their own line and shrink to fit, so the longest one never overflows */
+function fitRotator(){
+  var r = $(".rotator"); if(!r || !rot) return;
+  var h1 = r.parentElement, words = (rot.getAttribute("data-words") || rot.textContent).split("|");
+  r.style.fontSize = "";
+  var probe = document.createElement("span"); probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;font:inherit;letter-spacing:inherit";
+  r.appendChild(probe);
+  var widest = 0; words.forEach(function(w){ probe.textContent = w; widest = Math.max(widest, probe.getBoundingClientRect().width); });
+  r.removeChild(probe);
+  var room = h1.getBoundingClientRect().width;
+  if(widest > room && widest > 0) r.style.fontSize = (parseFloat(getComputedStyle(h1).fontSize) * room / widest * 0.98) + "px";
+}
+fitRotator(); addEventListener("resize", fitRotator); if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitRotator);
+new MutationObserver(function(){ if(!fitRotator.busy){ fitRotator.busy = 1; requestAnimationFrame(function(){ fitRotator(); fitRotator.busy = 0; }); } }).observe(rot, { attributes: true, attributeFilter: ["data-words"] });
 if(rot && !reduce){
   var words = (rot.getAttribute("data-words") || "").split("|"), i = 0;
   setInterval(function(){ i = (i + 1) % words.length; rot.textContent = words[i]; rot.style.animation = "none"; void rot.offsetWidth; rot.style.animation = ""; }, 2600);

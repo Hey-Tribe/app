@@ -58,7 +58,7 @@ h2.big em,h1 em{font-style:italic}
 .hero{padding-block:48px 30px;display:flex;flex-wrap:wrap;align-items:center;gap:40px}
 .hero .copy{flex:1 1 480px;min-width:0;display:flex;flex-direction:column;gap:26px;position:relative;z-index:2}
 .hero h1{font-family:var(--f-display);font-weight:400;font-size:clamp(50px,8vw,100px);line-height:.94;letter-spacing:-2.6px}
-.rotator{display:inline-block;position:relative;color:var(--sage-ink);font-style:italic;white-space:nowrap}
+.rotator{display:block;width:max-content;max-width:100%;position:relative;color:var(--sage-ink);font-style:italic;white-space:nowrap}
 .rotator .w{display:inline-block;animation:wordIn .55s cubic-bezier(.2,1.4,.5,1)}
 .rotator svg{position:absolute;left:0;bottom:-10px;width:100%;height:14px}
 @keyframes wordIn{from{transform:translateY(.35em) rotate(-4deg);opacity:.2}to{transform:none;opacity:1}}
@@ -524,7 +524,7 @@ a.mcard:hover{transform:translateY(-5px) rotate(-.8deg)}
   .home-hero{display:flex;flex-direction:column;gap:22px}
   .hero .copy{display:contents}
   .hero .pill,.hero .facts{display:none}
-  .hero h1{order:1}
+  .hero h1{order:1;align-self:stretch}
   .hero .stage{order:2;margin:0 -10px}
   .hero .lede{order:3;font-size:17px;margin:0}
   .hero .hero-cta{order:4}
