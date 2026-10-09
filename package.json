@@ -1,0 +1,7 @@
+{
+  "name": "heytribe",
+  "private": true,
+  "type": "module",
+  "description": "HeyTribe: the family planning app and its marketing site",
+  "engines": { "node": ">=20" }
+}

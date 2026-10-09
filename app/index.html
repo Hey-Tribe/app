@@ -1,0 +1,1967 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#FBFCFA">
+<meta name="description" content="HeyTribe keeps the whole family in sync: plans, chores, lists, meals, meds and more.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/app/manifest.webmanifest">
+<title>HeyTribe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: one phone-width column; views scroll above a fixed bottom nav; sheets slide up for forms. Light only: white paper, sage lead. */
+:root{
+  --bg:#FBFCFA; --surface:#FFFFFF; --ink:#2F3B45; --muted:#606A73; --line:#E1E6E1; --faint:#A3AAA7;
+  --sage:#5E8C7A; --sage-ink:#46705F; --sage-soft:#E6EEE9; --on-sage:#FFFFFF; --deep:#3E5A55;
+  --rose:#B08A84; --rose-ink:#8E6A64; --blue:#6B8BA4; --blue-ink:#4E6F88; --olive:#8A8F6B; --sand:#C9A66B; --sand-ink:#8A6A33;
+  --m-sage:#5E8C7A; --m-sage-bg:#D7E5DC; --m-blue:#6B8BA4; --m-blue-bg:#D9E3EB; --m-rose:#B08A84; --m-rose-bg:#EFE0DC;
+  --m-olive:#8A8F6B; --m-olive-bg:#E6E8D7; --m-sand:#C9A66B; --m-sand-bg:#F1E7D3;
+  --note-white:#FFFFFF; --note-sage:#E2EBE4; --note-rose:#F0E4E1; --note-blue:#E3E9EE; --note-sand:#F3EBDD;
+  --fridge-a:#EEF2EF; --fridge-b:#E4EBE6; --night-a:#2F3B45; --night-b:#3E5A55; --night-ink:#FFFFFF;
+  --shadow:rgba(47,59,69,.10); --grain:.05; color-scheme:light;
+  --f-ui:"Outfit",ui-sans-serif,system-ui,sans-serif; --f-display:"Fraunces",Georgia,"Times New Roman",serif; --f-hand:"Caveat","Segoe Print","Bradley Hand",cursive;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;opacity:var(--grain);mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");z-index:50}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--ink)}
+:focus-visible{outline:2px solid var(--sage);outline-offset:2px;border-radius:8px}
+#app{max-width:460px;margin:0 auto;padding-inline:20px;padding-block:14px 112px;min-height:100%}
+.kidmode #app{padding-bottom:40px}
+.serif{font-family:var(--f-display);font-weight:400}
+.hand{font-family:var(--f-hand)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted)}
+.small{font-size:12.5px;color:var(--muted)}
+.row{display:flex;align-items:center;gap:12px}
+.between{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.col{display:flex;flex-direction:column}
+.grow{flex:1;min-width:0}
+h1.title{font-family:var(--f-display);font-weight:400;font-size:36px;letter-spacing:-.8px;line-height:1.05;margin:0;text-wrap:balance;overflow-wrap:anywhere}
+h1.title em{color:var(--sage-ink)}
+.face{border-radius:50%;display:inline-flex;flex-shrink:0;overflow:hidden}
+.faces{display:flex}.faces .face+.face{margin-left:-8px}
+.iconbtn{width:42px;height:42px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid var(--line);flex-shrink:0;background:var(--surface)}
+.iconbtn.solid{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 20px;border-radius:999px;font-weight:600}
+.btn.primary{background:var(--sage);color:var(--on-sage)}
+.btn.dark{background:var(--ink);color:var(--bg)}
+.btn.ghost{border:1.5px solid var(--line);background:var(--surface)}
+.btn.danger{color:var(--rose-ink);border:1.5px solid var(--line)}
+.btn[disabled]{opacity:.6}
+.chip{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line);border-radius:999px;padding:3px 13px 3px 3px;font-weight:500;font-size:14px;background:var(--surface);min-height:36px}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.plain{padding:6px 14px}
+.chip.late{border-color:var(--rose);color:var(--rose-ink)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.paper{background:var(--surface);border:1px solid var(--line);border-radius:20px}
+.strike{position:relative;color:var(--muted)}
+.strike svg{position:absolute;left:-2px;right:-2px;top:50%;height:10px;width:calc(100% + 4px);transform:translateY(-40%);overflow:visible}
+.box{width:20px;height:20px;border-radius:6px;border:1.8px solid var(--faint);flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:var(--on-sage)}
+.box.on{background:var(--sage);border-color:var(--sage)}
+.empty{border:1.5px dashed var(--line);border-radius:18px;padding:22px 18px;text-align:center;color:var(--muted)}
+.empty .hand{font-size:22px;color:var(--sage-ink);display:block;margin-bottom:4px}
+.tabular{font-variant-numeric:tabular-nums}
+.sel{user-select:all;-webkit-user-select:all}
+.meter{height:7px;border-radius:7px;background:var(--sage-soft);overflow:hidden;display:block}.meter i{display:block;height:100%;background:var(--sage);border-radius:7px}
+.lrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);width:100%;text-align:left;min-height:50px}
+.lrow:first-child{border-top:0}
+.lic{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--sage-soft);color:var(--sage-ink);white-space:nowrap}
+.tag.warn{background:var(--m-rose-bg);color:var(--rose-ink)}
+.tag.sand{background:var(--m-sand-bg);color:var(--sand-ink)}
+.tag.blue{background:var(--m-blue-bg);color:var(--blue-ink)}
+.tag.muted{background:var(--line);color:var(--muted)}
+.sechead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:24px 0 10px}
+.sechead button{font-size:13px;font-weight:600;color:var(--sage-ink)}
+.choice{display:flex;align-items:center;gap:14px;padding:16px;border-radius:20px;background:var(--surface);border:1px solid var(--line);text-align:left;width:100%}
+.choice .lic{width:48px;height:48px;border-radius:15px}
+.code{font-family:var(--f-display);font-size:38px;letter-spacing:6px;line-height:1}
+.form-err{color:var(--rose-ink);margin:0;min-height:1em}
+
+/* nav */
+nav.bar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--bg);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.kidmode nav.bar{display:none}
+nav.bar .in{max-width:460px;margin:0 auto;height:72px;display:flex;justify-content:space-around;align-items:flex-start;padding-top:10px}
+nav.bar .tab{display:flex;flex-direction:column;align-items:center;gap:3px;width:60px;color:var(--faint);font-size:11px;font-weight:500}
+nav.bar .tab.on{color:var(--ink)}
+nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
+
+/* today */
+.brief{background:var(--sage-soft);border-radius:4px 22px 22px 22px;padding:16px 18px}
+.brief .hi{font-family:var(--f-display);font-style:italic;font-size:17px;color:var(--deep)}
+.hu{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:14px;background:var(--surface);border:1px solid var(--line);text-align:left;width:100%;font-size:14.5px}
+.hu .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.timeline{position:relative}
+.timeline::before{content:"";position:absolute;left:55px;top:10px;bottom:22px;width:2px;background:var(--line)}
+.tl{display:flex;align-items:flex-start;gap:14px;padding-bottom:16px;width:100%;text-align:left;position:relative}
+.tl .t{width:42px;text-align:right;padding-top:2px;font-weight:500;font-size:12.5px;color:var(--muted);flex-shrink:0}
+.tl .d{width:13px;height:13px;border-radius:50%;border:2px solid var(--sage);background:var(--bg);margin-top:4px;flex-shrink:0;position:relative;z-index:1}
+.tl.past .d{background:var(--sage)}
+.tl.past .name{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--sage)}
+.nowline{display:flex;align-items:center;gap:8px;margin:-4px 0 12px 50px;position:relative;z-index:1}
+.nowline i{width:9px;height:9px;border-radius:50%;background:var(--rose)}
+.nowline b{flex:1;height:1.5px;background:var(--rose)}
+.nowline span{font-family:var(--f-hand);color:var(--rose-ink);font-size:18px;font-weight:700}
+.shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.shortcut{display:flex;align-items:center;gap:12px;padding:12px;min-width:0;border-radius:18px;background:var(--surface);border:1px solid var(--line);text-align:left}
+.shortcut .ic{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gbar{display:flex;align-items:center;gap:10px;margin:-6px -20px 14px;padding:8px 20px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:10;border-bottom:1px solid var(--line)}
+.gtabs{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:none;padding:2px 0;-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent);padding-right:28px}
+.gtabs::-webkit-scrollbar{display:none}
+.gtab{white-space:nowrap;padding:8px 14px;border-radius:999px;font-size:14px;font-weight:500;color:var(--muted);background:var(--surface);border:1.5px solid var(--line);min-height:38px}
+.gtab.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.gtab.kidv{display:inline-flex;align-items:center;gap:6px;border-style:dashed;color:var(--sage-ink)}
+.gme{flex-shrink:0;border-radius:50%}
+.cdrow{display:flex;gap:10px;overflow-x:auto;margin:0 -20px;padding:2px 20px 8px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.cdrow::-webkit-scrollbar{display:none}
+.cd{flex:0 0 138px;scroll-snap-align:start;border-radius:22px;padding:14px 14px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;min-height:158px;position:relative;color:var(--ink)}
+.cd-face{position:absolute;top:12px;right:12px}
+.cd-n{font-family:var(--f-display);font-size:46px;line-height:1;letter-spacing:-1px}
+.cd-today .cd-n{font-size:34px;line-height:1.3}
+.cd-today{box-shadow:inset 0 0 0 2px var(--ink)}
+.cd-u{font-size:12px;color:var(--muted)}
+.cd-t{font-weight:600;margin-top:auto;line-height:1.2;font-size:15px}
+.cd-d{font-size:11.5px;color:var(--muted)}
+.cd-add{background:var(--surface);border:1.5px dashed var(--line);color:var(--sage-ink);justify-content:flex-end}
+.cd-add .cd-t{color:var(--ink);margin-top:10px}
+.hub{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.hubtile{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 6px 12px;border-radius:18px;background:var(--surface);border:1px solid var(--line);font-size:13px;font-weight:500;text-align:center;line-height:1.2}
+.hubtile .ic{width:46px;height:46px;border-radius:15px;display:flex;align-items:center;justify-content:center}
+
+/* calendar */
+.week{display:flex;justify-content:space-between}
+.day{display:flex;flex-direction:column;align-items:center;gap:4px;width:40px}
+.day .n{font-family:var(--f-display);font-size:19px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.day.on .n{background:var(--ink);color:var(--bg)}
+.day.today .n{box-shadow:inset 0 0 0 1.5px var(--sage)}
+.day .dots{display:flex;gap:2px;height:5px}.day .dots i{width:5px;height:5px;border-radius:50%}
+.lanes{position:relative;margin-top:6px}
+.lanehead{display:grid;gap:4px;margin-left:38px}
+.hourline{position:absolute;left:38px;right:0;border-top:1px solid var(--line)}
+.hourlbl{position:absolute;left:0;width:30px;text-align:right;font-size:11px;color:var(--muted)}
+.blk{position:absolute;border-radius:10px;padding:5px 7px;overflow:hidden;text-align:left;border-left:3px solid;font-size:12px;font-weight:600;line-height:1.15}
+.blk .s{display:block;font-weight:400;opacity:.75;font-size:11px;margin-top:2px}
+.blk.all{border-left:0;color:var(--on-sage);background:var(--sage);display:flex;align-items:center;justify-content:space-between;padding:6px 10px;font-size:13px}
+.blk .warn{font-family:var(--f-hand);font-size:15px;color:var(--rose-ink);font-weight:700;display:block}
+
+/* chores */
+.chart{width:100%;border-collapse:collapse}
+.chart th{font-size:12px;font-weight:400;color:var(--muted);padding-bottom:6px}
+.chart th.today{color:var(--ink);font-weight:600}
+.chart td{border-top:1px solid var(--line);padding:7px 0;text-align:center}
+.chart td.name{text-align:left;font-weight:500;font-size:14px;padding-right:6px}
+.stamp{width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle}
+.stamp.done{background:var(--rose);box-shadow:inset 0 0 0 3px rgba(255,255,255,.3);color:#fff}
+.stamp.todo{border:2px dashed var(--rose);font-family:var(--f-hand);font-size:13px;color:var(--rose-ink)}
+.stamp.miss{background:var(--line);opacity:.55}
+.stamp.off{color:var(--faint)}
+.jar{display:flex;gap:16px;align-items:center;padding:14px 18px}
+
+/* lists */
+.tabs{display:flex;align-items:flex-end;gap:4px;overflow-x:auto}
+.ltab{background:var(--sage-soft);border-radius:12px 12px 0 0;padding:7px 14px;font-size:13px;color:var(--muted);white-space:nowrap}
+.ltab.on{background:var(--surface);border:1px solid var(--line);border-bottom:0;padding:9px 16px;font-weight:600;color:var(--ink);position:relative;top:1px;z-index:1}
+.pad{background:var(--surface) repeating-linear-gradient(to bottom,transparent 0 37px,var(--line) 37px 38px);border:1px solid var(--line);border-radius:0 18px 18px 18px;padding:0 16px 10px 46px;position:relative}
+.pad::before{content:"";position:absolute;left:32px;top:0;bottom:0;width:1.5px;background:var(--rose);opacity:.5}
+.pad .sec{height:38px;line-height:44px;font-family:var(--f-hand);font-size:22px;font-weight:700;color:var(--sage-ink)}
+.pad .item{display:flex;align-items:center;gap:12px;height:38px;width:100%;text-align:left}
+.pad .item .txt{flex:1;padding-top:6px;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pad form{display:flex;align-items:center;gap:10px;height:46px}
+.pad input{flex:1;min-width:0;border:0;background:transparent;font-size:16px;padding:8px 0}
+.pad input:focus{outline:none}
+.inline-add{display:flex;align-items:center;gap:10px;padding:6px 0}
+.inline-add input{flex:1;min-width:0;border:0;background:transparent;font-size:16px;padding:8px 0}
+
+/* menu */
+.menu{padding:22px 22px 14px;position:relative}
+.menu::before{content:"";position:absolute;inset:7px;border:1px solid var(--line);border-radius:15px;pointer-events:none}
+.mrow{display:flex;align-items:baseline;gap:10px;padding:9px 0;width:100%;text-align:left}
+.mrow.today{background:var(--sage-soft);margin:0 -12px;padding:9px 12px;border-radius:12px;width:calc(100% + 24px)}
+.mrow .dish{font-family:var(--f-display);font-size:19px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow .dish.none{font-style:italic;color:var(--faint)}
+.mrow .lead{flex:1;border-bottom:1.5px dotted var(--faint);min-width:10px}
+
+/* baby */
+.logbtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 0;border-radius:20px;background:var(--surface);border:1px solid var(--line);font-weight:500}
+.logbtn .ic{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.logbtn.active{border-color:var(--olive);box-shadow:inset 0 0 0 1.5px var(--olive)}
+
+/* today dashboard */
+.dsec{margin-top:18px;padding:18px 16px 20px;border-radius:26px;overflow:hidden;--tone:var(--sage)}
+.dsec.plain{background:var(--surface);border:1px solid var(--line)}
+.dsec.t-rose{--tone:var(--m-rose);background:color-mix(in srgb,var(--m-rose) 10%,#fff)}
+.dsec.t-blue{--tone:var(--m-blue);background:color-mix(in srgb,var(--m-blue) 9%,#fff)}
+.dsec.t-sage{--tone:var(--m-sage);background:color-mix(in srgb,var(--m-sage) 10%,#fff)}
+.dsec.t-sand{--tone:var(--m-sand);background:color-mix(in srgb,var(--m-sand) 12%,#fff)}
+.dsec + .dsec{margin-top:14px}
+.dsec-h{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.dsec-h h2{font-family:var(--f-display);font-weight:500;font-size:22px;margin:0;flex:1;letter-spacing:-.2px}
+.dsec-i{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#fff;color:var(--tone);box-shadow:0 1px 0 var(--line);flex-shrink:0}
+.dsec.plain .dsec-i{background:var(--sage-soft);color:var(--sage-ink)}
+.dsec .cdrow{margin:0 -16px;padding-inline:16px}
+.dsec .fridge{background:rgba(255,255,255,.55)}
+.dsec .attn{border:0}
+.dsec-a{font-size:13px;font-weight:600;color:var(--sage-ink)}
+.statusrow{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}.statusrow::-webkit-scrollbar{display:none}
+.statusrow .chip{flex-shrink:0}
+.glance{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.gp{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.gp.wide{grid-column:1 / -1}
+.gp-h{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.gp-h .ic{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.gp-big{font-family:var(--f-display);font-size:28px;line-height:1.1;margin-top:2px}.gp-big small{font-family:var(--f-ui);font-size:13px;color:var(--muted)}
+.gp-li{display:flex;align-items:baseline;gap:8px;font-size:13.5px;padding:3px 0;border-bottom:1px dashed var(--line);min-width:0}
+.gp-li:last-child{border-bottom:0}.gp-li .grow{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gp-li.done .grow{color:var(--faint);text-decoration:line-through}
+.gp-who{display:flex;align-items:center;gap:10px;padding:3px 0}
+.meter.sm{width:72px;flex-shrink:0}
+.custbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:18px;padding:14px;border-radius:18px;border:1.5px dashed var(--line);color:var(--sage-ink);font-weight:600;font-size:14px}
+.lay-r{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);margin-bottom:8px}
+.lay-r.off b{color:var(--faint)}.lay-r.off .lay-i{opacity:.45}
+.lay-r.sm{padding:8px 10px;margin:0;font-size:14px}.lay-r.sm b{font-weight:500}
+.lay-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.lay-i{width:30px;height:30px;border-radius:9px;background:var(--sage-soft);color:var(--sage-ink);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.iconbtn.sm{width:32px;height:32px}.iconbtn:disabled{opacity:.3}
+.tsw{width:44px;height:26px;border-radius:26px;background:var(--line);position:relative;flex-shrink:0;transition:background .2s}
+.tsw i{position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s}
+.tsw.on{background:var(--sage)}.tsw.on i{transform:translateX(18px)}
+.attn{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:4px 14px}
+.attn-r{display:flex;align-items:center;gap:10px;padding:11px 0;font-size:14.5px;border-bottom:1px solid var(--line)}
+.attn-r:last-child{border-bottom:0}.attn-r .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.attn-more{display:block;width:100%;text-align:left;padding:11px 0;font-size:13px;font-weight:600;color:var(--sage-ink)}
+.samplebar{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--deep);color:#fff;border-radius:14px;padding:10px 12px 10px 14px;margin-bottom:12px;font-size:13px}.samplebar button{background:#fff;color:var(--deep);border-radius:999px;padding:6px 12px;font-weight:600;font-size:12.5px;flex-shrink:0}
+/* fridge */
+.fridge{position:relative;border-radius:26px;background:linear-gradient(180deg,var(--fridge-a),var(--fridge-b));border:1px solid var(--line);padding:26px 14px 22px}
+.fridge::after{content:"";position:absolute;right:10px;top:70px;width:7px;height:96px;border-radius:6px;background:var(--line)}
+.notes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px}
+.note{position:relative;padding:18px 14px 12px;border-radius:3px;box-shadow:0 6px 12px var(--shadow);text-align:left;min-height:120px;display:flex;flex-direction:column;gap:10px;color:var(--ink)}
+.note .t{font-family:var(--f-hand);font-size:21px;line-height:1.1;font-weight:700;flex:1;overflow-wrap:anywhere}
+.note .mag{position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;box-shadow:0 2px 3px rgba(0,0,0,.2),inset 0 -2px 0 rgba(0,0,0,.12)}
+.note .tape{position:absolute;top:-9px;left:50%;transform:translateX(-50%) rotate(-3deg);width:58px;height:18px;background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.7)}
+.pollopt{display:flex;flex-direction:column;gap:5px;width:100%;text-align:left;padding:6px 0}
+
+/* kid view */
+.bigstep{display:flex;align-items:center;gap:16px;width:100%;padding:14px 16px;border-radius:20px;background:var(--surface);border:2px solid var(--line);font-size:20px;font-weight:500;text-align:left}
+.bigstep .bx{width:44px;height:44px;border-radius:14px;border:3px solid var(--faint);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff}
+.bigstep.on{border-color:var(--sage)}
+.bigstep.on .bx{background:var(--sage);border-color:var(--sage)}
+.bigstep.on .txt{color:var(--muted);text-decoration:line-through}
+.bigstep.chore.on{border-color:var(--rose)}
+.bigstep.chore.on .bx{background:var(--rose);border-color:var(--rose)}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(20,26,29,.42);z-index:30;display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:460px;max-height:92%;overflow:auto;background:var(--bg);border-radius:26px 26px 0 0;padding:10px 20px calc(24px + env(safe-area-inset-bottom,0px));animation:up .22s ease-out}
+.sheet.night{background:linear-gradient(170deg,var(--night-a),var(--night-b));color:var(--night-ink)}
+.grab{width:40px;height:5px;border-radius:5px;background:var(--line);margin:0 auto 14px}
+.night .grab{background:rgba(255,255,255,.25)}
+@keyframes up{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.field input,.field select,.field textarea{border:1.5px solid var(--line);background:var(--surface);border-radius:14px;padding:11px 13px;font-size:16px;width:100%;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.sw{width:34px;height:34px;border-radius:50%;border:2px solid transparent}
+.sw.on{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink)}
+.daypick{display:flex;gap:6px;flex-wrap:wrap}.daypick button{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);font-size:13px;font-weight:600}
+.daypick button.on{background:var(--sage);border-color:var(--sage);color:var(--on-sage)}
+.file-prev{width:100%;max-height:220px;object-fit:cover;border-radius:14px;border:1px solid var(--line)}
+.ticket{border-radius:24px;overflow:hidden;background:var(--surface);border:1px solid var(--line)}
+.ticket .top{padding:20px 20px 24px;color:#fff}
+.ticket .perf{position:relative;border-top:2px dashed var(--line);margin:0 16px}
+.ticket .perf::before,.ticket .perf::after{content:"";position:absolute;top:-13px;width:26px;height:26px;border-radius:50%;background:var(--bg);border:1px solid var(--line)}
+.ticket .perf::before{left:-30px}.ticket .perf::after{right:-30px}
+.ht-input{width:100%;min-height:96px;border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:var(--night-ink);border-radius:18px;padding:14px 16px;font-family:var(--f-display);font-size:21px;line-height:1.3;resize:none}
+.ht-input::placeholder{color:rgba(255,255,255,.45)}
+.ht-chip{border:1.5px solid rgba(255,255,255,.25);border-radius:999px;padding:7px 12px;font-size:13px;color:var(--night-ink);text-align:left}
+.ht-card{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.09);border-radius:16px;padding:12px 14px}
+.ht-quote{font-family:var(--f-display);font-size:25px;line-height:1.3;letter-spacing:-.3px}
+.mk{padding:0 2px;border-radius:2px}
+.mk.p{background:linear-gradient(transparent 60%,rgba(217,179,173,.6) 60%)}
+.mk.t{background:linear-gradient(transparent 60%,rgba(157,182,203,.6) 60%)}
+.mk.i{background:linear-gradient(transparent 60%,rgba(156,194,177,.6) 60%)}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:500;z-index:40;font-size:14px;max-width:calc(100% - 32px)}
+</style>
+
+</head><body>
+<main id="app" aria-live="polite"></main>
+<nav class="bar" aria-label="Main"><div class="in" id="nav"></div></nav>
+<div id="toast" class="toast" hidden></div>
+
+<script src="/app/vendor/supabase.js"></script>
+<script src="/app/config.js"></script>
+<script>
+(function(){
+"use strict";
+/* ---------- helpers ---------- */
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const fromYmd = s => { const [y,m,d] = String(s).split("-").map(Number); return new Date(y||1970, (m||1)-1, d||1); };
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const monday = d => { const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; };
+const nowMin = () => { const d = new Date(); return d.getHours()*60+d.getMinutes(); };
+const todayKey = () => ymd(new Date());
+const fmtT = m => { m = Number(m)||0; let h = Math.floor(m/60), mm = m%60; const ap = h>=12 && h<24 ? "pm" : "am"; h = h%12||12; return h+(mm?":"+pad(mm):"")+ap; };
+const toHHMM = m => pad(Math.floor(m/60))+":"+pad(m%60);
+const fromHHMM = s => { const [h,m] = String(s||"").split(":").map(Number); return (h||0)*60+(m||0); };
+const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const DOW_LONG = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const dowIdx = d => (d.getDay()+6)%7;
+const uid = () => Math.random().toString(36).slice(2,10);
+const store = { get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }, set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }, del(k){ try { localStorage.removeItem(k); } catch(e){} } };
+/* ---------- Supabase data layer ----------
+   Keeps the app's simple document API (db.doc(path).set/update/delete, db.collection(path).add/onSnapshot)
+   and stores everything in Supabase: one row per document in public.docs, live updates over Realtime.
+   The SAMPLE tribe is read-only on the server, so changes there stay on this device. */
+const CFG = window.HEYTRIBE || {};
+const APP_URL = location.origin + "/app/";
+const SAMPLE_BASE = "2026-10-09";
+let sb = null, SESSION = null;
+const deepMerge = (a, b) => {
+  const out = (a && typeof a === "object" && !Array.isArray(a)) ? { ...a } : {};
+  for(const [k, v] of Object.entries(b || {})){
+    if(v && typeof v === "object" && !Array.isArray(v)){
+      if(v.__delete__ === true){ delete out[k]; continue; }
+      out[k] = deepMerge(out[k], v);
+    } else out[k] = v;
+  }
+  return out;
+};
+const rid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)).replace(/-/g, "").slice(0, 20);
+function shiftDates(obj, days){
+  if(!days) return obj;
+  const s = JSON.stringify(obj).replace(/\b(20\d\d)-(\d\d)-(\d\d)\b/g, (m, y, mo, d) => {
+    const dt = new Date(+y, +mo - 1, +d + days);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+  });
+  return JSON.parse(s);
+}
+function makeDb(client){
+  const T = { code:null, cols:new Map(), tribe:null, ready:null, channel:null, subs:new Set(), local:false, shift:0 };
+  const parse = path => { const p = String(path).split("/"); return { code:p[1], col:p[2] || null, id:p[3] || null }; };
+  const colMap = c => { if(!T.cols.has(c)) T.cols.set(c, new Map()); return T.cols.get(c); };
+  const snapCol = c => ({ docs: [...colMap(c).entries()].map(([id, data]) => ({ id, data: () => data })) });
+  const snapDoc = (c, id) => { const d = colMap(c).get(id); return { exists: !!d, id, data: () => d }; };
+  const snapTribe = () => ({ exists: !!T.tribe, id: T.code, data: () => T.tribe });
+  const notify = col => { for(const s of T.subs){ if(s.col === col || (col === "*")){ try { s.fire(); } catch(e){} } } };
+  function teardown(){ if(T.channel){ try { client.removeChannel(T.channel); } catch(e){} } T.channel = null; T.cols = new Map(); T.tribe = null; T.code = null; T.ready = null; }
+  function put(row){ const id = T.shift ? shiftDates({ v: row.id }, T.shift).v : row.id; colMap(row.col).set(id, T.shift ? shiftDates(row.data, T.shift) : row.data); }
+  function ensure(code){
+    if(T.code === code && T.ready) return T.ready;
+    teardown(); T.code = code; T.local = code === "SAMPLE";
+    T.shift = T.local ? Math.round((new Date(new Date().toDateString()) - new Date(SAMPLE_BASE + "T00:00:00")) / 864e5) : 0;
+    T.ready = (async () => {
+      const tr = await client.from("tribes").select("name, created_at").eq("code", code).maybeSingle();
+      if(tr.error) throw tr.error;
+      T.tribe = tr.data ? { name: tr.data.name } : null;
+      for(let from = 0; ; from += 1000){
+        const r = await client.from("docs").select("col, id, data").eq("tribe_code", code).range(from, from + 999);
+        if(r.error) throw r.error;
+        r.data.forEach(put);
+        if(r.data.length < 1000) break;
+      }
+      if(!T.local){
+        T.channel = client.channel("tribe-" + code)
+          .on("postgres_changes", { event: "*", schema: "public", table: "docs", filter: "tribe_code=eq." + code }, p => {
+            if(T.code !== code) return;
+            if(p.eventType === "DELETE"){ const o = p.old || {}; if(o.col && o.id){ colMap(o.col).delete(o.id); notify(o.col); } }
+            else { const n = p.new; put(n); notify(n.col); }
+          })
+          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "tribes", filter: "code=eq." + code }, p => {
+            if(T.code !== code) return; T.tribe = { name: p.new.name }; notify("__tribe");
+          })
+          .subscribe(status => { if(status === "CHANNEL_ERROR" || status === "TIMED_OUT"){ /* refetch on reconnect */ } });
+      }
+    })();
+    return T.ready;
+  }
+  function listen(col, fire, onErr, code){
+    const s = { col, fire }; T.subs.add(s);
+    ensure(code).then(() => { if(T.subs.has(s)) fire(); }).catch(e => { if(onErr) onErr(e); });
+    return () => T.subs.delete(s);
+  }
+  async function serverWrite(fn){
+    if(T.local) return;
+    const r = await fn();
+    if(r && r.error) throw { code: r.error.code || "write_failed", message: r.error.message };
+  }
+  function docRef(path){
+    const { code, col, id } = parse(path);
+    if(!col){ // the tribe document itself
+      return {
+        get: async () => { await ensure(code); return snapTribe(); },
+        onSnapshot: (cb, err) => listen("__tribe", () => cb(snapTribe()), err, code),
+        update: async data => { T.tribe = { ...(T.tribe || {}), ...data }; notify("__tribe"); await serverWrite(() => client.from("tribes").update({ name: data.name }).eq("code", code)); }
+      };
+    }
+    return {
+      id,
+      get: async () => { await ensure(code); return snapDoc(col, id); },
+      onSnapshot: (cb, err) => listen(col, () => cb(snapDoc(col, id)), err, code),
+      set: async data => { colMap(col).set(id, data); notify(col); await serverWrite(() => client.from("docs").upsert({ tribe_code: code, col, id, data })); },
+      update: async data => { colMap(col).set(id, deepMerge(colMap(col).get(id), data)); notify(col); await serverWrite(() => client.rpc("doc_merge", { p_code: code, p_col: col, p_id: id, p_patch: data })); },
+      delete: async () => { colMap(col).delete(id); notify(col); await serverWrite(() => client.from("docs").delete().match({ tribe_code: code, col, id })); }
+    };
+  }
+  return {
+    doc: docRef,
+    collection(path){
+      const { code, col } = parse(path);
+      return {
+        doc: (id) => docRef(`tribes/${code}/${col}/${id || rid()}`),
+        add: async data => { const ref = docRef(`tribes/${code}/${col}/${rid()}`); await ref.set(data); return ref; },
+        onSnapshot: (cb, err) => listen(col, () => cb(snapCol(col)), err, code)
+      };
+    },
+    refresh(){ const c = T.code; if(!c) return; T.ready = null; const subs = [...T.subs]; teardown(); T.subs = new Set(subs); ensure(c).then(() => notify("*")).catch(()=>{}); },
+    isLocal: () => T.local,
+    reset: teardown
+  };
+}
+/* files: private bucket, one folder per tribe; shown through short-lived signed links */
+const FILES = new Map();
+function fileUrl(id){
+  if(!id) return "";
+  const hit = FILES.get(id);
+  if(hit && hit.exp > Date.now()) return hit.url;
+  if(!hit || !hit.pending){
+    FILES.set(id, { pending: true, url: hit?.url || "", exp: 0 });
+    sb.storage.from("family-files").createSignedUrl(id, 3600).then(r => {
+      if(r.data?.signedUrl){ FILES.set(id, { url: r.data.signedUrl, exp: Date.now() + 3300e3 }); render(); }
+    }).catch(() => {});
+  }
+  return hit?.url || "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
+}
+const assetsApi = {
+  async upload(file){
+    if(file.size > 20 * 1024 * 1024) throw { code: "too_big" };
+    const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5);
+    const path = `${TRIBE}/${rid()}.${ext}`;
+    const r = await sb.storage.from("family-files").upload(path, file, { contentType: file.type || undefined, upsert: false });
+    if(r.error) throw r.error;
+    return { id: path, contentType: file.type };
+  }
+};
+/* Hey Tribe: the server builds the prompt from the note and family context */
+const aiApi = {
+  async understand(text, ctx, signal){
+    const tok = SESSION?.access_token;
+    if(!tok) throw { code: "sampling_disabled" };
+    const r = await fetch("/api/heytribe", { method: "POST", signal, headers: { "content-type": "application/json", authorization: "Bearer " + tok }, body: JSON.stringify({ text, ctx }) });
+    if(r.status === 501 || r.status === 404) throw { code: "sampling_disabled" };
+    if(!r.ok) throw { code: "failed" };
+    return r.json();
+  }
+};
+async function loadMemberships(){
+  if(!SESSION) return [];
+  const r = await sb.from("memberships").select("tribe_code, member_id, tribes(name)").eq("user_id", SESSION.user.id);
+  if(r.error) return null;
+  const list = r.data.map(m => ({ code: m.tribe_code, name: m.tribes?.name || m.tribe_code, me: m.member_id }));
+  store.set("ht-tribes", JSON.stringify(list.map(({code, name}) => ({ code, name }))));
+  list.forEach(m => { if(m.me) store.set("ht-me-" + m.code, m.me); });
+  return list;
+}
+function setMe(code, memberId){
+  store.set("ht-me-" + code, memberId);
+  if(sb && SESSION && code !== "SAMPLE") sb.rpc("set_me", { p_code: code, p_member: memberId }).then(() => {}, () => {});
+}
+
+const monthKey = d => d.getFullYear()+"-"+pad(d.getMonth()+1);
+const daysIn = (y,m) => new Date(y,m+1,0).getDate();
+const dayDiff = (a,b) => Math.round((fromYmd(b)-fromYmd(a))/86400000);
+const fmtDay = k => { if(!k) return ""; const d = fromYmd(k); return MONTHS[d.getMonth()].slice(0,3)+" "+d.getDate()+(d.getFullYear()!==new Date().getFullYear()?", "+d.getFullYear():""); };
+const fmtDayW = k => k ? DOW[dowIdx(fromYmd(k))]+", "+fmtDay(k) : "";
+const rel = n => n===0?"today":n===1?"tomorrow":n===-1?"yesterday":n<0?(-n)+" days ago":"in "+n+" days";
+const money = n => { const v = Number(n)||0; return "$"+v.toLocaleString("en-US",{minimumFractionDigits:v%1?2:0,maximumFractionDigits:2}); };
+function parseClock(s){ const m = String(s).trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(a|am|p|pm)?\.?$/i); if(!m) return null; let h=+m[1], mm=+(m[2]||0); const ap=(m[3]||"").toLowerCase(); if(h>23||mm>59) return null; if(ap.startsWith("p")&&h<12) h+=12; if(ap.startsWith("a")&&h===12) h=0; return toHHMM(h*60+mm); }
+const COLORS = ["sage","blue","rose","olive","sand"];
+const okColor = c => COLORS.includes(c) ? c : "sage";
+const okHex = (c, f) => /^#[0-9a-fA-F]{6}$/.test(String(c)) ? c : f;
+const SKINS = ["#F1C9A5","#E2B48C","#D9A27A","#C98E66","#9C6B4A","#6E4A33"];
+const HAIRS = ["#1C1A1A","#3B2A22","#6E4A30","#8A6142","#C9A15E","#9A9A9A"];
+
+const I = {
+  home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  check:'<rect x="3" y="3" width="18" height="18" rx="5"/><path d="M8 12l3 3 5-6"/>',
+  cart:'<path d="M3 4h2l2.5 11h11L21 8H6.5"/><circle cx="9" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>', back:'<path d="M15 5l-7 7 7 7"/>', fwd:'<path d="M9 5l7 7-7 7"/>',
+  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>', x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+  moon:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  bottle:'<path d="M10 2h4v3l2 3v12a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V8l2-3z"/><path d="M8 12h8"/>',
+  drop:'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  pot:'<path d="M4 10h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M2 10h20M9 6c0-1.5 1-2 1-3M14 6c0-1.5 1-2 1-3"/>',
+  note:'<path d="M5 3h14v12l-6 6H5z"/><path d="M13 21v-6h6"/>',
+  pin:'<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  car:'<path d="M4 16v-4l2-5h12l2 5v4z"/><circle cx="7.5" cy="16.5" r="1.5"/><circle cx="16.5" cy="16.5" r="1.5"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.3 0 4 1.5 4.6 4"/>',
+  trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  grid:'<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>',
+  pill:'<path d="M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7z"/><path d="M7 7l7 7"/>',
+  heart:'<path d="M12 20s-7-4.5-9-9a4.5 4.5 0 0 1 9-2.5A4.5 4.5 0 0 1 21 11c-2 4.5-9 9-9 9z"/>',
+  book:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7"/>',
+  shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  dollar:'<path d="M12 2v20M17 6.5c-1-1.5-3-2-5-2-2.5 0-4.5 1.2-4.5 3.4 0 4.6 10 2.4 10 7.1 0 2.3-2.2 3.5-5 3.5-2.3 0-4.4-.8-5.5-2.5"/>',
+  file:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/>',
+  plane:'<path d="M3 13l18-8-6 15-3-6z"/><path d="M12 14l9-9"/>',
+  phone:'<path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
+  sliders:'<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+  up:'<path d="M6 15l6-6 6 6"/>',
+  down:'<path d="M6 9l6 6 6-6"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+  smile:'<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4 4 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/>',
+  repeat:'<path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>',
+  bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  wrench:'<path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3z"/><path d="M14.5 6.5L17 4l3 3-2.5 2.5"/>'
+};
+const ico = (n, s=22, sw=1.8) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]||""}</svg>`;
+const BUBBLE = 'M30 0H90A30 30 0 0 1 120 30V58A30 30 0 0 1 90 88H46L22 110V88A22 24 0 0 1 0 64V30A30 30 0 0 1 30 0Z';
+const mark = (w, bubble="var(--sage)", dots="var(--bg)") => `<svg width="${w}" height="${Math.round(w*112/120)}" viewBox="0 0 120 112" aria-hidden="true"><path d="${BUBBLE}" style="fill:${bubble}"/><circle cx="35" cy="44" r="11" style="fill:${dots}"/><circle cx="63" cy="44" r="11" style="fill:${dots}"/><circle cx="88" cy="49" r="7" style="fill:${dots}"/></svg>`;
+const scrib = () => `<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><path d="M1 6 C 15 2, 25 9, 40 5 S 70 2, 99 5" fill="none" stroke="var(--sage)" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg>`;
+const squiggle = w => `<svg width="${w}" height="12" viewBox="0 0 120 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8 C 22 2, 38 11, 60 6 S 98 2, 118 7" fill="none" stroke="var(--sage)" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
+const TICK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
+const TICKB = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
+const strikeIf = (on, t) => on ? `<span class="strike">${esc(t)}${scrib()}</span>` : esc(t);
+
+function face(m, size=36){
+  if(!m) return `<span class="face" style="width:${size}px;height:${size}px;background:var(--line)"></span>`;
+  const s = ["short","long","kid","baby"].includes(m.style) ? m.style : "short";
+  const small = s==="kid" || s==="baby", hr = small?9.5:10, hy = small?22:21;
+  const skin = okHex(m.skin, SKINS[1]), hair = okHex(m.hair, HAIRS[1]), c = okColor(m.color);
+  const hp = {
+    short:`<path d="M9.8 20.5 Q9.6 9.5 20 9.6 Q30.4 9.5 30.2 20.5 Q28.5 14.2 21 14.6 Q15 13.8 12.5 17 Q11 18.4 9.8 20.5Z" fill="${hair}"/>`,
+    long:`<circle cx="20" cy="8.6" r="4.6" fill="${hair}"/><path d="M9.6 25 Q8.6 10.6 20 10.8 Q31.4 10.6 30.4 25 Q29.4 15.8 20 15.2 Q12.6 15.4 9.6 25Z" fill="${hair}"/>`,
+    kid:`<path d="M10.6 20.5 Q10.2 12 20 11.8 Q29.8 12 29.4 20.5 L27 16.2 L24.4 18 L22 14.8 L19 17.6 L16.2 15 L13.6 17.8Z" fill="${hair}"/>`,
+    baby:`<path d="M19 13.2 q1.4 -4.4 4.6 -2.6 q-2.6 0.2 -2.4 3" fill="none" stroke="${hair}" stroke-width="1.6" stroke-linecap="round"/>`
+  }[s];
+  return `<span class="face" style="width:${size}px;height:${size}px" title="${esc(m.name)}"><svg width="${size}" height="${size}" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" style="fill:var(--m-${c}-bg)"/><path d="M7 41 Q8 31 20 31 Q32 31 33 41Z" style="fill:var(--m-${c})"/><circle cx="20" cy="${hy}" r="${hr}" fill="${skin}"/>${hp}<circle cx="14.6" cy="${hy+3.6}" r="1.6" fill="#E59A8A" opacity=".45"/><circle cx="25.4" cy="${hy+3.6}" r="1.6" fill="#E59A8A" opacity=".45"/><circle cx="16.6" cy="${hy+.6}" r="1.15" fill="#2F3B45"/><circle cx="23.4" cy="${hy+.6}" r="1.15" fill="#2F3B45"/><path d="M17.6 ${hy+4.2} Q20 ${hy+6.2} 22.4 ${hy+4.2}" fill="none" stroke="#2F3B45" stroke-width="1.1" stroke-linecap="round"/></svg></span>`;
+}
+function everyone(size=24){ return `<span class="faces">${sorted(S.members).slice(0,4).map(m=>face(m,size)).join("")}</span>`; }
+const whoFace = (id, size) => id==="all" ? everyone(Math.round(size*0.7)) : face(mem(id), size);
+
+/* ---------- state ---------- */
+const EMPTY = () => ({ members:[], events:[], chores:[], items:[], meals:{}, notes:[], poll:null, baby:{}, routines:[], meds:[], health:[], contacts:[], school:[], home:[], docs:[], trips:[], countdowns:[], sitter:{}, tribe:null });
+const S = Object.assign({ status:"loading" }, EMPTY());
+const VIEWS = ["today","calendar","chores","lists","menu","baby","fridge","routines","health","school","sitter","home","docs","trips","trip","contacts","kid","family"];
+const UI = { view:"today", calDay: todayKey(), choreMember:null, list:"Groceries", mealWeek:0, calWeek:0, who:null, trip:null, kid:null, onboard:null, askWho:false };
+{ const h = (location.hash||"").slice(1), sv = store.get("ht-view"); UI.view = VIEWS.includes(h) && !["trip","kid"].includes(h) ? h : (VIEWS.includes(sv) && !["trip","kid"].includes(sv) ? sv : "today"); }
+let db = null, sampler = null, assets = null, TRIBE = null, unsubs = [];
+const P = p => "tribes/"+TRIBE+"/"+p;
+const mem = id => S.members.find(m => m.id === id);
+const memName = id => id === "all" ? "Everyone" : (mem(id)?.name || "Someone");
+const sorted = arr => arr.slice().sort((a,b)=>(a.order??99)-(b.order??99) || String(a.name).localeCompare(String(b.name)));
+const meKey = () => "ht-me-"+TRIBE;
+const meId = () => { const id = store.get(meKey()); return mem(id) ? id : (S.members.find(m=>m.style!=="baby"&&m.style!=="kid")?.id || S.members[0]?.id || null); };
+const babyMember = () => S.members.find(m => m.style === "baby");
+const kids = () => sorted(S.members).filter(m => m.style==="kid" || m.style==="baby");
+
+function knownTribes(){ try { const a = JSON.parse(store.get("ht-tribes")||"[]"); return Array.isArray(a) ? a.filter(t=>t && typeof t.code==="string") : []; } catch(e){ return []; } }
+function rememberTribe(code, name){ const all = knownTribes(), old = all.find(t=>t.code===code); const a = all.filter(t=>t.code!==code); a.unshift({ code, name: name || old?.name || code }); store.set("ht-tribes", JSON.stringify(a.slice(0,8))); }
+function forgetTribe(code){ store.set("ht-tribes", JSON.stringify(knownTribes().filter(t=>t.code!==code))); }
+function clearHash(){ try { history.replaceState(null, "", location.pathname + location.search); } catch(e){} }
+
+/* ---------- render ---------- */
+function render(){
+  const app = $("#app");
+  const ready = S.status === "ready" && S.members.length;
+  document.body.classList.toggle("kidmode", !!ready && UI.view === "kid");
+  $("nav.bar").hidden = !ready;
+  const f = document.activeElement, fid = f && f.id, fval = f && "value" in f ? f.value : null, sel = f && f.selectionStart;
+  let html;
+  if(S.status === "loading") html = loading();
+  else if(S.status === "offline") html = offline();
+  else if(S.status === "auth") html = authScreen();
+  else if(S.status === "welcome") html = welcome();
+  else if(!S.members.length) html = setup();
+  else { html = (VIEWFN[UI.view] || today)(); if(groupOf(UI.view)) html = groupBar() + html; if(TRIBE === "SAMPLE") html = `<div class="samplebar"><span>Sample family. Changes stay on this device.</span><button data-act="sample-exit">${SESSION ? "Back to my tribe" : "Make my own"}</button></div>` + html; }
+  app.innerHTML = html;
+  if(ready) renderNav();
+  const on = $(".gtab.on"); if(on){ const bar = on.parentElement; bar.scrollLeft = Math.max(0, on.offsetLeft - bar.offsetLeft - 24); }
+  if(fid && !$("#scrim")){ const el = document.getElementById(fid); if(el){ if(fval!==null && el.value!==fval) el.value = fval; el.focus(); try{ if(sel!=null) el.setSelectionRange(sel,sel); }catch(e){} } }
+}
+/* five tabs; every feature lives in one of three sections with its own short tab row */
+const GROUPS = {
+  plan: { label:"Plan", icon:"cal", views:[["calendar","Calendar"],["lists","Lists"],["menu","Dinner"],["trips","Trips"]] },
+  kids: { label:"Kids", icon:"smile", views:[["chores","Chores"],["routines","Routines"],["school","School"],["baby","Baby"]] },
+  home: { label:"Home", icon:"home", views:[["home","Bills"],["health","Health"],["docs","Documents"],["contacts","Contacts"],["sitter","Sitter"]] }
+};
+function groupOf(v){ if(v === "trip") return "plan"; return Object.keys(GROUPS).find(g => GROUPS[g].views.some(x => x[0] === v)) || null; }
+function lastIn(g){ const v = store.get("ht-last-"+g); return GROUPS[g].views.some(x=>x[0]===v) ? v : GROUPS[g].views[0][0]; }
+function groupBar(){
+  const g = groupOf(UI.view), cur = UI.view === "trip" ? "trips" : UI.view;
+  return `<div class="gbar"><div class="gtabs" role="tablist" aria-label="${GROUPS[g].label}">${GROUPS[g].views.map(([v,l])=>`<button class="gtab ${cur===v?"on":""}" data-go="${v}" role="tab" aria-selected="${cur===v}">${l}</button>`).join("")}${g==="kids"?`<button class="gtab kidv" data-act="kid-pick">${ico("smile",15,2)} Kid view</button>`:""}</div><button class="gme" data-go="family" aria-label="Family and settings">${face(mem(meId()),34)}</button></div>`;
+}
+function renderNav(){
+  const cg = groupOf(UI.view);
+  const t = (v,ic,l) => `<button class="tab ${UI.view===v?"on":""}" data-go="${v}" aria-label="${l}">${ico(ic,24,UI.view===v?2:1.7)}<span>${l}</span></button>`;
+  const gt = g => `<button class="tab ${cg===g?"on":""}" data-go="${lastIn(g)}" aria-label="${GROUPS[g].label}">${ico(GROUPS[g].icon,24,cg===g?2:1.7)}<span>${GROUPS[g].label}</span></button>`;
+  $("#nav").innerHTML = t("today","sun","Today") + gt("plan") + `<button class="mic" data-act="ht" aria-label="Hey Tribe">${mark(48)}</button>` + gt("kids") + gt("home");
+}
+function go(v){ if(!VIEWS.includes(v) || v === "fridge") v = "today"; UI.view = v; if(!["trip","kid"].includes(v)) store.set("ht-view", v); const g = groupOf(v); if(g && v !== "trip") store.set("ht-last-"+g, v); window.scrollTo(0,0); render(); }
+
+function pageHead(title, actions="", back="today", sub=""){
+  const backLabel = back==="today" ? "Today" : back==="trips" ? "Trips" : "Back";
+  const inSection = back === "today" && !!groupOf(UI.view);
+  const backBtn = inSection ? "" : `<button class="small row" data-go="${back}" style="gap:4px;font-weight:600">${ico("back",14,2.4)}${backLabel}</button>`;
+  return `<div class="between" style="align-items:flex-start"><div class="col" style="gap:6px;min-width:0">${backBtn}<h1 class="title">${title}</h1>${sub?`<span class="small" style="font-size:14px">${sub}</span>`:""}</div><div class="row" style="gap:8px;flex-shrink:0;margin-top:${inSection?4:24}px">${actions}</div></div>`;
+}
+const addBtn = (attrs, label) => `<button class="iconbtn solid" ${attrs} aria-label="${esc(label)}">${ico("plus",20,2.2)}</button>`;
+const secHead = (label, attrs, action) => `<div class="sechead"><span class="eyebrow">${label}</span>${attrs?`<button ${attrs}>+ ${esc(action)}</button>`:""}</div>`;
+function personChips(sel, act, list){ return `<div class="chips" style="margin-top:14px">${(list||sorted(S.members)).map(p=>`<button class="chip ${p.id===sel?"on":""}" data-act="${act}" data-id="${esc(p.id)}">${face(p,28)}${esc(p.name)}</button>`).join("")}</div>`; }
+function pickWho(pool, def){ pool = pool || S.members; if(!UI.who || !pool.some(m=>m.id===UI.who)) UI.who = (pool.find(m=>m.id===def) || pool[0] || {}).id || null; return UI.who; }
+
+function loading(){ return `<div class="col" style="gap:18px;padding-top:40px;align-items:center;text-align:center">${mark(56)}<div class="serif" style="font-size:26px">Gathering your tribe…</div><div class="small">Syncing plans, chores and lists.</div></div>`; }
+function offline(){ return `<div class="col" style="gap:16px;padding-top:40px">${mark(44)}<h1 class="title">Can't reach HeyTribe</h1><p class="small" style="font-size:15px;line-height:1.5">Check your connection and try again. Anything you already see is safe.</p><button class="btn primary" onclick="location.reload()">Try again</button></div>`; }
+function authScreen(){
+  const m = UI.auth || "signin";
+  const logo = `<div class="row" style="gap:8px">${mark(26)}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div>`;
+  const email = (v="") => `<div class="field"><label for="au-email">Email</label><input id="au-email" name="email" type="email" autocomplete="email" required value="${esc(v)}" ${m!=="reset"?"autofocus":""}></div>`;
+  const pw = (id, label, ac) => `<div class="field"><label for="${id}">${label}</label><input id="${id}" name="${id==="au-pw2"?"password2":"password"}" type="password" minlength="8" autocomplete="${ac}" required></div>`;
+  const err = `<p class="form-err small" id="au-err" role="alert">${esc(UI.authErr||"")}</p>`;
+  const link = (mode, t) => `<button type="button" class="small" data-act="auth-mode" data-mode="${mode}" style="font-weight:600;color:var(--sage-ink)">${t}</button>`;
+  let body;
+  if(m === "signup") body = `<form data-form="auth-signup" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Make your <em>account</em></h1>
+      <p class="small" style="font-size:15px;margin:0">One login per person. Then start your tribe or join your family's with their code.</p>
+      ${email(UI.authEmail)}${pw("au-pw","Password (8 or more characters)","new-password")}
+      <button class="btn primary" id="au-go">Create account</button>${err}
+      <p class="small" style="margin:0">Already have one? ${link("signin","Log in")}</p></form>`;
+  else if(m === "forgot") body = `<form data-form="auth-forgot" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Reset your <em>password</em></h1>
+      <p class="small" style="font-size:15px;margin:0">We'll email you a link to choose a new one.</p>
+      ${email(UI.authEmail)}<button class="btn primary" id="au-go">Send the link</button>${err}
+      <p class="small" style="margin:0">${link("signin","Back to log in")}</p></form>`;
+  else if(m === "reset") body = `<form data-form="auth-reset" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Choose a new <em>password</em></h1>
+      ${pw("au-pw","New password (8 or more characters)","new-password")}<button class="btn primary" id="au-go">Save password</button>${err}</form>`;
+  else if(m === "check") body = `<div class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Check your <em>email</em></h1>
+      <p style="font-size:16px;line-height:1.5;margin:0;color:var(--muted)">${esc(UI.authMsg||"We sent you a link. Open it on this device to finish.")}</p>
+      <p class="small" style="margin:0">${link("signin","Back to log in")}</p></div>`;
+  else body = `<form data-form="auth-signin" class="col" style="gap:14px"><h1 class="title" style="font-size:44px">Welcome <em>back.</em></h1>
+      ${email(UI.authEmail)}${pw("au-pw","Password","current-password")}
+      <button class="btn primary" id="au-go">Log in</button>${err}
+      <div class="between" style="flex-wrap:wrap;gap:8px">${link("forgot","Forgot password?")}<span class="small">New here? ${link("signup","Make an account")}</span></div></form>`;
+  return `<div class="col" style="gap:22px;padding-top:18px">${logo}${body}
+    ${m==="signin"||m==="signup"?`<button class="choice" data-act="try-sample"><span class="lic" style="background:var(--m-rose-bg);color:var(--m-rose)">${ico("smile",24)}</span><span class="col grow"><b style="font-weight:600;font-size:16px">Look around with a sample family</b><span class="small">No account needed</span></span>${ico("fwd",18,2)}</button>`:""}</div>`;
+}
+
+/* ---------- WELCOME (start / join / sample) ---------- */
+function welcome(){
+  const o = UI.onboard, known = knownTribes();
+  const logo = `<div class="row" style="gap:8px">${mark(26)}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div>`;
+  const choice = (mode, ic, tone, t, s) => `<button class="choice" data-act="onboard" data-mode="${mode}"><span class="lic" style="background:var(--m-${tone}-bg);color:var(--m-${tone})">${ico(ic,24)}</span><span class="col grow"><b style="font-weight:600;font-size:16px">${t}</b><span class="small">${s}</span></span>${ico("fwd",18,2)}</button>`;
+  let body;
+  if(o === "create") body = `<form data-form="create-tribe" class="col" style="gap:14px">
+      <h2 class="serif" style="font-size:30px;margin:0">Start your tribe</h2>
+      <div class="field"><label for="tb-name">Family name</label><input id="tb-name" name="tribe" maxlength="40" placeholder="The Rivera family" required autofocus></div>
+      <div class="field"><label for="tb-you">Your first name</label><input id="tb-you" name="you" maxlength="20" placeholder="Alex" required></div>
+      <button class="btn primary" id="tb-go">Create our tribe</button>
+      <p class="form-err small" id="tb-err" role="alert"></p>
+      <button type="button" class="small" data-act="onboard" data-mode="" style="font-weight:600">Back</button></form>`;
+  else if(o === "join") body = `<form data-form="join-tribe" class="col" style="gap:14px">
+      <h2 class="serif" style="font-size:30px;margin:0">Join your family</h2>
+      <p class="small" style="font-size:14px;margin:0">Ask someone in your tribe for the 6-character code. They'll find it under Family &amp; settings.</p>
+      <div class="field"><label for="jn-code">Invite code</label><input id="jn-code" name="code" maxlength="8" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="K7Q2PX" required autofocus style="text-transform:uppercase;letter-spacing:4px;font-size:22px"></div>
+      <button class="btn primary" id="jn-go">Join</button>
+      <p class="form-err small" id="jn-err" role="alert"></p>
+      <button type="button" class="small" data-act="onboard" data-mode="" style="font-weight:600">Back</button></form>`;
+  else body = `<div class="col" style="gap:10px">
+      ${choice("create","plus","sage","Start a new tribe","Set up your family in two minutes")}
+      ${choice("join","users","blue","Join with an invite code","Someone in your family already started one")}
+      <button class="choice" data-act="try-sample"><span class="lic" style="background:var(--m-rose-bg);color:var(--m-rose)">${ico("smile",24)}</span><span class="col grow"><b style="font-weight:600;font-size:16px">Look around with a sample family</b><span class="small">A shared demo anyone can try</span></span>${ico("fwd",18,2)}</button></div>`;
+  return `<div class="col" style="gap:22px;padding-top:18px">${logo}
+    ${!o?`<h1 class="title" style="font-size:44px">The whole family,<br><em>finally</em> in sync.</h1>
+    <p style="color:var(--muted);font-size:16px;line-height:1.5;margin:0">Plans, chores, lists, meds, bills and the baby's naps, shared live with everyone in your house.</p>`:""}
+    ${body}
+    ${!o && known.length?`<div class="col" style="gap:8px"><span class="eyebrow">Your tribes</span>${known.map(t=>`<button class="choice" data-act="switch-tribe" data-code="${esc(t.code)}"><span class="lic" style="background:var(--sage-soft);color:var(--sage-ink)">${ico("home",22)}</span><span class="col grow"><b style="font-weight:600">${esc(t.name)}</b><span class="small">Code ${esc(t.code)}</span></span>${ico("fwd",18,2)}</button>`).join("")}</div>`:""}
+    ${SESSION?`<p class="small" style="margin:0">Signed in as ${esc(SESSION.user.email||"")} · <button class="small" data-act="sign-out" style="font-weight:600;text-decoration:underline;text-underline-offset:3px">Log out</button></p>`:""}
+    ${TRIBE && S.members.length?`<button class="small" data-act="back-tribe" style="font-weight:600;text-align:left">Back to ${esc(S.tribe?.name || "your tribe")}</button>`:""}
+  </div>`;
+}
+function setup(){
+  return `<div class="col" style="gap:18px;padding-top:24px">
+    <div class="row" style="gap:8px">${mark(24)}<span style="font-size:18px">hey<b style="font-weight:800">tribe</b></span></div>
+    <h1 class="title">${esc(S.tribe?.name || "Your tribe")} is ready</h1>
+    <div class="empty"><span class="hand">nobody here yet</span>Add yourself first, then your partner and kids.</div>
+    <button class="btn dark" data-act="member-new">Add a family member</button>
+    <button class="small" data-act="onboard" data-mode="" style="font-weight:600">Switch tribe</button></div>`;
+}
+
+/* ---------- events ---------- */
+function occursOn(e, day){
+  if(e.date === day) return true;
+  if(e.repeat === "weekly" && e.date < day) return dowIdx(fromYmd(e.date)) === dowIdx(fromYmd(day)) && (!e.until || e.until >= day);
+  return false;
+}
+function eventsOn(day){ return S.events.filter(e => occursOn(e, day)).sort((a,b)=>a.start-b.start); }
+function conflictFor(e, day){ if(!e.driver) return null; return eventsOn(day).find(o => o.id!==e.id && o.member===e.driver && o.start < e.end && o.end > e.start - 30) || null; }
+function nextFor(test, horizon=90){ const now = nowMin(), k = todayKey(); for(let i=0;i<=horizon;i++){ const day = ymd(addDays(new Date(), i)); const hit = eventsOn(day).find(e => test(e) && (day!==k || e.start > now)); if(hit) return { e: hit, day }; } return null; }
+
+/* ---------- smart layer ---------- */
+function medActive(m, day){ return (!m.start || m.start <= day) && (!m.until || m.until >= day); }
+function billState(b){
+  const t = fromYmd(todayKey()), y = t.getFullYear(), m = t.getMonth();
+  const dd = Math.min(Math.max(1, Number(b.dueDay)||1), daysIn(y,m)), due = new Date(y, m, dd), mk = monthKey(due);
+  if(b.paid && b.paid[mk]){ const nd = new Date(y, m+1, Math.min(Number(b.dueDay)||1, daysIn(y, m+1))); return { paid:true, mk, date: ymd(nd), days: dayDiff(ymd(t), ymd(nd)) }; }
+  return { paid:false, mk, date: ymd(due), days: dayDiff(ymd(t), ymd(due)) };
+}
+function upkeepNext(u){ const k = todayKey(); if(!u.last) return { date:k, days:0 }; const d = fromYmd(u.last); d.setMonth(d.getMonth() + (Number(u.every)||3)); return { date: ymd(d), days: dayDiff(k, ymd(d)) }; }
+function subNext(s){ if(!s.renews) return null; const t = fromYmd(todayKey()); const d = fromYmd(s.renews); let guard = 0; while(d < t && guard++ < 400){ if(s.cycle === "yearly") d.setFullYear(d.getFullYear()+1); else d.setMonth(d.getMonth()+1); } return { date: ymd(d), days: dayDiff(ymd(t), ymd(d)) }; }
+function headsUp(){
+  const out = [], k = todayKey(), now = nowMin();
+  S.meds.forEach(m => { if(!medActive(m,k)) return; (m.times||[]).forEach(t => { const tm = fromHHMM(t), g = m.log && m.log[k] && m.log[k][t]; if(!g && tm <= now + 90) out.push({ p: tm < now ? 1 : 2, tone:"blue", go:"health", who:m.member, text:`${m.name} for ${memName(m.member)} ${tm < now ? "was due at" : "due at"} ${fmtT(tm)}` }); }); });
+  S.home.filter(b => b.kind==="bill" && !b.autopay).forEach(b => { const n = billState(b); if(!n.paid && n.days <= 5) out.push({ p: n.days < 0 ? 1 : 3, tone:"sand", go:"home", text:`${b.name}${b.amount ? " ("+money(b.amount)+")" : ""} ${n.days < 0 ? "is overdue" : "due "+rel(n.days)}` }); });
+  S.school.filter(x => x.kind==="slip" && !x.done && x.due).forEach(x => { const d = dayDiff(k, x.due); if(d <= 4) out.push({ p: d < 0 ? 1 : 3, tone:"rose", go:"school", who:x.member, text:`Sign “${x.title}” ${d < 0 ? "(was due "+fmtDay(x.due)+")" : d===0 ? "today" : "by "+(d===1 ? "tomorrow" : fmtDayW(x.due))}` }); });
+  S.home.filter(u => u.kind==="upkeep").forEach(u => { const n = upkeepNext(u); if(n.days <= 0) out.push({ p:4, tone:"olive", go:"home", text:`${u.name} ${n.days < 0 ? "is overdue" : "is due"}` }); });
+  S.docs.filter(d => d.expires).forEach(d => { const n = dayDiff(k, d.expires); if(n <= 60) out.push({ p: n < 0 ? 2 : 4, tone:"rose", go:"docs", text:`${d.member && d.member!=="all" ? memName(d.member)+"'s " : ""}${d.title} ${n < 0 ? "expired "+fmtDay(d.expires) : "expires "+rel(n)}` }); });
+  S.health.filter(r => r.next).forEach(r => { const n = dayDiff(k, r.next); if(n >= 0 && n <= 14) out.push({ p:5, tone:"blue", go:"health", who:r.member, text:`${memName(r.member)}: ${r.title} ${rel(n)}` }); });
+  S.trips.forEach(t => { if(!t.start) return; const n = dayDiff(k, t.start); if(n >= 0 && n <= 10){ const pk = t.packing||[], done = pk.filter(x=>x.packed).length; out.push({ p:5, tone:"sage", go:"trip", trip:t.id, text:`${t.name} ${rel(n)}${pk.length ? ` · ${done} of ${pk.length} packed` : ""}` }); } });
+  return out.sort((a,b)=>a.p-b.p);
+}
+
+/* ---------- COUNTDOWNS ---------- */
+function cdNext(c){
+  const k = todayKey();
+  if(!c.date) return null;
+  if(!c.yearly) return c.date;
+  const d = fromYmd(c.date), t = fromYmd(k); let n = new Date(t.getFullYear(), d.getMonth(), d.getDate());
+  if(n < t) n = new Date(t.getFullYear()+1, d.getMonth(), d.getDate());
+  return ymd(n);
+}
+function countdownsUpcoming(){ const k = todayKey(); return S.countdowns.map(c => { const d = cdNext(c); return d ? { c, d, n: dayDiff(k, d) } : null; }).filter(x => x && x.n >= 0).sort((a,b) => a.n - b.n); }
+function countdownRow(){
+  const list = countdownsUpcoming();
+  const card = ({c,d,n}) => { const tone = COLORS.includes(c.tone) ? c.tone : "sage";
+    return `<button class="cd ${n===0?"cd-today":""}" data-act="ent-edit" data-kind="countdown" data-id="${esc(c.id)}" style="background:var(--m-${tone}-bg)">
+      <span class="cd-face">${c.member && c.member!=="all" ? face(mem(c.member),26) : ""}</span>
+      <span class="cd-n tabular">${n===0?"Today!":n}</span>
+      <span class="cd-u">${n===0?"it's here":n===1?"day to go":"days to go"}</span>
+      <span class="cd-t">${esc(c.title)}</span>
+      <span class="cd-d">${esc(fmtDayW(d))}${c.yearly?" · yearly":""}</span></button>`; };
+  return `<div class="cdrow">${list.map(card).join("")}<button class="cd cd-add" data-act="ent-new" data-kind="countdown">${ico("plus",22,2)}<span class="cd-t">${list.length?"Add another":"Add a countdown"}</span><span class="cd-d">Birthdays, trips, the last day of school</span></button></div>`;
+}
+
+/* ---------- TODAY layout (each person picks their own) ---------- */
+const HSECS = [["attention","Needs attention","bell"],["countdowns","Counting down","clock"],["plans","Today's plans","cal"],["fridge","On the fridge","note"],["glance","At a glance","grid"]];
+const GPANELS = [["chores","Chores"],["dinner","Dinner"],["groceries","Groceries"],["meds","Meds today"],["bills","Bills to pay"],["routines","Routines"],["baby","Baby log"],["school","School forms"]];
+function layoutOf(){
+  const L = (mem(meId())||{}).layout || {}, known = HSECS.map(x=>x[0]);
+  const order = (Array.isArray(L.order)?L.order:[]).filter(k=>known.includes(k)); known.forEach(k => { if(!order.includes(k)) order.push(k); });
+  const arr = a => Array.isArray(a) ? a.filter(x=>typeof x==="string") : [];
+  return { order, hidden: arr(L.hidden), panels: arr(L.panels), brief: L.brief !== false };
+}
+function saveLayout(L){ const m = mem(meId()); if(!m) return; m.layout = { order:L.order, hidden:L.hidden, panels:L.panels, brief:L.brief }; render(); layoutSheet(); W.upd("members/"+m.id, { layout: m.layout }); }
+function layoutSheet(){
+  const L = layoutOf(), sw = (on, act, k, label) => `<button class="tsw ${on?"on":""}" role="switch" aria-checked="${on}" data-act="${act}" data-k="${k}" aria-label="Show ${esc(label)}"><i></i></button>`;
+  const rows = L.order.map((k,i) => { const d = HSECS.find(x=>x[0]===k), on = !L.hidden.includes(k);
+    return `<div class="lay-r ${on?"":"off"}"><span class="lay-i">${ico(d[2],17,2)}</span><b class="grow">${d[1]}</b>
+      <button class="iconbtn sm" data-act="lay-move" data-k="${k}" data-dir="-1" aria-label="Move ${d[1]} up" ${i===0?"disabled":""}>${ico("up",16,2.2)}</button>
+      <button class="iconbtn sm" data-act="lay-move" data-k="${k}" data-dir="1" aria-label="Move ${d[1]} down" ${i===L.order.length-1?"disabled":""}>${ico("down",16,2.2)}</button>
+      ${sw(on,"lay-sec",k,d[1])}</div>`; }).join("");
+  const panels = GPANELS.map(([k,l]) => { const on = !L.panels.includes(k); return `<div class="lay-r sm ${on?"":"off"}"><b class="grow">${l}</b>${sw(on,"lay-panel",k,l)}</div>`; }).join("");
+  const html = `<div class="col" style="gap:4px"><h2 class="serif" style="font-size:28px;margin:0">Your Today screen</h2><p class="small" style="margin:2px 0 12px">Pick what shows and in what order. This only changes your view, ${esc(memName(meId()))}.</p></div>
+    <div class="lay-r"><span class="lay-i">${ico("sun",17,2)}</span><b class="grow">Morning briefing</b>${sw(L.brief,"lay-brief","brief","Morning briefing")}</div>
+    <span class="eyebrow" style="display:block;margin:16px 0 6px">Sections</span>${rows}
+    <span class="eyebrow" style="display:block;margin:16px 0 6px">At a glance cards</span><div class="lay-grid">${panels}</div>
+    <div class="row" style="gap:10px;margin-top:18px"><button class="btn ghost grow" data-act="lay-reset">Reset to default</button><button class="btn primary grow" data-act="lay-done">Done</button></div>`;
+  const sh = $("#scrim .sheet.lay");
+  if(sh){ const st = sh.scrollTop; sh.innerHTML = `<div class="grab"></div>` + html; sh.scrollTop = st; }
+  else { openSheet(html); $("#scrim .sheet").classList.add("lay"); }
+}
+
+/* ---------- TODAY: the family fridge + dashboard ---------- */
+const sect = (tone, icon, title, action, body) => `<section class="dsec ${tone?"t-"+tone:"plain"}"><div class="dsec-h"><span class="dsec-i">${ico(icon,17,2)}</span><h2>${title}</h2>${action||""}</div>${body}</section>`;
+const sAct = (attrs, label) => `<button class="dsec-a" ${attrs}>+ ${label}</button>`;
+function today(){
+  const d = new Date(), key = todayKey(), me = mem(meId()), now = nowMin();
+  const evs = eventsOn(key), next = evs.find(e => e.end > now);
+  const groceries = S.items.filter(i => !i.checked && (i.list||"Groceries")==="Groceries");
+  const due = S.chores.filter(c => (c.days||[0,1,2,3,4,5,6]).includes(dowIdx(d)));
+  const doneCount = due.filter(c => c.done && c.done[key]).length;
+  const hr = d.getHours(), hi = hr<12 ? "Morning" : hr<17 ? "Afternoon" : "Evening";
+  let brief = evs.length ? `${evs.length} ${evs.length===1?"plan":"plans"} today.` : "Nothing on the calendar today.";
+  if(next) brief += ` Next up: <b style="font-weight:600">${esc(next.title)}</b> at ${fmtT(next.start)}${next.member&&next.member!=="all"?" with "+esc(memName(next.member)):""}${next.driver?", "+esc(memName(next.driver))+" driving":""}.`;
+  else if(evs.length) brief += " That's everything for today.";
+  const cdToday = countdownsUpcoming().filter(x => x.n === 0);
+  if(cdToday.length) brief = `<b style="font-weight:600">Today's the day: ${cdToday.map(x=>esc(x.c.title)).join(", ")}!</b> ` + brief;
+  if(S.meals[key]?.dish) brief += ` Dinner is <b style="font-weight:600">${esc(S.meals[key].dish)}</b>.`;
+  const hu = headsUp();
+  let tl = "", nowPlaced = false;
+  const nowRow = `<div class="nowline" aria-hidden="true"><i></i><b></b><span>now</span></div>`;
+  evs.forEach(e => {
+    if(!nowPlaced && e.start > now){ tl += nowRow; nowPlaced = true; }
+    const sub = [e.member==="all"?"Everyone":memName(e.member), e.driver?memName(e.driver)+" drives":"", e.place||""].filter(Boolean).join(" · ");
+    tl += `<button class="tl ${e.end<=now?"past":""}" data-act="event" data-id="${esc(e.id)}" data-day="${key}"><span class="t tabular">${fmtT(e.start)}</span><span class="d"></span><span class="col grow" style="gap:2px"><span class="name" style="font-size:16px;font-weight:500">${esc(e.title)}${e.repeat==="weekly"?` <span style="color:var(--faint)">${ico("repeat",13,2)}</span>`:""}</span><span class="small">${esc(sub)}</span></span>${whoFace(e.member,30)}</button>`;
+  });
+  if(evs.length && !nowPlaced) tl += nowRow;
+  return `
+  <div class="between" style="align-items:flex-end">
+    <div><div class="eyebrow">${esc(S.tribe?.name || "")} · ${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}</div><h1 class="title" style="font-size:44px;margin-top:4px">${DOW_LONG[dowIdx(d)]}</h1></div>
+    <button data-go="family" aria-label="Family and settings">${face(me,46)}</button>
+  </div>
+  ${layoutOf().brief ? `<div class="brief" style="margin-top:18px">
+    <div class="hi">${hi}, ${esc(me?.name||"there")} —</div>
+    <div style="font-size:15px;line-height:1.5;margin-top:6px">${brief}</div>
+    <button class="row" data-act="ht" style="gap:6px;margin-top:10px">${mark(16)}<span class="small" style="text-decoration:underline;text-underline-offset:3px">Tell Hey Tribe something</span></button>
+  </div>` : ""}
+  ${(()=>{ const L = layoutOf(), SEC = {
+    attention: () => hu.length ? sect("rose", "bell", "Needs attention", `<span class="small">${hu.length}</span>`, `<div class="attn">${hu.slice(0,UI.allAttn?99:4).map(h=>`<div class="attn-r"><span class="dot" style="background:var(--${h.tone})"></span><span class="grow">${esc(h.text)}</span></div>`).join("")}${hu.length>4&&!UI.allAttn?`<button class="attn-more" data-act="attn-all">Show ${hu.length-4} more</button>`:""}</div>`) : "",
+    countdowns: () => sect("", "clock", "Counting down", sAct('data-act="ent-new" data-kind="countdown"', "Add"), countdownRow()),
+    plans: () => sect("blue", "cal", "Today's plans", sAct(`data-act="event-new" data-day="${key}"`, "Add"), evs.length ? `<div class="timeline">${tl}</div>` : `<div class="empty"><span class="hand">a clear day</span>Add a plan, or tell Hey Tribe what's coming up.</div>`),
+    fridge: () => sect("sage", "note", "On the fridge", sAct('data-act="note-new"', "Note"), fridgeBoard()),
+    glance: () => { const g = glance(key, due, doneCount, groceries, L.panels); return g ? sect("sand", "grid", "At a glance", "", g) : ""; }
+  };
+  return L.order.filter(k => !L.hidden.includes(k)).map(k => SEC[k]()).join("") + `<button class="custbtn" data-act="layout">${ico("sliders",17,2)} Customize this screen</button>`; })()}`;
+}
+function glance(key, due, doneCount, groceries, hiddenPanels=[]){
+  const panel = (tone, ic, title, big, body, wide) => `<div class="gp ${wide?"wide":""}"><div class="gp-h"><span class="ic" style="background:var(--m-${tone}-bg);color:var(--m-${tone})">${ico(ic,16)}</span><span>${title}</span></div>${big?`<div class="gp-big">${big}</div>`:""}${body||""}</div>`;
+  const li = (a, b, done) => `<div class="gp-li ${done?"done":""}"><span class="grow">${a}</span>${b?`<span class="small tabular">${b}</span>`:""}</div>`;
+  // chores per person
+  const kids = sorted(S.members).filter(m=>m.style!=="baby");
+  const chores = kids.map(m => { const mine = due.filter(c=>c.member===m.id); if(!mine.length) return ""; const dn = mine.filter(c=>c.done&&c.done[key]).length;
+    return `<div class="gp-who">${face(m,24)}<span class="grow" style="font-size:13.5px">${esc(m.name)}</span><span class="meter sm"><i style="width:${Math.round(dn/mine.length*100)}%"></i></span><span class="small tabular">${dn}/${mine.length}</span></div>`; }).join("");
+  // dinner: tonight + next two days
+  const meals = [0,1,2].map(i => { const k = ymd(addDays(new Date(), i)); return li(i===0 ? "<b style='font-weight:600'>Tonight</b>" : esc(DOW[dowIdx(fromYmd(k))]), esc(S.meals[k]?.dish || "not planned")); }).join("");
+  // meds
+  const doses = []; S.meds.forEach(m => { if(!medActive(m,key)) return; (m.times||[]).forEach(t => doses.push({ m, t, given: !!(m.log&&m.log[key]&&m.log[key][t]) })); });
+  doses.sort((a,b)=>fromHHMM(a.t)-fromHHMM(b.t));
+  const given = doses.filter(x=>x.given).length;
+  // bills
+  const bills = S.home.filter(b=>b.kind==="bill").map(b=>({b, st:billState(b)})).filter(x=>!x.st.paid).sort((a,b)=>a.st.days-b.st.days);
+  // routines
+  let st = 0, sd = 0; S.routines.forEach(r => { const dn = (r.done&&r.done[key])||{}; (r.steps||[]).forEach(s => { st++; if(dn[s.id]) sd++; }); });
+  const slips = S.school.filter(x=>x.kind==="slip"&&!x.done);
+  const bb = babyMember();
+  const out = [
+    ["chores", () => panel("rose","check","Chores", `${doneCount}<small> of ${due.length} done</small>`, chores, true)],
+    ["dinner", () => panel("sand","pot","Dinner", "", meals)],
+    ["groceries", () => panel("sage","cart","Groceries", `${groceries.length}<small> ${groceries.length===1?"item":"items"}</small>`, groceries.slice(0,3).map(i=>li(esc(i.text||i.name||""))).join("") + (groceries.length>3?`<div class="small" style="margin-top:4px">+ ${groceries.length-3} more</div>`:""))],
+    ["meds", () => doses.length ? panel("blue","heart","Meds today", `${given}<small> of ${doses.length} given</small>`, doses.slice(0,3).map(x=>li(`${esc(x.m.name)} · ${esc(memName(x.m.member))}`, fmtT(fromHHMM(x.t)), x.given)).join("")) : ""],
+    ["bills", () => bills.length ? panel("olive","dollar","Bills to pay", "", bills.slice(0,3).map(({b,st})=>li(esc(b.name), st.days<0?"overdue":rel(st.days))).join("")) : ""],
+    ["routines", () => st ? panel("sand","sun","Routines", `${sd}<small> of ${st} steps</small>`, `<span class="meter"><i style="width:${Math.round(sd/st*100)}%"></i></span>`) : ""],
+    ["baby", () => bb ? panel("olive","bottle", esc(bb.name), "", `<div style="font-size:14px">${esc(babyLastFed())}</div>`) : ""],
+    ["school", () => slips.length ? panel("sage","book","School forms", `${slips.length}<small> to sign</small>`, slips.slice(0,2).map(x=>li(esc(x.title), x.due?fmtDay(x.due):"")).join("")) : ""]
+  ].filter(([k]) => !hiddenPanels.includes(k)).map(([k,f]) => f()).filter(Boolean);
+  if(!out.length) return "";
+  out[0] = out[0].replace('class="gp "','class="gp wide"');
+  if(out.length % 2 === 0) out[out.length-1] = out[out.length-1].replace('class="gp "','class="gp wide"');
+  return `<div class="glance">${out.join("")}</div>`;
+}
+/* ---------- CALENDAR ---------- */
+const H0 = 7, H1 = 21, PX = 40;
+function calendar(){
+  const base = addDays(monday(new Date()), UI.calWeek*7), sel = UI.calDay, key = todayKey();
+  const lanes = sorted(S.members), n = lanes.length || 1;
+  const days = [...Array(7)].map((_,i)=>addDays(base,i)).map(dd => {
+    const k = ymd(dd), evs = eventsOn(k), cols = [...new Set(evs.map(e=>e.member==="all"?"sage":okColor(mem(e.member)?.color)))].slice(0,3);
+    return `<button class="day ${k===sel?"on":""} ${k===key?"today":""}" data-act="calday" data-day="${k}" aria-label="${DOW_LONG[dowIdx(dd)]} ${dd.getDate()}"><span class="small" style="font-size:11px">${DOW[dowIdx(dd)][0]}</span><span class="n">${dd.getDate()}</span><span class="dots">${cols.map(c=>`<i style="background:var(--m-${c})"></i>`).join("")}</span></button>`;
+  }).join("");
+  const sd = fromYmd(sel), evs = eventsOn(sel);
+  const laneW = `((100% - 38px) / ${n})`;
+  let grid = "";
+  for(let h=H0; h<=H1; h++) grid += `<div class="hourline" style="top:${(h-H0)*PX}px"></div><div class="hourlbl" style="top:${(h-H0)*PX-8}px">${fmtT(h*60)}</div>`;
+  let blocks = "";
+  evs.forEach(e => {
+    if(e.end/60 <= H0 || e.start/60 >= H1) return;
+    const top = Math.max(0,(e.start/60-H0)*PX)+1, h = Math.max(24, ((Math.min(e.end, H1*60) - Math.max(e.start, H0*60))/60)*PX - 3);
+    if(e.member === "all"){ blocks += `<button class="blk all" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="left:38px;right:0;top:${top}px;height:${h}px;z-index:2"><span>${esc(e.title)} · everyone</span><span class="hand" style="font-size:16px">${fmtT(e.start)}</span></button>`; return; }
+    const li = Math.max(0, lanes.findIndex(m=>m.id===e.member)), c = okColor(mem(e.member)?.color), cf = conflictFor(e, sel);
+    blocks += `<button class="blk" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="left:calc(38px + ${laneW} * ${li});width:calc(${laneW} - 4px);top:${top}px;height:${h}px;background:color-mix(in srgb, var(--m-${c}) 18%, var(--surface));border-color:var(--m-${c})">${esc(e.title)}${h>40?`<span class="s">${fmtT(e.start)}${e.driver?" · "+esc(memName(e.driver)):""}</span>`:""}${cf?`<span class="warn">${esc(memName(e.driver))} is busy!</span>`:""}</button>`;
+  });
+  if(sel === key){ const nm = nowMin()/60; if(nm>H0 && nm<H1) blocks += `<div aria-hidden="true" style="position:absolute;left:32px;right:0;top:${(nm-H0)*PX}px;display:flex;align-items:center;z-index:3;pointer-events:none"><span style="width:9px;height:9px;border-radius:50%;background:var(--rose)"></span><span style="flex:1;height:1.5px;background:var(--rose)"></span></div>`; }
+  const early = evs.filter(e => e.end/60 <= H0 || e.start/60 >= H1);
+  const head = lanes.map(m=>`<div class="col" style="align-items:center;gap:3px;min-width:0">${face(m,30)}<span style="font-size:11px;font-weight:500;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.name)}</span></div>`).join("");
+  return `
+  <div class="between"><h1 class="title">${MONTHS[sd.getMonth()]} <em>${sd.getDate()}</em></h1>
+    <div class="row" style="gap:8px"><button class="iconbtn" data-act="calweek" data-dir="-1" aria-label="Previous week">${ico("back",18,2)}</button><button class="iconbtn" data-act="calweek" data-dir="1" aria-label="Next week">${ico("fwd",18,2)}</button><button class="iconbtn solid" data-act="event-new" data-day="${sel}" aria-label="Add a plan">${ico("plus",20,2.2)}</button></div></div>
+  <div class="week" style="margin-top:14px">${days}</div>
+  <div class="lanehead" style="grid-template-columns:repeat(${n},minmax(0,1fr));margin-top:16px;margin-bottom:10px">${head}</div>
+  <div class="lanes" style="height:${(H1-H0)*PX}px">${grid}${blocks}</div>
+  ${early.length?`<div class="col" style="gap:6px;margin-top:12px"><span class="eyebrow">Outside these hours</span>${early.map(e=>`<button class="hu" data-act="event" data-id="${esc(e.id)}" data-day="${sel}"><span class="tabular small">${fmtT(e.start)}</span><span class="grow">${esc(e.title)}</span>${whoFace(e.member,24)}</button>`).join("")}</div>`:""}
+  ${evs.length?"":`<p class="hand" style="text-align:center;font-size:20px;color:var(--sage-ink);margin-top:12px">nothing planned. Tap + to add</p>`}`;
+}
+
+/* ---------- CHORES ---------- */
+function chores(){
+  const people = sorted(S.members).filter(m=>m.style!=="baby");
+  if(!UI.choreMember || !mem(UI.choreMember)) UI.choreMember = (people.find(m=>m.style==="kid")||people[0])?.id;
+  const m = mem(UI.choreMember), base = monday(new Date()), tIdx = dowIdx(new Date());
+  const list = S.chores.filter(c=>c.member===UI.choreMember);
+  const rot = [-12,8,-5,14,-9,6,-14,10];
+  let stars = 0;
+  const rows = list.map((c,r) => {
+    const days = c.days || [0,1,2,3,4,5,6];
+    const cells = [...Array(7)].map((_,i) => {
+      const k = ymd(addDays(base,i)), on = days.includes(i), done = !!(c.done && c.done[k]);
+      if(done) stars++;
+      if(!on) return `<td><span class="stamp off" aria-label="Not scheduled">·</span></td>`;
+      if(done) return `<td><button class="stamp done" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" style="transform:rotate(${rot[(r+i)%8]}deg)" aria-label="${esc(c.title)} ${DOW[i]}: done">${ico("star",16,2)}</button></td>`;
+      if(i > tIdx) return `<td><span class="stamp" style="border:1.5px solid var(--line)" aria-label="Upcoming"></span></td>`;
+      if(i === tIdx) return `<td><button class="stamp todo" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" aria-label="${esc(c.title)} today: tap when done">today</button></td>`;
+      return `<td><button class="stamp miss" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" aria-label="${esc(c.title)} ${DOW[i]}: missed"></button></td>`;
+    }).join("");
+    return `<tr><td class="name"><button data-act="chore-edit" data-id="${esc(c.id)}" style="text-align:left">${esc(c.title)}</button></td>${cells}</tr>`;
+  }).join("");
+  const goal = Math.max(1, Number(m?.goal)||20), level = Math.min(1, stars/goal), liquidTop = 112 - level*92;
+  const jar = `<svg width="92" height="114" viewBox="0 0 96 118" aria-hidden="true"><rect x="22" y="2" width="52" height="12" rx="4" style="fill:var(--ink)"/><path d="M18 16 H78 Q86 16 86 26 V104 Q86 114 76 114 H20 Q10 114 10 104 V26 Q10 16 18 16Z" style="fill:var(--surface);stroke:var(--ink)" stroke-width="2.5"/>${level>0?`<path d="M12 ${liquidTop} Q30 ${liquidTop-6} 48 ${liquidTop} T84 ${liquidTop-2} V104 Q84 112 76 112 H20 Q12 112 12 104Z" style="fill:var(--rose)" opacity=".85"/>`:""}${[...Array(Math.min(stars,12))].map((_,i)=>`<circle cx="${22+(i*17)%56}" cy="${104-Math.floor(i/4)*12}" r="4.5" fill="#fff" opacity=".55"/>`).join("")}</svg>`;
+  const cheer = level>=1 ? `you did it, ${esc(m?.name)}!` : level>=.75 ? `almost there, ${esc(m?.name)}!` : level>0 ? "keep stamping" : "first star today?";
+  return `
+  ${pageHead("Chore chart", addBtn('data-act="chore-new"', "Add a chore"))}
+  ${personChips(UI.choreMember, "chore-who", people)}
+  ${list.length ? `<div style="overflow-x:auto;margin-top:16px"><table class="chart"><thead><tr><th style="width:30%"></th>${DOW.map((d,i)=>`<th class="${i===tIdx?"today":""}">${d[0]}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`
+    : `<div class="empty" style="margin-top:16px"><span class="hand">no chores for ${esc(m?.name||"them")} yet</span>Tap + to give them a job and start stamping.</div>`}
+  <div class="paper jar" style="margin-top:20px">${jar}
+    <div class="col grow"><span class="eyebrow">Saving up for</span>
+      <span class="serif" style="font-size:23px;line-height:1.1;margin-top:4px">${esc(m?.reward || "Pick a reward")}</span>
+      <span style="font-size:14px;margin-top:8px" class="tabular"><b style="font-weight:600">${stars}</b> of ${goal} stars this week</span>
+      <span class="hand" style="color:var(--rose-ink);font-size:19px">${cheer}</span>
+      <button class="small" data-act="reward" style="text-align:left;text-decoration:underline;text-underline-offset:3px;margin-top:2px">Change reward</button>
+    </div>
+  </div>`;
+}
+
+/* ---------- ROUTINES ---------- */
+function routines(){
+  const pool = sorted(S.members).filter(m=>m.style!=="baby" || S.routines.some(r=>r.member===m.id));
+  const who = pickWho(pool, (S.members.find(m=>m.style==="kid")||{}).id), k = todayKey();
+  const list = S.routines.filter(r=>r.member===who).sort((a,b)=>fromHHMM(a.time)-fromHHMM(b.time));
+  const cards = list.map(r => {
+    const steps = r.steps||[], done = (r.done&&r.done[k])||{}, n = steps.filter(s=>done[s.id]).length;
+    return `<div class="paper" style="padding:16px 18px">
+      <div class="between"><button data-act="ent-edit" data-kind="routine" data-id="${esc(r.id)}" class="col" style="text-align:left;min-width:0"><span class="serif" style="font-size:22px">${esc(r.name)}</span><span class="small">${r.time?"Starts "+fmtT(fromHHMM(r.time))+" · ":""}tap to edit</span></button><span class="tag ${n===steps.length&&steps.length?"":"muted"} tabular">${n}/${steps.length}</span></div>
+      <span class="meter" style="margin:10px 0 4px"><i style="width:${steps.length?n/steps.length*100:0}%"></i></span>
+      ${steps.map(s=>`<button class="lrow" data-act="rstep" data-id="${esc(r.id)}" data-step="${esc(s.id)}" aria-pressed="${!!done[s.id]}"><span class="box ${done[s.id]?"on":""}">${done[s.id]?TICK:""}</span><span class="grow" style="font-size:16px">${strikeIf(done[s.id], s.text)}</span></button>`).join("")}
+      ${n===steps.length&&steps.length?`<p class="hand" style="font-size:20px;color:var(--sage-ink);margin:8px 0 0">all done, nice work!</p>`:""}
+    </div>`;
+  }).join("");
+  return `${pageHead("Routines", addBtn(`data-act="ent-new" data-kind="routine" data-who="${esc(who||"")}"`, "Add a routine"))}
+  ${personChips(who, "who", pool)}
+  <div class="col" style="gap:12px;margin-top:16px">${cards || `<div class="empty"><span class="hand">no routines yet</span>Add a morning or bedtime checklist. Kids can tick steps off in Kid view.</div>`}</div>
+  ${who && mem(who) && mem(who).style==="kid" ? `<button class="btn ghost" data-act="kid-go" data-id="${esc(who)}" style="width:100%;margin-top:14px">${ico("smile",18)} Open ${esc(mem(who).name)}'s kid view</button>` : ""}`;
+}
+
+/* ---------- LISTS ---------- */
+const SECTIONS = [
+  ["produce",/avocado|banana|apple|cilantro|lettuce|tomato|onion|lime|lemon|berr|potato|carrot|pepper|spinach|fruit|veg|garlic|cucumber|grape|orange|mango|plantain|corn\b/i],
+  ["dairy",/milk|egg|cheese|yogurt|yoghurt|butter|cream/i],
+  ["bakery",/bread|tortilla|bagel|bun\b|buns|roll|pita|muffin/i],
+  ["meat & fish",/chicken|beef|pork|fish|turkey|salmon|bacon|sausage|shrimp|steak|ham\b/i],
+  ["pantry",/rice|bean|pasta|flour|sugar|oil|cereal|coffee|salt|sauce|can\b|cans|oat|honey|spice|salsa|chips|snack|cracker|tea\b/i],
+  ["baby",/diaper|wipe|formula|puffs|baby|pacifier/i],
+  ["household",/paper|soap|detergent|towel|trash|foil|sponge|bleach|batter|bulb|toilet/i],
+  ["pharmacy",/vitamin|tylenol|ibuprofen|bandage|medicine|prescription|toothpaste|shampoo/i]
+];
+const sectionFor = t => (SECTIONS.find(([,r])=>r.test(t))||["other"])[0];
+function listNames(){ return [...new Set(["Groceries","Costco","Pharmacy",...S.items.map(i=>i.list||"Groceries")])]; }
+function lists(){
+  const names = listNames(); if(!names.includes(UI.list)) UI.list = "Groceries";
+  const items = S.items.filter(i=>(i.list||"Groceries")===UI.list);
+  const order = [...SECTIONS.map(s=>s[0]),"other"];
+  const groups = order.map(s=>[s, items.filter(i=>(i.section||sectionFor(i.text))===s).sort((a,b)=>(a.checked-b.checked)||((a.at||0)-(b.at||0)))]).filter(([,a])=>a.length);
+  const checked = items.filter(i=>i.checked).length;
+  const tabs = names.map(n=>{ const c = S.items.filter(i=>(i.list||"Groceries")===n && !i.checked).length; return `<button class="ltab ${n===UI.list?"on":""}" data-act="list" data-name="${esc(n)}">${esc(n)}${c?` <span class="small tabular">${c}</span>`:""}</button>`; }).join("");
+  const body = groups.map(([s,arr]) => `<div class="sec">${esc(s)}</div>` + arr.map(i => `<button class="item" data-act="item" data-id="${esc(i.id)}" aria-pressed="${i.checked?"true":"false"}"><span class="box ${i.checked?"on":""}">${i.checked?TICK:""}</span><span class="txt">${strikeIf(i.checked, i.text)}</span>${face(mem(i.by),24)}</button>`).join("")).join("");
+  const contributors = [...new Set(items.map(i=>i.by))].map(mem).filter(Boolean).slice(0,4);
+  return `
+  <div class="between"><h1 class="title">The list</h1><span class="faces">${contributors.map(m=>face(m,30)).join("")}</span></div>
+  <div class="tabs" style="margin-top:16px">${tabs}<button class="ltab" data-act="list-new" aria-label="New list">+</button></div>
+  <div class="pad">
+    <form data-form="item"><input id="new-item" name="text" autocomplete="off" placeholder="Add to ${esc(UI.list)}…" aria-label="Add an item to ${esc(UI.list)}" maxlength="80"><button aria-label="Add item" style="color:var(--sage-ink)">${ico("plus",22,2.2)}</button></form>
+    ${body || `<div class="sec" style="color:var(--faint)">all clear</div><div class="small" style="height:38px;line-height:44px">Type above to add the first thing.</div>`}
+  </div>
+  ${checked ? `<div class="between" style="margin-top:14px"><span class="small">${checked} checked off</span><button class="btn ghost" data-act="clear-checked" style="min-height:40px">Clear checked</button></div>` : ""}`;
+}
+
+/* ---------- MENU ---------- */
+function menu(){
+  const base = addDays(monday(new Date()), UI.mealWeek*7), key = todayKey(), end = addDays(base,6);
+  const rows = [...Array(7)].map((_,i)=>{ const d = addDays(base,i), k = ymd(d), dish = S.meals[k]?.dish;
+    return `<button class="mrow ${k===key?"today":""}" data-act="meal" data-day="${k}"><span class="eyebrow" style="width:34px;flex-shrink:0;${k===key?"color:var(--sage-ink)":""}">${DOW[i]}</span><span class="dish ${dish?"":"none"}">${esc(dish||"Add a dinner")}</span><span class="lead"></span><span class="small tabular">${d.getDate()}</span></button>`; }).join("");
+  const planned = [...Array(7)].filter((_,i)=>S.meals[ymd(addDays(base,i))]?.dish).length;
+  return `
+  ${pageHead("Dinner <em>menu</em>", `<button class="iconbtn" data-act="mealweek" data-dir="-1" aria-label="Previous week">${ico("back",18,2)}</button><button class="iconbtn" data-act="mealweek" data-dir="1" aria-label="Next week">${ico("fwd",18,2)}</button>`)}
+  <div class="paper menu" style="margin-top:14px">
+    <div class="col" style="align-items:center;text-align:center">${mark(26)}
+      <span class="eyebrow" style="margin-top:10px">${MONTHS[base.getMonth()].slice(0,3)} ${base.getDate()} – ${MONTHS[end.getMonth()].slice(0,3)} ${end.getDate()}</span>
+      <h2 class="serif" style="font-size:30px;margin:4px 0 0">This week's <em style="color:var(--sage-ink)">menu</em></h2></div>
+    <div class="col" style="margin-top:12px">${rows}</div>
+  </div>
+  <p class="hand" style="font-size:20px;color:var(--sage-ink);margin:14px 0 0 8px;transform:rotate(-1.5deg)">${planned===7?"every night is covered":planned?`${7-planned} ${7-planned===1?"night":"nights"} still open`:"tap a night to plan dinner"}</p>`;
+}
+
+/* ---------- BABY ---------- */
+function babyEntries(){ return (S.baby[todayKey()]?.entries || []).filter(e=>e && ["feed","sleep","diaper"].includes(e.kind)); }
+function babyLastFed(){ const feeds = babyEntries().filter(e=>e.kind==="feed").sort((a,b)=>b.at-a.at); if(!feeds.length) return "No feeds yet today"; const ago = Math.max(0, nowMin()-feeds[0].at); return ago<60 ? `Fed ${ago}m ago` : `Fed ${Math.floor(ago/60)}h ${ago%60}m ago`; }
+function baby(){
+  const b = babyMember();
+  if(!b) return `${pageHead("Baby log")}<div class="empty" style="margin-top:20px"><span class="hand">no little one yet</span>Add a family member with the baby look to start logging feeds, sleep and diapers.<div style="margin-top:12px"><button class="btn primary" data-act="member-new">Add a baby</button></div></div>`;
+  const E = babyEntries(), now = nowMin();
+  const C = 140, R = 104, pt = (min,r)=>{ const a = (min/1440)*2*Math.PI - Math.PI/2; return [C+r*Math.cos(a), C+r*Math.sin(a)]; };
+  const arc = (a,b2,r) => { b2 = Math.min(b2,1439.5); if(b2-a<4) b2=a+4; const [x1,y1]=pt(a,r),[x2,y2]=pt(b2,r); return `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${(b2-a)>720?1:0} 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" fill="none" style="stroke:var(--olive)" stroke-width="18" stroke-linecap="round"/>`; };
+  let ring = `<circle cx="${C}" cy="${C}" r="${R}" fill="none" style="stroke:var(--line)" stroke-width="18"/>`;
+  let sleepMin = 0, feeds = 0, diapers = 0;
+  E.forEach(e => {
+    if(e.kind==="sleep"){ const end = e.end==null ? now : e.end; sleepMin += Math.max(0,end-e.at); ring += arc(e.at, end, R); }
+    if(e.kind==="feed"){ feeds++; const [x,y] = pt(e.at, R+26); ring += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" style="fill:var(--blue)"/>`; }
+    if(e.kind==="diaper"){ diapers++; const [x1,y1] = pt(e.at,R-18),[x2,y2] = pt(e.at,R-29); ring += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" style="stroke:var(--sand)" stroke-width="4" stroke-linecap="round"/>`; }
+  });
+  [[0,"12a"],[720,"12p"]].forEach(([m,l])=>{ const [x,y]=pt(m,R-38); ring += `<text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" text-anchor="middle" font-size="11" style="fill:var(--muted)" font-family="Outfit, sans-serif">${l}</text>`; });
+  const [nx,ny] = pt(now, R+12); ring += `<circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="5.5" style="fill:var(--rose)"/>`;
+  const lastFeed = E.filter(e=>e.kind==="feed").sort((a,c)=>c.at-a.at)[0];
+  const ago = lastFeed ? Math.max(0, now-lastFeed.at) : null;
+  const sleeping = E.find(e=>e.kind==="sleep" && e.end==null);
+  const nx2 = nextFor(e => e.member===b.id);
+  const fmtDur = m => m<60 ? `${m}m` : `${Math.floor(m/60)}h ${m%60}m`;
+  const log = E.slice().sort((a,c)=>c.at-a.at).map(e => {
+    const meta = {feed:["bottle","Feed","var(--blue)","var(--m-blue-bg)"],sleep:["moon",e.end==null?"Sleeping now":"Sleep · "+fmtDur(e.end-e.at),"var(--olive)","var(--m-olive-bg)"],diaper:["drop","Diaper","var(--sand)","var(--m-sand-bg)"]}[e.kind];
+    return `<div class="lrow"><span class="lic" style="background:${meta[3]};color:${meta[2]}">${ico(meta[0],18)}</span><span class="col grow"><span style="font-weight:500">${esc(meta[1])}</span><span class="small">${fmtT(e.at)}${e.end!=null&&e.kind==="sleep"?" – "+fmtT(e.end):""} · ${esc(memName(e.by))}</span></span><button class="iconbtn" style="width:34px;height:34px;border:0;color:var(--faint)" data-act="baby-del" data-id="${esc(e.id)}" aria-label="Remove this entry">${ico("x",16,2)}</button></div>`;
+  }).join("");
+  return `
+  <div class="between"><div class="row">${face(b,48)}<div class="col"><h1 class="title" style="font-size:32px">${esc(b.name)}</h1><span class="small">Baby log · today</span></div></div></div>
+  <div style="position:relative;width:280px;max-width:100%;aspect-ratio:1;margin:10px auto 0">
+    <svg viewBox="0 0 280 280" width="100%" height="100%" role="img" aria-label="Today's sleep, feeds and diapers on a 24-hour clock">${ring}</svg>
+    <div class="col" style="position:absolute;inset:0;align-items:center;justify-content:center;text-align:center">
+      <span class="eyebrow">${sleeping?"Asleep for":"Last fed"}</span>
+      <span class="serif tabular" style="font-size:36px;line-height:1.1">${sleeping?fmtDur(now-sleeping.at):ago==null?"—":fmtDur(ago)+" ago"}</span>
+      <span class="small">${sleeping?"since "+fmtT(sleeping.at):lastFeed?fmtT(lastFeed.at)+" · "+esc(memName(lastFeed.by)):"no feeds logged"}</span>
+    </div>
+  </div>
+  <div class="row" style="justify-content:center;gap:14px;flex-wrap:wrap;margin-top:4px">
+    <span class="row small" style="gap:6px"><i style="width:10px;height:10px;border-radius:3px;background:var(--olive)"></i>Sleep ${fmtDur(sleepMin)}</span>
+    <span class="row small" style="gap:6px"><i style="width:10px;height:10px;border-radius:50%;background:var(--blue)"></i>Feeds ${feeds}</span>
+    <span class="row small" style="gap:6px"><i style="width:10px;height:10px;border-radius:3px;background:var(--sand)"></i>Diapers ${diapers}</span>
+  </div>
+  <div class="row" style="gap:10px;margin-top:18px">
+    <button class="logbtn" data-act="baby-log" data-kind="feed"><span class="ic" style="background:var(--m-blue-bg);color:var(--blue)">${ico("bottle",22)}</span>Feed</button>
+    <button class="logbtn ${sleeping?"active":""}" data-act="baby-log" data-kind="sleep"><span class="ic" style="background:var(--m-olive-bg);color:var(--olive)">${ico(sleeping?"clock":"moon",22)}</span>${sleeping?"Woke up":"Sleep"}</button>
+    <button class="logbtn" data-act="baby-log" data-kind="diaper"><span class="ic" style="background:var(--m-sand-bg);color:var(--sand)">${ico("drop",22)}</span>Diaper</button>
+  </div>
+  ${nx2?`<button class="row" data-act="event" data-id="${esc(nx2.e.id)}" data-day="${nx2.day}" style="margin-top:14px;padding:12px 16px;border-radius:16px;background:var(--sage-soft);width:100%;text-align:left"><span class="hand grow" style="font-size:20px;color:var(--deep)">Next up: ${esc(nx2.e.title)}, ${nx2.day===todayKey()?"today":esc(DOW_LONG[dowIdx(fromYmd(nx2.day))])} at ${fmtT(nx2.e.start)}</span></button>`:""}
+  <div class="col" style="margin-top:18px"><span class="eyebrow" style="margin-bottom:8px">Today's log</span><div class="paper" style="padding:4px 16px">${log||`<div class="small" style="padding:14px 0">Nothing logged yet. Tap Feed, Sleep or Diaper as it happens.</div>`}</div></div>`;
+}
+
+/* ---------- HEALTH ---------- */
+const RKIND = { checkup:["heart","blue","Checkup"], vaccine:["shield","sage","Vaccine"], dentist:["smile","sand","Dentist"], allergy:["bell","rose","Allergy"], other:["note","olive","Note"] };
+function health(){
+  const who = pickWho(sorted(S.members), (S.members.find(m=>m.style==="kid")||{}).id || meId()), k = todayKey(), now = nowMin();
+  const meds = S.meds.filter(m=>m.member===who && medActive(m,k));
+  const done = S.meds.filter(m=>m.member===who && !medActive(m,k));
+  const recs = S.health.filter(r=>r.member===who);
+  const allergies = recs.filter(r=>r.kind==="allergy");
+  const upcoming = recs.filter(r=>r.next && r.next>=k).sort((a,b)=>a.next.localeCompare(b.next));
+  const hist = recs.filter(r=>r.kind!=="allergy").sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+  const medCard = m => `<div class="paper" style="padding:14px 16px">
+    <div class="between"><button data-act="ent-edit" data-kind="med" data-id="${esc(m.id)}" class="col" style="text-align:left;min-width:0"><b style="font-weight:600;font-size:16px">${esc(m.name)}</b><span class="small">${esc([m.dose, m.until?"until "+fmtDay(m.until):"", m.note].filter(Boolean).join(" · "))}</span></button><span class="lic" style="background:var(--m-blue-bg);color:var(--blue)">${ico("pill",18)}</span></div>
+    <div class="chips" style="margin-top:10px">${(m.times||[]).map(t=>{ const g = m.log && m.log[k] && m.log[k][t]; const tm = fromHHMM(t);
+      return g ? `<button class="chip on plain" data-act="med-give" data-id="${esc(m.id)}" data-t="${esc(t)}" aria-pressed="true">${TICK} ${fmtT(tm)} · ${esc(memName(g.by))}</button>`
+               : `<button class="chip plain ${tm<now?"late":""}" data-act="med-give" data-id="${esc(m.id)}" data-t="${esc(t)}" aria-pressed="false">${fmtT(tm)} · Give</button>`; }).join("")}</div></div>`;
+  const recRow = r => { const kd = RKIND[r.kind] || RKIND.other; const n = r.next ? dayDiff(k, r.next) : null;
+    return `<button class="lrow" data-act="ent-edit" data-kind="record" data-id="${esc(r.id)}"><span class="lic" style="background:var(--m-${kd[1]}-bg);color:var(--m-${kd[1]})">${ico(kd[0],18)}</span><span class="col grow"><span style="font-weight:500">${esc(r.title)}</span><span class="small">${esc([kd[2], r.date?fmtDay(r.date):"", r.note].filter(Boolean).join(" · "))}</span></span>${n!=null&&n>=0?`<span class="tag ${n<=14?"blue":"muted"}">${n===0?"today":"next "+fmtDay(r.next)}</span>`:""}</button>`; };
+  return `${pageHead("Health", addBtn(`data-act="ent-new" data-kind="record" data-who="${esc(who||"")}"`, "Add a health record"))}
+  ${personChips(who, "who")}
+  ${allergies.length?`<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:14px;padding:12px 14px;border-radius:16px;background:var(--m-rose-bg)"><span style="color:var(--rose-ink)">${ico("bell",18)}</span><b style="font-weight:600;color:var(--rose-ink)">Allergies:</b>${allergies.map(a=>`<button class="tag warn" style="background:var(--surface)" data-act="ent-edit" data-kind="record" data-id="${esc(a.id)}">${esc(a.title)}</button>`).join("")}</div>`:""}
+  ${secHead("Medicine today", `data-act="ent-new" data-kind="med" data-who="${esc(who||"")}"`, "Add medicine")}
+  <div class="col" style="gap:10px">${meds.map(medCard).join("") || `<div class="empty">No medicine scheduled for ${esc(memName(who))}. Add one to get reminders and a “given by” log.</div>`}</div>
+  ${upcoming.length?secHead("Coming up")+`<div class="paper" style="padding:4px 16px">${upcoming.map(recRow).join("")}</div>`:""}
+  ${secHead("History")}
+  <div class="paper" style="padding:4px 16px">${hist.map(recRow).join("") || `<div class="small" style="padding:14px 0">Checkups, vaccines and dentist visits will show here.</div>`}</div>
+  ${done.length?`<p class="small" style="margin-top:14px">Finished medicine: ${done.map(m=>`<button data-act="ent-edit" data-kind="med" data-id="${esc(m.id)}" style="text-decoration:underline">${esc(m.name)}</button>`).join(", ")}</p>`:""}`;
+}
+
+/* ---------- SCHOOL ---------- */
+function school(){
+  const pool = S.members.some(m=>m.style==="kid") ? sorted(S.members).filter(m=>m.style==="kid") : sorted(S.members);
+  const who = pickWho(pool), k = todayKey();
+  const slips = S.school.filter(x=>x.kind==="slip" && (x.member===who || x.member==="all")).sort((a,b)=>(a.done-b.done)||String(a.due||"9").localeCompare(String(b.due||"9")));
+  const wk = ymd(monday(new Date())), lunch = S.school.find(x=>x.id==="lunch-"+wk), days = (lunch && lunch.days) || {};
+  const cons = S.contacts.filter(c=>c.role==="school" && (!c.member || c.member==="all" || c.member===who));
+  const tIdx = dowIdx(new Date());
+  return `${pageHead("School", "")}
+  ${personChips(who, "who", pool)}
+  ${secHead("Forms and slips", `data-act="ent-new" data-kind="slip" data-who="${esc(who||"")}"`, "Add a form")}
+  <div class="paper" style="padding:4px 16px">${slips.map(x=>{ const n = x.due ? dayDiff(k, x.due) : null;
+    return `<div class="lrow"><button data-act="slip-toggle" data-id="${esc(x.id)}" aria-pressed="${!!x.done}" aria-label="Signed and returned"><span class="box ${x.done?"on":""}">${x.done?TICK:""}</span></button><button class="col grow" data-act="ent-edit" data-kind="slip" data-id="${esc(x.id)}" style="text-align:left;min-width:0"><span style="font-weight:500">${strikeIf(x.done, x.title)}</span><span class="small">${x.done?"Signed and returned":x.due?"Due "+fmtDayW(x.due):"No due date"}</span></button>${!x.done&&n!=null?`<span class="tag ${n<=2?"warn":"muted"}">${n<0?"late":rel(n)}</span>`:""}</div>`; }).join("") || `<div class="small" style="padding:14px 0">No forms waiting. Add permission slips and order forms here so nobody forgets to sign.</div>`}</div>
+  <div class="sechead"><span class="eyebrow">Lunch this week</span><button data-act="lunch-edit">Edit</button></div>
+  <div class="paper" style="padding:6px 16px">${[0,1,2,3,4].map(i=>`<div class="lrow" style="min-height:40px;${i===tIdx?"font-weight:600":""}"><span class="eyebrow" style="width:40px;${i===tIdx?"color:var(--sage-ink)":""}">${DOW[i]}</span><span class="grow">${esc(days[i]||"—")}</span></div>`).join("")}</div>
+  ${secHead("Teachers and school contacts", `data-act="ent-new" data-kind="contact" data-role="school" data-who="${esc(who||"")}"`, "Add")}
+  <div class="paper" style="padding:4px 16px">${cons.map(contactRow).join("") || `<div class="small" style="padding:14px 0">Add the teacher, the front office and the bus line.</div>`}</div>`;
+}
+
+/* ---------- SITTER ---------- */
+function sitterData(){
+  const k = todayKey(), info = S.sitter || {};
+  const ks = kids().map(m => ({
+    m,
+    allergies: S.health.filter(r=>r.member===m.id && r.kind==="allergy"),
+    meds: S.meds.filter(x=>x.member===m.id && medActive(x,k)),
+    bed: S.routines.filter(r=>r.member===m.id && /bed|night|sleep/i.test(r.name||"")).sort((a,b)=>fromHHMM(a.time)-fromHHMM(b.time))
+  }));
+  const em = S.contacts.filter(c=>["emergency","doctor"].includes(c.role)).sort((a,b)=>(a.role==="emergency"?0:1)-(b.role==="emergency"?0:1));
+  return { info, ks, em };
+}
+function careText(){
+  const { info, ks, em } = sitterData();
+  const L = [`HeyTribe care sheet: ${S.tribe?.name || "our family"}`, ""];
+  ks.forEach(({m, allergies, meds, bed}) => {
+    L.push(m.name.toUpperCase());
+    if(allergies.length) L.push("Allergies: " + allergies.map(a=>a.title+(a.note?" ("+a.note+")":"")).join("; "));
+    meds.forEach(x => L.push(`Medicine: ${x.name}${x.dose?" "+x.dose:""} at ${(x.times||[]).map(t=>fmtT(fromHHMM(t))).join(", ")}`));
+    bed.forEach(r => L.push(`${r.name}${r.time?" at "+fmtT(fromHHMM(r.time)):""}: ${(r.steps||[]).map(s=>s.text).join(", ")}`));
+    L.push("");
+  });
+  if(em.length){ L.push("CONTACTS"); em.forEach(c => L.push(`${c.name}${c.phone?": "+c.phone:""}${c.note?" ("+c.note+")":""}`)); L.push(""); }
+  if(info.address) L.push("Address: " + info.address);
+  if(info.wifi) L.push("Wi-Fi: " + info.wifi);
+  if(info.rules) L.push("House rules: " + info.rules);
+  if(info.notes) L.push("Notes: " + info.notes);
+  return L.join("\n").trim();
+}
+function sitter(){
+  const { info, ks, em } = sitterData();
+  const kidCard = ({m, allergies, meds, bed}) => `<div class="paper" style="padding:16px 18px">
+    <div class="row">${face(m,44)}<span class="serif" style="font-size:24px">${esc(m.name)}</span></div>
+    ${allergies.length?`<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px;padding:10px 12px;border-radius:14px;background:var(--m-rose-bg)"><b style="font-weight:600;color:var(--rose-ink)">Allergic to</b>${allergies.map(a=>`<span class="tag warn" style="background:var(--surface)">${esc(a.title)}</span>`).join("")}${allergies.filter(a=>a.note).map(a=>`<span class="small" style="width:100%;color:var(--rose-ink)">${esc(a.note)}</span>`).join("")}</div>`:""}
+    ${meds.map(x=>`<div class="lrow"><span class="lic" style="background:var(--m-blue-bg);color:var(--blue)">${ico("pill",18)}</span><span class="col grow"><b style="font-weight:500">${esc(x.name)}${x.dose?" · "+esc(x.dose):""}</b><span class="small">${(x.times||[]).map(t=>fmtT(fromHHMM(t))).join(", ")}${x.note?" · "+esc(x.note):""}</span></span></div>`).join("")}
+    ${bed.map(r=>`<div class="lrow" style="align-items:flex-start"><span class="lic" style="background:var(--m-olive-bg);color:var(--olive)">${ico("moon",18)}</span><span class="col grow"><b style="font-weight:500">${esc(r.name)}${r.time?" at "+fmtT(fromHHMM(r.time)):""}</b><span class="small">${(r.steps||[]).map(s=>esc(s.text)).join(" → ")}</span></span></div>`).join("")}
+    ${!allergies.length&&!meds.length&&!bed.length?`<p class="small" style="margin:10px 0 0">No allergies, medicine or bedtime routine added yet.</p>`:""}
+  </div>`;
+  const infoRow = (l, v) => v ? `<div class="lrow" style="align-items:flex-start"><span class="eyebrow" style="width:74px;padding-top:3px">${l}</span><span class="grow" style="white-space:pre-line">${esc(v)}</span></div>` : "";
+  return `${pageHead("Sitter <em>sheet</em>", `<button class="iconbtn" data-act="sitter-edit" aria-label="Edit house info">${ico("gear",18)}</button>`, "today", "Everything a sitter or grandparent needs, built from your tribe.")}
+  <button class="btn dark" data-act="copy-care" style="width:100%;margin-top:16px">${ico("copy",18)} Copy care sheet</button>
+  <div class="col" style="gap:12px;margin-top:16px">${ks.map(kidCard).join("") || `<div class="empty">Add kids to your tribe to build their care sheet.</div>`}</div>
+  ${secHead("Emergency and doctors", 'data-act="ent-new" data-kind="contact" data-role="emergency"', "Add")}
+  <div class="paper" style="padding:4px 16px">${em.map(contactRow).join("") || `<div class="small" style="padding:14px 0">Add who to call: parents, grandparents, the pediatrician and poison control.</div>`}</div>
+  <div class="sechead"><span class="eyebrow">House info</span><button data-act="sitter-edit">Edit</button></div>
+  <div class="paper" style="padding:4px 16px">${infoRow("Address", info.address)+infoRow("Wi-Fi", info.wifi)+infoRow("Rules", info.rules)+infoRow("Notes", info.notes) || `<div class="small" style="padding:14px 0">Add the address, Wi-Fi, house rules and anything else a sitter should know.</div>`}</div>`;
+}
+
+/* ---------- HOME & BILLS ---------- */
+function home(){
+  const k = todayKey();
+  const bills = S.home.filter(x=>x.kind==="bill").map(b=>({b, s:billState(b)})).sort((a,c)=>(a.s.paid-c.s.paid)||(a.s.days-c.s.days));
+  const ups = S.home.filter(x=>x.kind==="upkeep").map(u=>({u, n:upkeepNext(u)})).sort((a,c)=>a.n.days-c.n.days);
+  const subs = S.home.filter(x=>x.kind==="sub").map(s=>({s, n:subNext(s)})).sort((a,c)=>(a.n?a.n.days:999)-(c.n?c.n.days:999));
+  const monthly = bills.reduce((t,x)=>t+(Number(x.b.amount)||0),0) + subs.reduce((t,x)=>t+(x.s.cycle==="yearly"?(Number(x.s.amount)||0)/12:(Number(x.s.amount)||0)),0);
+  const left = bills.filter(x=>!x.s.paid && !x.b.autopay).reduce((t,x)=>t+(Number(x.b.amount)||0),0);
+  const billRow = ({b,s}) => `<div class="lrow"><button class="col grow" data-act="ent-edit" data-kind="bill" data-id="${esc(b.id)}" style="text-align:left;min-width:0"><span style="font-weight:500">${esc(b.name)} ${b.amount?`<span class="tabular" style="color:var(--muted);font-weight:400">${money(b.amount)}</span>`:""}</span><span class="small">${b.autopay?"Autopay · ":""}${s.paid?"Paid for "+MONTHS[fromYmd(k).getMonth()]+" · next "+fmtDay(s.date):s.days<0?"Overdue since "+fmtDay(s.date):"Due "+fmtDayW(s.date)}</span></button>${b.autopay&&!s.paid?`<span class="tag muted">auto</span>`:`<button class="chip plain ${s.paid?"on":""} ${!s.paid&&s.days<0?"late":""}" data-act="bill-paid" data-id="${esc(b.id)}" aria-pressed="${s.paid}">${s.paid?TICK+" Paid":"Mark paid"}</button>`}</div>`;
+  const upRow = ({u,n}) => `<div class="lrow"><button class="col grow" data-act="ent-edit" data-kind="upkeep" data-id="${esc(u.id)}" style="text-align:left;min-width:0"><span style="font-weight:500">${esc(u.name)}</span><span class="small">Every ${Number(u.every)||3} ${Number(u.every)===1?"month":"months"} · ${u.last?"last done "+fmtDay(u.last):"not done yet"}</span></button><span class="tag ${n.days<0?"warn":n.days<=14?"sand":"muted"}">${n.days<0?"overdue":n.days===0?"due":fmtDay(n.date)}</span><button class="chip plain" data-act="upkeep-done" data-id="${esc(u.id)}">Done</button></div>`;
+  const subRow = ({s,n}) => `<button class="lrow" data-act="ent-edit" data-kind="sub" data-id="${esc(s.id)}"><span class="col grow"><span style="font-weight:500">${esc(s.name)}</span><span class="small">${n?"Renews "+fmtDay(n.date):"No renewal date"}</span></span><span class="tabular" style="font-weight:500">${money(s.amount)}<span class="small">/${s.cycle==="yearly"?"yr":"mo"}</span></span></button>`;
+  return `${pageHead("Home <em>&amp; bills</em>", "")}
+  <div class="paper" style="padding:18px 20px;margin-top:16px;background:var(--sage-soft);border:0">
+    <span class="eyebrow">Every month</span>
+    <div class="serif tabular" style="font-size:40px;line-height:1.1;margin-top:4px">${money(Math.round(monthly))}</div>
+    <span class="small" style="font-size:14px">in bills and subscriptions${left?` · <b style="color:var(--ink)">${money(left)}</b> still to pay this month`:""}</span>
+  </div>
+  ${secHead("Bills", 'data-act="ent-new" data-kind="bill"', "Add a bill")}
+  <div class="paper" style="padding:4px 16px">${bills.map(billRow).join("") || `<div class="small" style="padding:14px 0">Add rent, utilities, daycare and anything with a due date.</div>`}</div>
+  ${secHead("Home upkeep", 'data-act="ent-new" data-kind="upkeep"', "Add a task")}
+  <div class="paper" style="padding:4px 16px">${ups.map(upRow).join("") || `<div class="small" style="padding:14px 0">Filters, smoke detectors, oil changes. Add them once and get reminded.</div>`}</div>
+  ${secHead("Subscriptions", 'data-act="ent-new" data-kind="sub"', "Add")}
+  <div class="paper" style="padding:4px 16px">${subs.map(subRow).join("") || `<div class="small" style="padding:14px 0">Track streaming, apps and deliveries so renewals don't sneak up.</div>`}</div>`;
+}
+
+/* ---------- DOCUMENTS ---------- */
+const DKIND = [["passport","Passport"],["id","ID or license"],["insurance","Insurance"],["medical","Medical"],["school","School"],["vehicle","Vehicle"],["warranty","Warranty"],["legal","Legal"],["other","Other"]];
+function docs(){
+  const k = todayKey();
+  const list = S.docs.slice().sort((a,b)=>String(a.expires||"9999").localeCompare(String(b.expires||"9999"))||String(a.title).localeCompare(String(b.title)));
+  const row = d => { const n = d.expires ? dayDiff(k, d.expires) : null; const kl = (DKIND.find(x=>x[0]===d.kind)||DKIND[8])[1];
+    return `<button class="lrow" data-act="ent-edit" data-kind="doc" data-id="${esc(d.id)}"><span class="lic" style="background:var(--m-blue-bg);color:var(--blue)">${d.fileId&&/^image\//.test(d.fileType||"")?`<img src="${esc(fileUrl(d.fileId))}" alt="" style="width:38px;height:38px;object-fit:cover;border-radius:12px">`:ico("file",18)}</span><span class="col grow"><span style="font-weight:500">${esc(d.title)}${d.member&&d.member!=="all"?` <span class="small">· ${esc(memName(d.member))}</span>`:""}</span><span class="small">${esc([kl, d.where?"Kept: "+d.where:""].filter(Boolean).join(" · "))}</span></span>${n!=null?`<span class="tag ${n<0?"warn":n<=90?"sand":"muted"}">${n<0?"expired":"exp. "+fmtDay(d.expires)}</span>`:""}</button>`; };
+  return `${pageHead("Documents", addBtn('data-act="ent-new" data-kind="doc"', "Add a document"))}
+  <p class="small" style="font-size:14px;margin:10px 0 0">Keep track of where the important papers are and when they expire. Avoid storing full ID or account numbers here.</p>
+  <div class="paper" style="padding:4px 16px;margin-top:14px">${list.map(row).join("") || `<div class="small" style="padding:14px 0">Passports, insurance cards, birth certificates, warranties. Add them once and HeyTribe reminds you before they expire.</div>`}</div>`;
+}
+
+/* ---------- TRIPS ---------- */
+function trips(){
+  const k = todayKey(), list = S.trips.slice().sort((a,b)=>String(a.start||"9").localeCompare(String(b.start||"9")));
+  const up = list.filter(t=>!t.end || t.end>=k), past = list.filter(t=>t.end && t.end<k).reverse();
+  const card = t => { const pk = t.packing||[], done = pk.filter(x=>x.packed).length, n = t.start ? dayDiff(k, t.start) : null;
+    return `<button class="paper col" data-act="trip-open" data-id="${esc(t.id)}" style="padding:18px;gap:8px;text-align:left;width:100%"><div class="between"><span class="serif" style="font-size:24px;min-width:0">${esc(t.name)}</span>${n!=null&&n>0?`<span class="tag">${rel(n)}</span>`:n!=null&&t.end>=k?`<span class="tag sand">happening now</span>`:""}</div><span class="small">${esc([t.where, t.start?fmtDay(t.start)+(t.end&&t.end!==t.start?" – "+fmtDay(t.end):""):""].filter(Boolean).join(" · "))}</span>${pk.length?`<div class="row" style="gap:10px"><span class="meter grow"><i style="width:${done/pk.length*100}%"></i></span><span class="small tabular">${done}/${pk.length} packed</span></div>`:""}</button>`; };
+  return `${pageHead("Trips", addBtn('data-act="ent-new" data-kind="trip"', "Plan a trip"))}
+  <div class="col" style="gap:12px;margin-top:16px">${up.map(card).join("") || `<div class="empty"><span class="hand">no trips planned</span>Plan one to get a shared packing list, a day-by-day plan and pet-care notes.</div>`}</div>
+  ${past.length?secHead("Past trips")+`<div class="col" style="gap:10px">${past.map(card).join("")}</div>`:""}`;
+}
+function trip(){
+  const t = S.trips.find(x=>x.id===UI.trip); if(!t){ UI.view = "trips"; return trips(); }
+  const pk = t.packing||[], plan = (t.plan||[]).slice().sort((a,b)=>String(a.day).localeCompare(String(b.day))), done = pk.filter(x=>x.packed).length;
+  const sub = [t.where, t.start?fmtDay(t.start)+(t.end&&t.end!==t.start?" – "+fmtDay(t.end):""):""].filter(Boolean).join(" · ");
+  return `${pageHead(esc(t.name), `<button class="iconbtn" data-act="ent-edit" data-kind="trip" data-id="${esc(t.id)}" aria-label="Edit trip">${ico("gear",18)}</button>`, "trips", esc(sub))}
+  <div class="sechead"><span class="eyebrow">Packing · ${done} of ${pk.length}</span>${pk.length?"":`<button data-act="pack-basics">+ Add the basics</button>`}</div>
+  <div class="paper" style="padding:4px 16px 6px">
+    <form data-form="pack" class="inline-add"><input id="pack-new" name="text" maxlength="60" placeholder="Add something to pack" aria-label="Add something to pack"><button aria-label="Add" style="color:var(--sage-ink)">${ico("plus",22,2.2)}</button></form>
+    ${pk.length?`<span class="meter" style="margin:2px 0 6px"><i style="width:${done/pk.length*100}%"></i></span>`:""}
+    ${pk.slice().sort((a,b)=>a.packed-b.packed).map(x=>`<div class="lrow"><button class="row grow" data-act="pack-toggle" data-id="${esc(x.id)}" aria-pressed="${!!x.packed}" style="text-align:left"><span class="box ${x.packed?"on":""}">${x.packed?TICK:""}</span><span class="grow">${strikeIf(x.packed, x.text)}</span></button><button class="iconbtn" style="width:32px;height:32px;border:0;color:var(--faint)" data-act="pack-del" data-id="${esc(x.id)}" aria-label="Remove ${esc(x.text)}">${ico("x",15,2)}</button></div>`).join("")}
+  </div>
+  ${secHead("Plan")}
+  <div class="paper" style="padding:4px 16px 10px">
+    ${plan.map(p=>`<div class="lrow"><span class="tag" style="min-width:86px;justify-content:center">${p.day?esc(fmtDayW(p.day)):"Anytime"}</span><span class="grow">${esc(p.text)}</span><button class="iconbtn" style="width:32px;height:32px;border:0;color:var(--faint)" data-act="plan-del" data-id="${esc(p.id)}" aria-label="Remove">${ico("x",15,2)}</button></div>`).join("")}
+    <form data-form="plan" class="row" style="gap:8px;padding-top:10px;flex-wrap:wrap"><input id="plan-day" name="day" type="date" value="${esc(t.start||todayKey())}" aria-label="Day" style="border:1.5px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--surface)"><input id="plan-text" name="text" maxlength="80" placeholder="Leave after school" aria-label="What's happening" style="flex:1 1 150px;min-width:0;border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;background:var(--surface)"><button class="btn primary" style="min-height:40px;padding:0 16px">Add</button></form>
+  </div>
+  <div class="sechead"><span class="eyebrow">Pet and plant care</span><button data-act="ent-edit" data-kind="trip" data-id="${esc(t.id)}">Edit</button></div>
+  <div class="paper" style="padding:14px 16px">${t.petcare?`<p style="margin:0;white-space:pre-line">${esc(t.petcare)}</p>`:`<span class="small">Who's feeding the pets and watering the plants while you're away?</span>`}</div>`;
+}
+
+/* ---------- CONTACTS ---------- */
+const ROLES = [["emergency","Emergency"],["doctor","Doctors and dentists"],["school","School"],["family","Family and friends"],["sitter","Sitters"],["other","Other"]];
+function contactRow(c){ return `<div class="lrow"><button class="col grow" data-act="ent-edit" data-kind="contact" data-id="${esc(c.id)}" style="text-align:left;min-width:0"><b style="font-weight:600">${esc(c.name)}</b><span class="small">${esc([c.member&&c.member!=="all"?memName(c.member):"", c.note].filter(Boolean).join(" · "))}</span></button>${c.phone?`<span class="sel tabular" style="font-size:14px;white-space:nowrap">${esc(c.phone)}</span><button class="iconbtn" style="width:34px;height:34px" data-act="copy" data-text="${esc(c.phone)}" aria-label="Copy ${esc(c.name)}'s number">${ico("copy",15)}</button>`:""}</div>`; }
+function contacts(){
+  const groups = ROLES.map(([r,l])=>[l, S.contacts.filter(c=>(c.role||"other")===r).sort((a,b)=>String(a.name).localeCompare(String(b.name)))]).filter(g=>g[1].length);
+  return `${pageHead("Contacts", addBtn('data-act="ent-new" data-kind="contact"', "Add a contact"))}
+  ${groups.length ? groups.map(([l,arr])=>secHead(l)+`<div class="paper" style="padding:4px 16px">${arr.map(contactRow).join("")}</div>`).join("") : `<div class="empty" style="margin-top:16px"><span class="hand">nobody saved yet</span>Add the pediatrician, the school office, grandparents and your go-to sitter. Emergency contacts show up on the sitter sheet.</div>`}`;
+}
+
+/* ---------- FRIDGE ---------- */
+const TONES = ["white","sage","rose","blue","sand"];
+const hash = s => { let h = 0; for(const c of String(s)) h = (h*31 + c.charCodeAt(0))|0; return Math.abs(h); };
+function fridgeBoard(){
+  const meIdv = meId();
+  const status = sorted(S.members).map(m=>`<button class="chip" data-act="status" data-id="${esc(m.id)}">${face(m,26)}<span style="font-size:12.5px"><b style="font-weight:600">${esc(m.name)}</b> <span style="color:var(--muted)">${esc(m.status||"—")}</span></span></button>`).join("");
+  const notes = S.notes.slice().sort((a,b)=>(b.at||0)-(a.at||0)).map(n => {
+    const h = hash(n.id), rot = ((h%9)-4)*0.8, tone = TONES.includes(n.tone)?n.tone:"white", pin = h%2 ? `<span class="tape"></span>` : `<span class="mag" style="background:var(--${["rose","sage","blue","olive"][h%4]})"></span>`;
+    return `<button class="note" data-act="note" data-id="${esc(n.id)}" style="background:var(--note-${tone});transform:rotate(${rot}deg)">${pin}<span class="t">${esc(n.text)}</span><span class="row" style="gap:6px">${face(mem(n.by),22)}<span class="small">${esc(memName(n.by))}</span></span></button>`;
+  }).join("");
+  const p = S.poll, total = p ? p.options.reduce((s,o)=>s+(o.votes||[]).length,0) : 0;
+  const poll = p ? `<div class="note" style="background:var(--note-white);transform:rotate(-1deg);grid-column:1 / -1;min-height:0"><span class="tape"></span>
+      <div class="between"><span style="font-weight:600;font-size:15px">${esc(p.question)}</span><button class="small" data-act="poll-edit" style="text-decoration:underline;text-underline-offset:3px">Edit</button></div>
+      ${p.options.map((o,i)=>{ const v = o.votes||[], pct = total? Math.round(v.length/total*100):0, mine = v.includes(meIdv);
+        return `<button class="pollopt" data-act="vote" data-i="${i}" aria-pressed="${mine}"><span class="between"><span class="hand" style="font-size:21px;font-weight:700">${esc(o.label)}${mine?` <span style="color:var(--sage-ink);font-size:16px">your vote</span>`:""}</span><span class="faces">${v.map(id=>face(mem(id),20)).join("")}</span></span><span class="meter"><i style="width:${pct}%"></i></span></button>`; }).join("")}
+    </div>` : "";
+  return `
+  <div class="statusrow">${status}</div>
+  <div class="fridge" style="margin-top:12px">
+    <div class="notes">${poll}${notes}</div>
+    ${!notes && !poll ? `<div class="empty"><span class="hand">bare fridge</span>Stick up a note, a reminder or a dinner poll.</div>` : ""}
+    <div class="row" style="gap:8px;margin-top:22px;justify-content:center;flex-wrap:wrap">
+      <button class="btn ghost" data-act="note-new">Add note</button>
+      <button class="btn ghost" data-act="poll-edit">${p?"New poll":"Start a poll"}</button>
+    </div>
+  </div>`;
+}
+
+/* ---------- KID VIEW ---------- */
+function kid(){
+  const m = mem(UI.kid); if(!m){ UI.view = "today"; return today(); }
+  const k = todayKey(), d = new Date(), ti = dowIdx(d), base = monday(d);
+  const evs = eventsOn(k).filter(e=>e.member===m.id || e.member==="all");
+  const rts = S.routines.filter(r=>r.member===m.id).sort((a,b)=>fromHHMM(a.time)-fromHHMM(b.time));
+  const chs = S.chores.filter(c=>c.member===m.id && (c.days||[0,1,2,3,4,5,6]).includes(ti));
+  let stars = 0; S.chores.filter(c=>c.member===m.id).forEach(c=>{ for(let i=0;i<7;i++) if(c.done && c.done[ymd(addDays(base,i))]) stars++; });
+  return `<div class="col" style="gap:22px">
+    <div class="between"><div class="row">${face(m,76)}<div class="col"><span class="hand" style="font-size:30px;color:var(--sage-ink);line-height:1">Hi ${esc(m.name)}!</span><span class="serif" style="font-size:30px">${DOW_LONG[ti]}</span></div></div><button class="btn ghost" data-act="kid-exit">Done</button></div>
+    <div class="row" style="padding:16px 18px;gap:14px;background:var(--m-rose-bg);border-radius:22px"><span style="width:54px;height:54px;border-radius:50%;background:var(--rose);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ico("star",26,2)}</span><div class="col"><span class="serif tabular" style="font-size:30px;line-height:1">${stars} ${stars===1?"star":"stars"}</span><span class="small" style="color:var(--rose-ink);font-size:14px">this week${m.reward?" · saving for "+esc(m.reward):""}</span></div></div>
+    ${evs.length?`<div class="col" style="gap:10px"><span class="eyebrow">Today</span>${evs.map(e=>`<div class="bigstep"><span class="serif tabular" style="font-size:19px;width:72px;flex-shrink:0">${fmtT(e.start)}</span><span>${esc(e.title)}</span></div>`).join("")}</div>`:""}
+    ${rts.map(r=>{ const done = (r.done&&r.done[k])||{}; return `<div class="col" style="gap:10px"><span class="eyebrow">${esc(r.name)}${r.time?" · "+fmtT(fromHHMM(r.time)):""}</span>${(r.steps||[]).map(s=>`<button class="bigstep ${done[s.id]?"on":""}" data-act="rstep" data-id="${esc(r.id)}" data-step="${esc(s.id)}" aria-pressed="${!!done[s.id]}"><span class="bx">${done[s.id]?TICKB:""}</span><span class="txt">${esc(s.text)}</span></button>`).join("")}</div>`; }).join("")}
+    ${chs.length?`<div class="col" style="gap:10px"><span class="eyebrow">Chores</span>${chs.map(c=>{ const on = !!(c.done&&c.done[k]); return `<button class="bigstep chore ${on?"on":""}" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" aria-pressed="${on}"><span class="bx">${on?ico("star",24,2):""}</span><span class="txt">${esc(c.title)}</span></button>`; }).join("")}</div>`:""}
+    ${!evs.length&&!rts.length&&!chs.length?`<div class="empty"><span class="hand">nothing to do today!</span>Ask a grown-up to add chores or a routine.</div>`:""}
+  </div>`;
+}
+
+/* ---------- FAMILY & SETTINGS ---------- */
+function family(){
+  const t = S.tribe || { name:"Your tribe" }, me = meId(), known = knownTribes().filter(x=>x.code!==TRIBE), ks = sorted(S.members).filter(m=>m.style==="kid");
+  return `${pageHead("Your <em>tribe</em>")}
+  <div class="paper col" style="padding:20px;gap:12px;margin-top:16px">
+    <div class="between"><span class="serif" style="font-size:26px;min-width:0;overflow-wrap:anywhere">${esc(t.name)}</span><button class="small" data-act="tribe-rename" style="font-weight:600;color:var(--sage-ink)">Rename</button></div>
+    <span class="eyebrow">Invite code</span>
+    <div class="between" style="flex-wrap:wrap"><span class="code sel">${esc(TRIBE)}</span><button class="btn ghost" data-act="copy-code">${ico("copy",18)} Copy invite</button></div>
+    <p class="small" style="margin:0;font-size:14px;line-height:1.45">Anyone with this code can join and see your tribe, so share it only with family, grandparents or your sitter. They open HeyTribe, tap <b>Join with an invite code</b> and type it in.</p>
+  </div>
+  ${secHead("People", 'data-act="member-new"', "Add someone")}
+  <div class="paper" style="padding:4px 16px">${sorted(S.members).map(m=>`<div class="lrow">${face(m,40)}<span class="grow" style="font-weight:500">${esc(m.name)}${m.style==="kid"||m.style==="baby"?` <span class="tag muted">${m.style}</span>`:""}</span>${m.id===me?`<span class="hand" style="font-size:19px;color:var(--sage-ink)">that's you</span>`:`<button class="chip plain" data-act="setme" data-id="${esc(m.id)}">That's me</button>`}<button class="iconbtn" data-act="member-edit" data-id="${esc(m.id)}" aria-label="Edit ${esc(m.name)}" style="width:36px;height:36px">${ico("fwd",16,2)}</button></div>`).join("")}</div>
+  ${ks.length?secHead("Kid view")+`<div class="chips">${ks.map(k=>`<button class="chip" data-act="kid-go" data-id="${esc(k.id)}">${face(k,28)}Open ${esc(k.name)}'s view</button>`).join("")}</div><p class="small" style="margin:8px 0 0">A big, simple screen with their routines and chores. Hand them the phone or leave it on a tablet.</p>`:""}
+  ${secHead("Switch tribe")}
+  <div class="col" style="gap:8px">
+    ${known.map(x=>`<button class="choice" data-act="switch-tribe" data-code="${esc(x.code)}"><span class="lic" style="background:var(--sage-soft);color:var(--sage-ink)">${ico("home",22)}</span><span class="col grow"><b style="font-weight:600">${esc(x.name)}</b><span class="small">Code ${esc(x.code)}</span></span>${ico("fwd",18,2)}</button>`).join("")}
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="onboard" data-mode="join">Join another tribe</button><button class="btn ghost" data-act="onboard" data-mode="create">Start a new tribe</button></div>
+    <button class="small" data-act="leave-tribe" style="text-align:left;margin-top:8px;text-decoration:underline;text-underline-offset:3px">Leave this tribe</button>
+  </div>
+  ${SESSION?`${secHead("Your account")}<div class="paper col" style="padding:16px;gap:10px"><span style="font-weight:500;overflow-wrap:anywhere">${esc(SESSION.user.email||"")}</span><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="auth-change-pw">Change password</button><button class="btn ghost" data-act="sign-out">Log out</button></div></div>`:""}`;
+}
+
+const VIEWFN = { today, calendar, chores, lists, menu, baby, fridge: today, routines, health, school, sitter, home, docs, trips, trip, contacts, kid, family };
+
+/* ---------- sheets ---------- */
+function openSheet(html, night=false, onOpen){
+  closeSheet();
+  const s = document.createElement("div"); s.className = "scrim"; s.id = "scrim";
+  s.innerHTML = `<div class="sheet ${night?"night":""}" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
+  document.body.appendChild(s);
+  s.addEventListener("click", e => { if(e.target === s) closeSheet(); });
+  const f = s.querySelector("[autofocus]"); if(f) setTimeout(()=>f.focus(), 60);
+  if(onOpen) onOpen(s);
+}
+function closeSheet(){ const s = $("#scrim"); if(s) s.remove(); if(htCtl){ htCtl.abort(); htCtl = null; } }
+document.addEventListener("keydown", e => { if(e.key === "Escape" && $("#scrim")) closeSheet(); });
+function toast(t){ const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(()=>el.hidden = true, 2400); }
+const memberOptions = (sel, extra="") => extra + sorted(S.members).map(m=>`<option value="${esc(m.id)}" ${m.id===sel?"selected":""}>${esc(m.name)}</option>`).join("");
+async function copyText(t, ok){
+  try { await navigator.clipboard.writeText(t); toast(ok || "Copied"); }
+  catch(e){ openSheet(`<h2 class="serif" style="font-size:24px;margin:0 0 10px">Copy this</h2><textarea id="copybox" readonly rows="10" style="width:100%;border:1.5px solid var(--line);border-radius:14px;padding:12px;font-size:14px;background:var(--surface)">${esc(t)}</textarea><p class="small">Press and hold to select it all, then copy.</p>`, false, s => { const ta = s.querySelector("#copybox"); ta.focus(); ta.select(); }); }
+}
+
+function eventSheet(id, day){
+  const e = S.events.find(x=>x.id===id); if(!e) return;
+  day = day || e.date;
+  const c = e.member==="all" ? "sage" : okColor(mem(e.member)?.color), cf = conflictFor(e, day), d = fromYmd(day);
+  openSheet(`<div class="ticket">
+    <div class="top" style="background:var(--m-${c})">
+      <div class="between"><span class="eyebrow" style="color:rgba(255,255,255,.8)">${esc(DOW_LONG[dowIdx(d)])}, ${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}${e.repeat==="weekly"?" · every week":""}</span>${whoFace(e.member,40)}</div>
+      <div class="serif" style="font-size:32px;line-height:1.05;margin-top:10px;letter-spacing:-.5px;overflow-wrap:anywhere">${esc(e.title)}</div>
+      <div class="row" style="gap:26px;margin-top:18px;flex-wrap:wrap">
+        <div class="col"><span style="font-size:12px;opacity:.8">Starts</span><span class="serif tabular" style="font-size:24px">${fmtT(e.start)}</span></div>
+        <div class="col"><span style="font-size:12px;opacity:.8">Ends</span><span class="serif tabular" style="font-size:24px">${fmtT(e.end)}</span></div>
+        <div class="col"><span style="font-size:12px;opacity:.8">Who</span><span class="serif" style="font-size:24px">${esc(memName(e.member))}</span></div>
+      </div>
+    </div>
+    <div class="perf"></div>
+    <div class="col" style="padding:18px 20px 20px;gap:14px">
+      ${e.place?`<div class="row">${ico("pin",20)}<span>${esc(e.place)}</span></div>`:""}
+      <label class="field"><span class="row" style="gap:8px">${ico("car",18)}<span class="small">Who's driving</span></span>
+        <select id="ev-driver" data-act-change="driver" data-id="${esc(e.id)}" data-day="${esc(day)}"><option value="">Nobody needed</option>${memberOptions(e.driver)}</select></label>
+      ${cf?`<p class="hand" style="font-size:20px;color:var(--rose-ink);margin:0">Heads up: ${esc(memName(e.driver))} has ${esc(cf.title)} at ${fmtT(cf.start)}.</p>`:""}
+      ${e.note?`<p style="margin:0;color:var(--muted);line-height:1.5">${esc(e.note)}</p>`:""}
+    </div>
+  </div>
+  <div class="row" style="gap:10px;margin-top:16px"><button class="btn danger" data-act="event-del" data-id="${esc(e.id)}">${ico("trash",18)} ${e.repeat==="weekly"?"Delete series":"Delete"}</button><button class="btn dark grow" data-act="close">Done</button></div>`);
+}
+function eventNewSheet(day){
+  openSheet(`<form data-form="event" class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">New plan</h2>
+    <div class="field"><label for="ev-title">What</label><input id="ev-title" name="title" required maxlength="60" placeholder="Soccer practice" autofocus></div>
+    <div class="grid2"><div class="field"><label for="ev-who">Who</label><select id="ev-who" name="member">${memberOptions(meId(),'<option value="all">Everyone</option>')}</select></div>
+      <div class="field"><label for="ev-date">Day</label><input id="ev-date" name="date" type="date" value="${esc(day||todayKey())}" required></div></div>
+    <div class="grid2"><div class="field"><label for="ev-start">Starts</label><input id="ev-start" name="start" type="time" value="16:00" required></div>
+      <div class="field"><label for="ev-end">Ends</label><input id="ev-end" name="end" type="time" value="17:00" required></div></div>
+    <div class="grid2"><div class="field"><label for="ev-drv">Driving</label><select id="ev-drv" name="driver"><option value="">Nobody</option>${memberOptions("")}</select></div>
+      <div class="field"><label for="ev-rep">Repeats</label><select id="ev-rep" name="repeat"><option value="">Just once</option><option value="weekly">Every week</option></select></div></div>
+    <div class="field"><label for="ev-place">Where</label><input id="ev-place" name="place" maxlength="60" placeholder="Optional"></div>
+    <div class="field"><label for="ev-note">Notes</label><input id="ev-note" name="note" maxlength="140" placeholder="Bring the insurance card"></div>
+    <button class="btn primary">Add to calendar</button></form>`);
+}
+function choreSheet(id){
+  const c = id ? S.chores.find(x=>x.id===id) : null, days = c?.days || [0,1,2,3,4,5,6];
+  openSheet(`<form data-form="chore" data-id="${esc(c?.id||"")}" class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">${c?"Edit chore":"New chore"}</h2>
+    <div class="field"><label for="ch-title">Chore</label><input id="ch-title" name="title" required maxlength="40" value="${esc(c?.title||"")}" placeholder="Feed the dog" autofocus></div>
+    <div class="field"><label for="ch-who">Whose job</label><select id="ch-who" name="member">${memberOptions(c?.member||UI.choreMember)}</select></div>
+    <div class="field"><label>Which days</label><div class="daypick">${DOW.map((d,i)=>`<button type="button" class="${days.includes(i)?"on":""}" data-day-toggle="${i}" aria-pressed="${days.includes(i)}">${d[0]}</button>`).join("")}</div></div>
+    <div class="row" style="gap:10px">${c?`<button type="button" class="btn danger" data-act="chore-del" data-id="${esc(c.id)}">${ico("trash",18)} Delete</button>`:""}<button class="btn primary grow">${c?"Save":"Add chore"}</button></div></form>`);
+}
+function memberSheet(id){
+  const m = id ? mem(id) : null, style = m?.style || "short", color = m?.color || COLORS[S.members.length % COLORS.length];
+  const skin = m?.skin || SKINS[(S.members.length+1)%SKINS.length], hair = m?.hair || HAIRS[(S.members.length+1)%HAIRS.length];
+  openSheet(`<form data-form="member" data-id="${esc(m?.id||"")}" class="col" style="gap:14px">
+    <div class="row"><span id="mem-preview">${face({name:"",style,color,skin,hair},56)}</span><h2 class="serif" style="font-size:28px;margin:0">${m?"Edit "+esc(m.name):"Add to the tribe"}</h2></div>
+    <div class="field"><label for="mem-name">Name</label><input id="mem-name" name="name" required maxlength="20" value="${esc(m?.name||"")}" autofocus></div>
+    <div class="field"><label>Look</label><div class="chips">${[["short","Short hair"],["long","Long hair"],["kid","Kid"],["baby","Baby"]].map(([v,l])=>`<button type="button" class="chip plain ${v===style?"on":""}" data-pick="style" data-v="${v}">${l}</button>`).join("")}</div></div>
+    <div class="field"><label>Color</label><div class="swatches">${COLORS.map(c=>`<button type="button" class="sw ${c===color?"on":""}" data-pick="color" data-v="${c}" style="background:var(--m-${c})" aria-label="${c}"></button>`).join("")}</div></div>
+    <div class="field"><label>Skin</label><div class="swatches">${SKINS.map(c=>`<button type="button" class="sw ${c===skin?"on":""}" data-pick="skin" data-v="${c}" style="background:${c}" aria-label="Skin tone"></button>`).join("")}</div></div>
+    <div class="field"><label>Hair</label><div class="swatches">${HAIRS.map(c=>`<button type="button" class="sw ${c===hair?"on":""}" data-pick="hair" data-v="${c}" style="background:${c}" aria-label="Hair color"></button>`).join("")}</div></div>
+    <input type="hidden" name="style" value="${style}"><input type="hidden" name="color" value="${color}"><input type="hidden" name="skin" value="${skin}"><input type="hidden" name="hair" value="${hair}">
+    <div class="row" style="gap:10px">${m?`<button type="button" class="btn danger" data-act="member-del" data-id="${esc(m.id)}">${ico("trash",18)} Remove</button>`:""}<button class="btn primary grow">${m?"Save":"Add"}</button></div></form>`);
+}
+function whoSheet(){
+  openSheet(`<div class="col" style="gap:10px"><h2 class="serif" style="font-size:28px;margin:0">Which one is you?</h2><span class="small" style="font-size:14px">So the things you add show your face. You can change it later in Family &amp; settings.</span>
+    ${sorted(S.members).filter(m=>m.style!=="baby").map(m=>`<button class="choice" data-act="setme" data-id="${esc(m.id)}" data-close="1">${face(m,44)}<b class="grow" style="font-weight:600">${esc(m.name)}</b>${ico("fwd",18,2)}</button>`).join("")}
+    <button class="btn ghost" data-act="member-new">I'm not listed yet</button></div>`);
+}
+const HUB = [
+  ["chores","check","rose","Chores"],["routines","sun","sand","Routines"],["menu","pot","sand","Dinner menu"],
+  ["health","heart","blue","Health"],["baby","bottle","olive","Baby log"],["school","book","sage","School"],
+  ["sitter","shield","rose","Sitter sheet"],["home","dollar","olive","Home &amp; bills"],["docs","file","blue","Documents"],
+  ["trips","plane","sage","Trips"],["contacts","phone","sand","Contacts"],["fridge","note","rose","Fridge"],
+  ["kid","smile","blue","Kid view"],["calendar","cal","sage","Calendar"],["family","gear","olive","Family &amp; settings"]
+];
+function moreSheet(){
+  openSheet(`<h2 class="serif" style="font-size:28px;margin:0 0 14px">Everything</h2><div class="hub">${HUB.map(([v,ic,tone,l])=>`<button class="hubtile" ${v==="kid"?'data-act="kid-pick"':`data-go="${v}"`}><span class="ic" style="background:var(--m-${tone}-bg);color:var(--m-${tone})">${ico(ic,22)}</span>${l}</button>`).join("")}</div>`);
+}
+function kidPick(){
+  const ks = sorted(S.members).filter(m=>m.style==="kid");
+  if(ks.length === 1){ closeSheet(); UI.kid = ks[0].id; go("kid"); return; }
+  openSheet(`<div class="col" style="gap:10px"><h2 class="serif" style="font-size:28px;margin:0">Whose view?</h2>${ks.map(k=>`<button class="choice" data-act="kid-go" data-id="${esc(k.id)}">${face(k,44)}<b class="grow" style="font-weight:600">${esc(k.name)}</b>${ico("fwd",18,2)}</button>`).join("") || `<div class="empty">Add a family member with the kid look first.</div>`}</div>`);
+}
+function lunchSheet(){
+  const wk = ymd(monday(new Date())), l = S.school.find(x=>x.id==="lunch-"+wk), days = (l && l.days) || {};
+  openSheet(`<form data-form="lunch" data-week="${wk}" class="col" style="gap:12px"><h2 class="serif" style="font-size:28px;margin:0">Lunch this week</h2>${[0,1,2,3,4].map(i=>`<div class="field"><label for="ln-${i}">${DOW_LONG[i]}</label><input id="ln-${i}" name="d${i}" maxlength="50" value="${esc(days[i]||"")}" placeholder="${["Pizza","Chicken tacos","Mac and cheese","Turkey sandwich","Pancakes"][i]}"></div>`).join("")}<button class="btn primary">Save</button></form>`);
+}
+function sitterInfoSheet(){
+  const i = S.sitter || {};
+  openSheet(`<form data-form="sitter-info" class="col" style="gap:12px"><h2 class="serif" style="font-size:28px;margin:0">House info</h2>
+    <div class="field"><label for="si-a">Address</label><input id="si-a" name="address" maxlength="120" value="${esc(i.address||"")}"></div>
+    <div class="field"><label for="si-w">Wi-Fi</label><input id="si-w" name="wifi" maxlength="120" value="${esc(i.wifi||"")}" placeholder="Network name and where the password is"></div>
+    <div class="field"><label for="si-r">House rules</label><textarea id="si-r" name="rules" rows="3" maxlength="400">${esc(i.rules||"")}</textarea></div>
+    <div class="field"><label for="si-n">Anything else</label><textarea id="si-n" name="notes" rows="3" maxlength="400" placeholder="Pets, spare key, where the first aid kit is">${esc(i.notes||"")}</textarea></div>
+    <button class="btn primary">Save</button></form>`);
+}
+
+/* ---------- generic editors ---------- */
+const ENT = {
+  bill:{ col:"home", title:"Bill", fixed:{kind:"bill"}, fields:[
+    {name:"name",label:"Bill",required:1,ph:"Electric"},
+    {name:"amount",label:"Amount ($)",type:"number",step:"0.01",min:0},
+    {name:"dueDay",label:"Due day of the month",type:"number",min:1,max:31,required:1,value:1},
+    {name:"autopay",label:"Paid automatically",type:"checkbox"}]},
+  upkeep:{ col:"home", title:"Home task", fixed:{kind:"upkeep"}, fields:[
+    {name:"name",label:"Task",required:1,ph:"Change the furnace filter"},
+    {name:"every",label:"Every how many months",type:"number",min:1,max:60,value:3},
+    {name:"last",label:"Last done",type:"date"}]},
+  sub:{ col:"home", title:"Subscription", fixed:{kind:"sub"}, fields:[
+    {name:"name",label:"Subscription",required:1,ph:"Streaming service"},
+    {name:"amount",label:"Price ($)",type:"number",step:"0.01",min:0},
+    {name:"cycle",label:"Billed",type:"select",options:[["monthly","Every month"],["yearly","Every year"]]},
+    {name:"renews",label:"Next renewal",type:"date"}]},
+  doc:{ col:"docs", title:"Document", fields:[
+    {name:"title",label:"Document",required:1,ph:"Passport"},
+    {name:"kind",label:"Type",type:"select",options:DKIND},
+    {name:"member",label:"Whose",type:"select",options:"members+all"},
+    {name:"expires",label:"Expires",type:"date"},
+    {name:"where",label:"Where it's kept",ph:"Fireproof box, hall closet"},
+    {name:"note",label:"Notes",type:"textarea"},
+    {name:"file",label:"Photo or PDF",type:"file"}]},
+  contact:{ col:"contacts", title:"Contact", fields:[
+    {name:"name",label:"Name",required:1,ph:"Dr. Rivera"},
+    {name:"role",label:"Type",type:"select",options:ROLES},
+    {name:"phone",label:"Phone",type:"tel",ph:"(570) 555-0100"},
+    {name:"email",label:"Email",type:"email"},
+    {name:"member",label:"For",type:"select",options:"members+all"},
+    {name:"note",label:"Notes",ph:"2nd grade teacher, Room 14"}]},
+  record:{ col:"health", title:"Health record", fields:[
+    {name:"member",label:"Who",type:"select",options:"members"},
+    {name:"kind",label:"Type",type:"select",options:Object.keys(RKIND).map(k=>[k,RKIND[k][2]])},
+    {name:"title",label:"What",required:1,ph:"Flu shot, 9-month checkup, peanuts"},
+    {name:"date",label:"Date",type:"date"},
+    {name:"next",label:"Next due",type:"date"},
+    {name:"note",label:"Notes",type:"textarea"}]},
+  med:{ col:"meds", title:"Medicine", fields:[
+    {name:"member",label:"Who",type:"select",options:"members"},
+    {name:"name",label:"Medicine",required:1,ph:"Amoxicillin"},
+    {name:"dose",label:"Dose",ph:"5 ml"},
+    {name:"times",label:"Times (comma separated)",required:1,ph:"8am, 8pm", get:r=>(r.times||[]).map(t=>fmtT(fromHHMM(t))).join(", ")},
+    {name:"start",label:"Starting",type:"date"},
+    {name:"until",label:"Stop after",type:"date"},
+    {name:"note",label:"Notes",ph:"With food"}],
+    toData(d){ const ts = String(d.times||"").split(/[,;]+/).map(parseClock).filter(Boolean); if(!ts.length) return { error:"Add at least one time, like 8am or 20:00." }; d.times = [...new Set(ts)].sort(); if(!d.start) d.start = todayKey(); return d; } },
+  slip:{ col:"school", title:"Form or slip", fixed:{kind:"slip"}, fields:[
+    {name:"member",label:"For",type:"select",options:"members+all"},
+    {name:"title",label:"Form",required:1,ph:"Field trip permission"},
+    {name:"due",label:"Due",type:"date"},
+    {name:"done",label:"Signed and returned",type:"checkbox"}]},
+  routine:{ col:"routines", title:"Routine", fields:[
+    {name:"member",label:"For",type:"select",options:"members"},
+    {name:"name",label:"Routine",required:1,ph:"Bedtime"},
+    {name:"time",label:"Starts at",type:"time"},
+    {name:"steps",label:"Steps, one per line",type:"textarea",required:1,ph:"Bath\nPajamas\nBrush teeth\nTwo books", get:r=>(r.steps||[]).map(s=>s.text).join("\n")}],
+    toData(d, rec){ const old = rec.steps||[]; const lines = String(d.steps||"").split("\n").map(s=>s.trim()).filter(Boolean).slice(0,20); if(!lines.length) return { error:"Add at least one step." }; d.steps = lines.map(t => { const o = old.find(s=>s.text===t); return { id: o ? o.id : uid(), text: t.slice(0,60) }; }); return d; } },
+  countdown:{ col:"countdowns", title:"Countdown", fields:[
+    {name:"title",label:"Counting down to",required:1,ph:"Beach trip, Leo's birthday, last day of school"},
+    {name:"date",label:"Date",type:"date",required:1},
+    {name:"member",label:"Whose big day",type:"select",options:"members+all"},
+    {name:"tone",label:"Card color",type:"select",options:[["sage","Sage"],["blue","Blue"],["rose","Rose"],["olive","Olive"],["sand","Sand"]]},
+    {name:"yearly",label:"Repeats every year (birthdays, holidays)",type:"checkbox"}]},
+  trip:{ col:"trips", title:"Trip", fields:[
+    {name:"name",label:"Trip",required:1,ph:"Beach weekend"},
+    {name:"where",label:"Where",ph:"Ocean City"},
+    {name:"start",label:"Leaving",type:"date"},
+    {name:"end",label:"Coming home",type:"date"},
+    {name:"petcare",label:"Pet and plant care",type:"textarea",ph:"Neighbor feeds the dog at 8am and 6pm"}],
+    toData(d, rec){ if(d.start && d.end && d.end < d.start) d.end = d.start; if(!rec.id){ d.packing = []; d.plan = []; } return d; } }
+};
+function fieldHtml(f, rec){
+  const id = "f-"+f.name, val = f.get ? f.get(rec) : (rec[f.name] ?? f.value ?? "");
+  if(f.type === "checkbox") return `<label class="row" style="gap:10px;font-weight:500" for="${id}"><input type="checkbox" id="${id}" name="${f.name}" ${val?"checked":""} style="width:22px;height:22px;accent-color:var(--sage)">${esc(f.label)}</label>`;
+  if(f.type === "file"){
+    if(!assets && !rec.fileId) return "";
+    const prev = rec.fileId ? (/^image\//.test(rec.fileType||"") ? `<img class="file-prev" src="${esc(fileUrl(rec.fileId))}" alt="${esc(rec.title||"Document photo")}">` : `<a href="${esc(fileUrl(rec.fileId))}" target="_blank" rel="noopener" style="color:var(--sage-ink);font-weight:600">Open ${esc(rec.fileName||"file")}</a>`) : "";
+    return `<div class="field"><label for="${id}">${esc(f.label)}</label>${prev}${assets?`<input type="file" id="${id}" name="${f.name}" accept="image/*,application/pdf">`:""}</div>`;
+  }
+  let input;
+  if(f.type === "select"){
+    const opts = f.options === "members" ? memberOptions(val || UI.who || meId())
+      : f.options === "members+all" ? memberOptions(val || "all", `<option value="all" ${!val||val==="all"?"selected":""}>Everyone</option>`)
+      : f.options.map(([v,l])=>`<option value="${esc(v)}" ${String(val)===v?"selected":""}>${esc(l)}</option>`).join("");
+    input = `<select id="${id}" name="${f.name}">${opts}</select>`;
+  } else if(f.type === "textarea") input = `<textarea id="${id}" name="${f.name}" rows="4" maxlength="600" placeholder="${esc(f.ph||"")}" ${f.required?"required":""}>${esc(val)}</textarea>`;
+  else input = `<input id="${id}" name="${f.name}" type="${f.type||"text"}" value="${esc(val)}" ${f.required?"required":""} ${f.min!=null?`min="${f.min}"`:""} ${f.max!=null?`max="${f.max}"`:""} ${f.step?`step="${f.step}"`:""} maxlength="120" placeholder="${esc(f.ph||"")}">`;
+  return `<div class="field"><label for="${id}">${esc(f.label)}</label>${input}</div>`;
+}
+function openEditor(kind, id, preset){
+  const E = ENT[kind]; if(!E) return;
+  const rec = id ? (S[E.col].find(x=>x.id===id) || {}) : Object.assign({}, preset||{});
+  openSheet(`<form data-form="ent" data-kind="${kind}" data-id="${esc(id||"")}" class="col" style="gap:14px" novalidate>
+    <h2 class="serif" style="font-size:28px;margin:0">${id?"Edit":"New"} ${esc(E.title.toLowerCase())}</h2>
+    ${E.fields.map(f=>fieldHtml(f,rec)).join("")}
+    <p class="form-err small" id="ent-err" role="alert"></p>
+    <div class="row" style="gap:10px">${id?`<button type="button" class="btn danger" data-act="ent-del" data-kind="${kind}" data-id="${esc(id)}">${ico("trash",18)} Delete</button>`:""}<button class="btn primary grow">${id?"Save":"Add"}</button></div></form>`);
+}
+
+/* ---------- Hey Tribe ---------- */
+let htCtl = null, htPending = null;
+function htSheet(){
+  htPending = null;
+  const ex = ["Dentist for Leo next Tuesday at 3, Maria drives","Add milk and diapers to the list","Swim lessons every Saturday at 10","Leo: feed the dog every day"];
+  openSheet(`<div class="col" style="gap:16px">
+    <div class="between"><div class="row" style="gap:8px">${mark(28,"var(--night-ink)","var(--night-b)")}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div><button class="small" style="color:rgba(255,255,255,.75)" data-act="close">Close</button></div>
+    <form data-form="ht" class="col" style="gap:12px"><label for="ht-text" class="small" style="color:rgba(255,255,255,.75)">Type it the way you'd say it. Plans, list items, chores or notes.</label>
+      <textarea id="ht-text" name="text" class="ht-input" maxlength="400" placeholder="Swim lessons for Leo Saturday at 10…" autofocus></textarea>
+      <div class="chips">${ex.map(t=>`<button type="button" class="ht-chip" data-ex="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+      <button class="btn" style="background:var(--night-ink);color:var(--night-a)">Understand this</button></form>
+    <div id="ht-out" aria-live="polite"></div></div>`, true);
+}
+function findMember(word){ const w = String(word||"").toLowerCase(); return S.members.find(m => m.name.toLowerCase() === w) || S.members.find(m=>w && m.name.toLowerCase().startsWith(w)); }
+function parseDay(t){
+  const s = t.toLowerCase(), now = new Date();
+  if(/\btomorrow\b/.test(s)) return { date: ymd(addDays(now,1)), m: s.match(/\btomorrow\b/)[0] };
+  if(/\btonight\b|\btoday\b/.test(s)) return { date: ymd(now), m: s.match(/\btonight\b|\btoday\b/)[0] };
+  const dm = s.match(/\b(?:(next|this|every)\s+)?(mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)[a-z]*\b/);
+  if(dm){ const idx = ["mon","tue","wed","thu","fri","sat","sun"].findIndex(p=>dm[2].startsWith(p)); let diff = (idx - dowIdx(now) + 7) % 7; if(diff===0 && dm[1]!=="every") diff = 7; return { date: ymd(addDays(now,diff)), m: dm[0], repeat: dm[1]==="every" }; }
+  return null;
+}
+function parseTime(t){
+  const m = t.match(/\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?(?=\b|\s|,|$)/i);
+  if(!m) return null; let h = +m[1], mm = +(m[2]||0); if(h>23||mm>59) return null;
+  const ap = (m[3]||"").toLowerCase(); if(ap.startsWith("p") && h<12) h += 12; else if(ap.startsWith("a") && h===12) h = 0; else if(!ap && h>=1 && h<=6) h += 12;
+  if(!m[2] && !m[3] && !/\bat\s/i.test(m[0])) return null;
+  return { min: h*60+mm, m: m[0] };
+}
+function localParse(text){
+  const actions = []; let rest = " " + text.trim() + " ";
+  const lm = rest.match(/\b(?:and\s+)?(?:oh,?\s*(?:and\s*)?)?(?:add|put|get|buy)\s+(.+?)\s+(?:to|on)\s+(?:the\s+)?(?:(\w+)\s+)?list\b/i);
+  if(lm){ const ln = lm[2] && listNames().find(n=>n.toLowerCase()===lm[2].toLowerCase()) || "Groceries";
+    lm[1].split(/,|\band\b|&/i).map(s=>s.trim()).filter(Boolean).forEach(x=>actions.push({type:"item",text:x.replace(/^(some|a|an|more)\s+/i,""),list:ln}));
+    rest = rest.replace(lm[0], " "); }
+  const cm = rest.match(/^\s*(\w+)\s*:\s*(.+?)(?:\s+every\s+day|\s+daily)?\s*$/i);
+  if(cm && findMember(cm[1]) && !parseTime(cm[2]) && !parseDay(cm[2])){ actions.push({type:"chore",title:cm[2].trim(),member:findMember(cm[1]).id,days:[0,1,2,3,4,5,6]}); rest = ""; }
+  rest = rest.replace(/^[\s,.;]+|[\s,.;]+$/g,"").replace(/^(oh,?\s*)?(and\s+)?/i,"");
+  if(rest){
+    const day = parseDay(rest), time = parseTime(rest);
+    if(day || time){
+      let drv = null; const dr = rest.match(/\b(\w+)\s+(?:drives|is driving|will drive|takes (?:him|her|them)|can drive)\b/i); if(dr && findMember(dr[1])) drv = findMember(dr[1]).id;
+      let who = "all"; const fm = rest.match(/\bfor\s+(\w+)/i); if(fm && findMember(fm[1])) who = findMember(fm[1]).id; else { const any = S.members.find(m => new RegExp("\\b"+m.name.replace(/[^\w]/g,"")+"\\b","i").test(rest) && m.id!==drv); if(any) who = any.id; }
+      let title = rest.split(/\s+for\s+|\s+(?:at|on)\s+|,/i)[0]; if(day) title = title.replace(new RegExp(day.m.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i"),""); if(time) title = title.replace(time.m,"");
+      title = title.replace(/\b(next|this|every)\s*$/i,"").trim() || "Plan"; title = title.charAt(0).toUpperCase()+title.slice(1);
+      const start = time ? time.min : 9*60;
+      actions.push({type:"event",title,member:who,date:day?day.date:todayKey(),start,end:Math.min(start+60,1439),driver:drv,repeat:day&&day.repeat?"weekly":null});
+    } else actions.push({type:"note",text:rest.charAt(0).toUpperCase()+rest.slice(1)});
+  }
+  return actions;
+}
+function cleanActions(raw){
+  const out = []; const ids = new Set(S.members.map(m=>m.id));
+  (Array.isArray(raw)?raw:[]).slice(0,12).forEach(a => {
+    if(!a || typeof a !== "object") return;
+    if(a.type==="event" && a.title){ const start = typeof a.start==="number"?a.start:fromHHMM(a.start), end = typeof a.end==="number"?a.end:(a.end?fromHHMM(a.end):start+60);
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(a.date) ? a.date : todayKey();
+      out.push({type:"event",title:String(a.title).slice(0,60),member:ids.has(a.member)?a.member:"all",date,start:Math.min(start,1439),end:Math.min(Math.max(end,start+15),1439),driver:ids.has(a.driver)?a.driver:null,repeat:a.repeat==="weekly"?"weekly":null}); }
+    else if(a.type==="item" && a.text) out.push({type:"item",text:String(a.text).slice(0,80),list:listNames().includes(a.list)?a.list:"Groceries"});
+    else if(a.type==="chore" && a.title) out.push({type:"chore",title:String(a.title).slice(0,40),member:ids.has(a.member)?a.member:meId(),days:Array.isArray(a.days)&&a.days.length?a.days.filter(d=>d>=0&&d<=6):[0,1,2,3,4,5,6]});
+    else if(a.type==="note" && a.text) out.push({type:"note",text:String(a.text).slice(0,140)});
+  });
+  return out;
+}
+function highlight(text, acts){
+  const marks = [];
+  const add = (phrase, cls) => { if(!phrase) return; const i = text.toLowerCase().indexOf(String(phrase).toLowerCase()); if(i>=0 && !marks.some(m=>i<m.e && i+phrase.length>m.s)) marks.push({s:i,e:i+phrase.length,c:cls}); };
+  S.members.forEach(m => add(m.name,"p"));
+  acts.filter(a=>a.type==="item").forEach(a=>add(a.text,"i"));
+  const d = parseDay(text); if(d) add(text.substr(text.toLowerCase().indexOf(d.m), d.m.length),"t");
+  const t = parseTime(text); if(t) add(t.m.trim(),"t");
+  marks.sort((a,b)=>a.s-b.s); let out = "", p = 0;
+  marks.forEach(m => { out += esc(text.slice(p,m.s)) + `<span class="mk ${m.c}">${esc(text.slice(m.s,m.e))}</span>`; p = m.e; });
+  return out + esc(text.slice(p));
+}
+function describe(a){
+  if(a.type==="event"){ const d = fromYmd(a.date); return { ic:"cal", who:a.member, head:a.title, sub:`${a.repeat==="weekly"?"Every "+DOW_LONG[dowIdx(d)]:(a.date===todayKey()?"Today":DOW[dowIdx(d)]+" "+MONTHS[d.getMonth()].slice(0,3)+" "+d.getDate())}, ${fmtT(a.start)} · ${memName(a.member)}${a.driver?" · "+memName(a.driver)+" drives":""}` }; }
+  if(a.type==="item") return { ic:"cart", head:`${a.list}: ${a.text}`, sub:"Shopping list" };
+  if(a.type==="chore") return { ic:"check", who:a.member, head:a.title, sub:`Chore for ${memName(a.member)}` };
+  return { ic:"note", head:a.text, sub:"Note on the fridge" };
+}
+async function htUnderstand(text){
+  const out = $("#ht-out"); if(!out) return;
+  out.innerHTML = `<p class="serif" style="font-size:20px;opacity:.75;margin:6px 0">Thinking…</p>`;
+  let acts = null;
+  if(sampler && TRIBE !== "SAMPLE"){
+    htCtl = new AbortController();
+    const d = new Date();
+    const ctx = { dow: DOW_LONG[dowIdx(d)], today: todayKey(), time: toHHMM(nowMin()), me: memName(meId()), members: S.members.map(m=>({ id:m.id, name:m.name })), lists: listNames() };
+    try { const r = await sampler.understand(text, ctx, htCtl.signal); acts = cleanActions(r && r.actions); }
+    catch(e){ if(e && e.name === "AbortError") return; if(e && e.code === "sampling_disabled") sampler = null; acts = null; }
+    htCtl = null;
+  }
+  if(!acts || !acts.length) acts = cleanActions(localParse(text));
+  htPending = acts;
+  if(!$("#ht-out")) return;
+  $("#ht-out").innerHTML = acts.length ? `
+    <div class="ht-quote">“${highlight(text, acts)}”</div>
+    <div class="col" style="gap:10px;margin-top:18px">${acts.map(a=>{ const x = describe(a); return `<div class="ht-card">${x.who?whoFace(x.who,34):`<span style="width:34px;height:34px;border-radius:50%;background:var(--sage);color:var(--on-sage);display:flex;align-items:center;justify-content:center;flex-shrink:0">${ico(x.ic,17)}</span>`}<span class="col grow"><span style="font-weight:500">${esc(x.head)}</span><span style="font-size:13px;opacity:.75">${esc(x.sub)}</span></span></div>`; }).join("")}</div>
+    <div class="row" style="gap:10px;margin-top:16px"><button class="btn grow" style="background:var(--night-ink);color:var(--night-a)" data-act="ht-commit">Add ${acts.length===1?"it":acts.length===2?"both":"all "+acts.length}</button><button class="btn" style="border:1.5px solid rgba(255,255,255,.35)" data-act="ht-reset">Start over</button></div>`
+    : `<p style="opacity:.85">I couldn't pick out a plan, list item or chore. Try naming a day and time, or “add … to the list”.</p>`;
+}
+async function htCommit(){
+  const acts = htPending || []; if(!db || !acts.length) return;
+  const by = meId(), at = Date.now();
+  for(const a of acts){
+    if(a.type==="event") await W.add("events", {title:a.title,member:a.member,date:a.date,start:a.start,end:a.end,driver:a.driver||null,repeat:a.repeat||null,by});
+    else if(a.type==="item") await W.add("items", {text:a.text,list:a.list,section:sectionFor(a.text),by,checked:false,at});
+    else if(a.type==="chore") await W.add("chores", {title:a.title,member:a.member,days:a.days,done:{}});
+    else if(a.type==="note") await W.add("notes", {text:a.text,by,tone:"white",at});
+  }
+  closeSheet(); toast(acts.length===1?"Added":"Added "+acts.length+" things");
+}
+
+/* ---------- writes ---------- */
+function writeErr(e){ toast(e && e.code==="quota_exceeded" ? "Storage is full. Delete old notes or items, then try again." : "Couldn't save that. Check your connection and try again."); }
+const W = {
+  async set(path, data){ try { await db.doc(P(path)).set(data); return true; } catch(e){ writeErr(e); return false; } },
+  async upd(path, data){ try { await db.doc(P(path)).update(data); return true; } catch(e){ writeErr(e); return false; } },
+  async add(col, data){ try { await db.collection(P(col)).add(data); return true; } catch(e){ writeErr(e); return false; } },
+  async del(path){ try { await db.doc(P(path)).delete(); return true; } catch(e){ writeErr(e); return false; } }
+};
+function babyWrite(fn){
+  const k = todayKey(), cur = (S.baby[k]?.entries || []).map(e=>({...e}));
+  const next = fn(cur); S.baby[k] = { entries: next }; render();
+  W.set("baby/"+k, { entries: next });
+}
+function tripWrite(id, field, fn){
+  const t = S.trips.find(x=>x.id===id); if(!t) return;
+  const next = fn((t[field]||[]).map(x=>({...x}))); t[field] = next; render(); W.upd("trips/"+id, { [field]: next });
+}
+
+/* ---------- clicks ---------- */
+document.addEventListener("click", async e => {
+  const ex = e.target.closest("[data-ex]"); if(ex){ const t = $("#ht-text"); if(t){ t.value = ex.dataset.ex; htUnderstand(t.value); } return; }
+  const pick = e.target.closest("[data-pick]");
+  if(pick){ const f = pick.closest("form"), k = pick.dataset.pick; f.querySelector(`input[name="${k}"]`).value = pick.dataset.v;
+    f.querySelectorAll(`[data-pick="${k}"]`).forEach(b=>b.classList.toggle("on", b===pick));
+    const prev = $("#mem-preview"); if(prev){ const v = n => f.querySelector(`input[name="${n}"]`)?.value; prev.innerHTML = face({name:"",style:v("style"),color:v("color"),skin:v("skin"),hair:v("hair")},56); } return; }
+  const dt = e.target.closest("[data-day-toggle]"); if(dt){ dt.classList.toggle("on"); dt.setAttribute("aria-pressed", dt.classList.contains("on")); return; }
+  const st = e.target.closest("[data-status]"); if(st){ const f = st.closest("form"); f.querySelector("#st-t").value = st.dataset.status; f.requestSubmit(); return; }
+  const g = e.target.closest("[data-go]"); if(g){ closeSheet(); if(g.dataset.trip){ UI.trip = g.dataset.trip; } go(g.dataset.go); return; }
+  const b = e.target.closest("[data-act]"); if(!b) return;
+  const id = b.dataset.id, act = b.dataset.act;
+  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out"].includes(act);
+  if(needsDb && !db) return;
+  switch(act){
+    case "close": closeSheet(); break;
+    case "auth-mode": { UI.auth = b.dataset.mode; UI.authErr = ""; const em = $("#au-email"); if(em) UI.authEmail = em.value; render(); break; }
+    case "sign-out": closeSheet(); await sb.auth.signOut(); break;
+    case "auth-change-pw": closeSheet(); UI.auth = "reset"; UI.authErr = ""; S.status = "auth"; render(); break;
+    case "sample-exit": { const back = SESSION ? (knownTribes()[0]?.code) : null; if(back){ UI.view = "today"; connect(back); } else { db.reset(); TRIBE = null; UI.auth = "signup"; S.status = "auth"; render(); } break; }
+    case "more": moreSheet(); break;
+    case "copy": copyText(b.dataset.text, "Copied"); break;
+    /* tribes */
+    case "onboard": UI.onboard = b.dataset.mode || null; S.status = SESSION ? "welcome" : "auth"; if(!SESSION) UI.auth = "signup"; closeSheet(); window.scrollTo(0,0); render(); break;
+    case "back-tribe": UI.onboard = null; S.status = "ready"; render(); break;
+    case "try-sample": UI.onboard = null; UI.view = "today"; clearHash(); connect("SAMPLE"); break;
+    case "switch-tribe": UI.onboard = null; UI.view = "today"; closeSheet(); connect(b.dataset.code); break;
+    case "leave-tribe": openSheet(`<div class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Leave ${esc(S.tribe?.name||"this tribe")}?</h2><p style="margin:0;color:var(--muted)">Your family keeps everything. You can come back any time with the invite code <b class="sel">${esc(TRIBE)}</b>.</p><div class="row" style="gap:10px"><button class="btn ghost grow" data-act="close">Keep it</button><button class="btn dark grow" data-act="leave-yes">Remove</button></div></div>`); break;
+    case "leave-yes": closeSheet(); if(SESSION && TRIBE !== "SAMPLE") await sb.from("memberships").delete().match({ tribe_code: TRIBE, user_id: SESSION.user.id }); forgetTribe(TRIBE); store.del("ht-tribe"); unsubs.forEach(u=>{ try{u();}catch(err){} }); unsubs = []; TRIBE = null; Object.assign(S, EMPTY()); UI.onboard = null; S.status = "welcome"; render(); break;
+    case "copy-code": copyText(`Join our family on HeyTribe! Open ${APP_URL} and tap “Join with an invite code”. Our code is ${TRIBE}.`, "Invite copied"); break;
+    case "tribe-rename": openSheet(`<form data-form="tribe-name" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Rename your tribe</h2><div class="field"><label for="tn-n">Family name</label><input id="tn-n" name="name" maxlength="40" value="${esc(S.tribe?.name||"")}" required autofocus></div><button class="btn primary">Save</button></form>`); break;
+    /* hey tribe */
+    case "ht": htSheet(); break;
+    case "ht-commit": htCommit(); break;
+    case "ht-reset": { htPending = null; $("#ht-out").innerHTML = ""; const t = $("#ht-text"); if(t){ t.value = ""; t.focus(); } break; }
+    /* calendar */
+    case "event": eventSheet(id, b.dataset.day); break;
+    case "event-new": eventNewSheet(b.dataset.day); break;
+    case "event-del": W.del("events/"+id); closeSheet(); toast("Deleted"); break;
+    case "calday": UI.calDay = b.dataset.day; render(); break;
+    case "calweek": UI.calWeek += +b.dataset.dir; UI.calDay = ymd(addDays(monday(new Date()), UI.calWeek*7 + (UI.calWeek===0?dowIdx(new Date()):0))); render(); break;
+    /* chores */
+    case "chores-of": UI.choreMember = id; go("chores"); break;
+    case "chore-who": UI.choreMember = id; render(); break;
+    case "chore-new": choreSheet(); break;
+    case "chore-edit": choreSheet(id); break;
+    case "chore-del": W.del("chores/"+id); closeSheet(); toast("Chore removed"); break;
+    case "stamp": { const c = S.chores.find(x=>x.id===id); if(!c) break; const k = b.dataset.day, v = !(c.done && c.done[k]);
+      c.done = {...(c.done||{}), [k]: v}; render(); W.upd("chores/"+id, {done:{[k]:v}}); if(v) toast("Stamped ★"); break; }
+    case "reward": { const m = mem(UI.choreMember); if(!m) break; openSheet(`<form data-form="reward" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">${esc(m.name)}'s reward</h2>
+      <div class="field"><label for="rw-t">Saving up for</label><input id="rw-t" name="reward" maxlength="40" value="${esc(m.reward||"")}" placeholder="Movie night + popcorn" autofocus required></div>
+      <div class="field"><label for="rw-g">Stars needed this week</label><input id="rw-g" name="goal" type="number" min="1" max="99" value="${Number(m.goal)||20}"></div><button class="btn primary">Save</button></form>`); break; }
+    /* routines / generic person filter */
+    case "who": UI.who = id; render(); break;
+    case "rstep": { const r = S.routines.find(x=>x.id===id); if(!r) break; const k = todayKey(), s = b.dataset.step, v = !((r.done&&r.done[k]||{})[s]);
+      r.done = {...(r.done||{}), [k]: {...((r.done&&r.done[k])||{}), [s]: v}}; render(); W.upd("routines/"+id, {done:{[k]:{[s]:v}}}); break; }
+    /* lists */
+    case "list": UI.list = b.dataset.name; render(); break;
+    case "list-new": openSheet(`<form data-form="list" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">New list</h2><div class="field"><label for="ls-n">Name</label><input id="ls-n" name="name" maxlength="20" placeholder="Hardware store" required autofocus></div><button class="btn primary">Create list</button></form>`); break;
+    case "item": { const it = S.items.find(x=>x.id===id); if(!it) break; it.checked = !it.checked; render(); W.upd("items/"+id, {checked: it.checked}); break; }
+    case "clear-checked": S.items.filter(i=>i.checked && (i.list||"Groceries")===UI.list).forEach(i=>W.del("items/"+i.id)); toast("Cleared"); break;
+    /* menu */
+    case "mealweek": UI.mealWeek += +b.dataset.dir; render(); break;
+    case "meal": { const k = b.dataset.day, d = fromYmd(k), cur = S.meals[k] || {};
+      openSheet(`<form data-form="meal" data-day="${k}" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">${DOW_LONG[dowIdx(d)]} dinner</h2>
+        <div class="field"><label for="ml-d">What's cooking</label><input id="ml-d" name="dish" maxlength="40" value="${esc(cur.dish||"")}" placeholder="Tacos night" autofocus></div>
+        <div class="field"><label for="ml-i">Ingredients (comma separated)</label><textarea id="ml-i" name="ingredients" rows="2" maxlength="300" placeholder="Tortillas, ground beef, cilantro, limes">${esc(cur.ingredients||"")}</textarea></div>
+        <label class="row" style="gap:10px;font-weight:500" for="ml-add"><input type="checkbox" id="ml-add" name="addIng" style="width:22px;height:22px;accent-color:var(--sage)">Add the ingredients to Groceries</label>
+        <div class="row" style="gap:10px">${cur.dish?`<button type="button" class="btn danger" data-act="meal-clear" data-day="${k}">Clear</button>`:""}<button class="btn primary grow">Save</button></div></form>`); break; }
+    case "meal-clear": W.del("meals/"+b.dataset.day); closeSheet(); break;
+    /* baby */
+    case "baby-log": { const k = b.dataset.kind, now = nowMin(), by = meId();
+      babyWrite(arr => { if(k==="sleep"){ const open = arr.find(x=>x.kind==="sleep"&&x.end==null); if(open){ open.end = Math.max(now, open.at+1); return arr; } return arr.concat([{id:uid(),kind:"sleep",at:now,end:null,by}]); } return arr.concat([{id:uid(),kind:k,at:now,by}]); });
+      toast(k==="feed"?"Feed logged":k==="diaper"?"Diaper logged":"Sleep updated"); break; }
+    case "baby-del": babyWrite(arr => arr.filter(x=>x.id!==id)); break;
+    /* health */
+    case "med-give": { const m = S.meds.find(x=>x.id===id); if(!m) break; const k = todayKey(), t = b.dataset.t, given = m.log && m.log[k] && m.log[k][t];
+      const val = given ? null : { by: meId(), at: nowMin() };
+      m.log = {...(m.log||{}), [k]: {...((m.log&&m.log[k])||{}), [t]: val}}; render(); W.upd("meds/"+id, {log:{[k]:{[t]:val}}}); if(val) toast("Logged as given"); break; }
+    /* school */
+    case "slip-toggle": { const x = S.school.find(s=>s.id===id); if(!x) break; x.done = !x.done; render(); W.upd("school/"+id, {done:x.done}); if(x.done) toast("Marked signed"); break; }
+    case "lunch-edit": lunchSheet(); break;
+    /* sitter */
+    case "sitter-edit": sitterInfoSheet(); break;
+    case "copy-care": copyText(careText(), "Care sheet copied"); break;
+    /* home */
+    case "bill-paid": { const x = S.home.find(s=>s.id===id); if(!x) break; const st = billState(x), v = !st.paid; x.paid = {...(x.paid||{}), [st.mk]: v}; render(); W.upd("home/"+id, {paid:{[st.mk]:v}}); if(v) toast("Marked paid"); break; }
+    case "upkeep-done": { const x = S.home.find(s=>s.id===id); if(!x) break; x.last = todayKey(); render(); W.upd("home/"+id, {last:x.last}); toast("Nice. Next reminder set"); break; }
+    /* trips */
+    case "trip-open": UI.trip = id; go("trip"); break;
+    case "pack-toggle": tripWrite(UI.trip, "packing", arr => arr.map(x => x.id===id ? {...x, packed:!x.packed} : x)); break;
+    case "pack-del": tripWrite(UI.trip, "packing", arr => arr.filter(x => x.id!==id)); break;
+    case "plan-del": tripWrite(UI.trip, "plan", arr => arr.filter(x => x.id!==id)); break;
+    case "pack-basics": { const base = ["Toothbrushes","Phone chargers","Pajamas","Medicines","Snacks for the road","Change of clothes","Swimsuits","Jackets"]; if(babyMember()) base.push("Diapers and wipes","Travel crib"); tripWrite(UI.trip, "packing", arr => arr.concat(base.filter(t=>!arr.some(x=>x.text===t)).map(t=>({id:uid(),text:t,packed:false})))); break; }
+    /* generic */
+    case "ent-new": { const pre = {}; if(b.dataset.who) pre.member = b.dataset.who; if(b.dataset.role) pre.role = b.dataset.role; openEditor(b.dataset.kind, null, pre); break; }
+    case "ent-edit": openEditor(b.dataset.kind, id); break;
+    case "ent-del": { const E = ENT[b.dataset.kind]; if(!E) break; W.del(E.col+"/"+id); closeSheet(); if(b.dataset.kind==="trip" && UI.view==="trip") go("trips"); toast("Deleted"); break; }
+    /* fridge */
+    case "note": { const n = S.notes.find(x=>x.id===id); if(!n) break; openSheet(`<form data-form="note" data-id="${esc(n.id)}" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Note</h2><div class="field"><label for="nt-t">Note</label><textarea id="nt-t" name="text" rows="3" maxlength="140" required>${esc(n.text)}</textarea></div>
+      <div class="field"><label>Paper</label><div class="swatches">${TONES.map(t=>`<button type="button" class="sw ${t===(n.tone||"white")?"on":""}" data-pick="tone" data-v="${t}" style="background:var(--note-${t});border-color:var(--line)" aria-label="${t}"></button>`).join("")}</div></div><input type="hidden" name="tone" value="${esc(n.tone||"white")}">
+      <div class="row" style="gap:10px"><button type="button" class="btn danger" data-act="note-del" data-id="${esc(n.id)}">${ico("trash",18)} Take down</button><button class="btn primary grow">Save</button></div></form>`); break; }
+    case "layout": layoutSheet(); break;
+    case "lay-done": closeSheet(); break;
+    case "lay-reset": saveLayout({ order: HSECS.map(x=>x[0]), hidden: [], panels: [], brief: true }); toast("Back to the default layout"); break;
+    case "lay-brief": { const L = layoutOf(); L.brief = !L.brief; saveLayout(L); break; }
+    case "lay-sec": { const L = layoutOf(), k = b.dataset.k; L.hidden = L.hidden.includes(k) ? L.hidden.filter(x=>x!==k) : [...L.hidden, k]; saveLayout(L); break; }
+    case "lay-panel": { const L = layoutOf(), k = b.dataset.k; L.panels = L.panels.includes(k) ? L.panels.filter(x=>x!==k) : [...L.panels, k]; saveLayout(L); break; }
+    case "lay-move": { const L = layoutOf(), k = b.dataset.k, i = L.order.indexOf(k), j = i + (+b.dataset.dir); if(i<0 || j<0 || j>=L.order.length) break; [L.order[i], L.order[j]] = [L.order[j], L.order[i]]; saveLayout(L); break; }
+    case "attn-all": UI.allAttn = true; render(); break;
+    case "note-new": openSheet(`<form data-form="note" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Stick a note up</h2><div class="field"><label for="nt-t">Note</label><textarea id="nt-t" name="text" rows="3" maxlength="140" placeholder="Spirit week: wear green Friday" required autofocus></textarea></div>
+      <div class="field"><label>Paper</label><div class="swatches">${TONES.map((t,i)=>`<button type="button" class="sw ${i===0?"on":""}" data-pick="tone" data-v="${t}" style="background:var(--note-${t});border-color:var(--line)" aria-label="${t}"></button>`).join("")}</div></div><input type="hidden" name="tone" value="white"><button class="btn primary">Stick it up</button></form>`); break;
+    case "note-del": W.del("notes/"+id); closeSheet(); toast("Taken down"); break;
+    case "vote": { if(!S.poll) break; const me = meId(), i = +b.dataset.i; const opts = S.poll.options.map((o,j)=>({label:o.label, votes:(o.votes||[]).filter(v=>v!==me).concat(j===i && !(o.votes||[]).includes(me) ? [me] : [])}));
+      S.poll = {...S.poll, options:opts}; render(); W.set("poll/current", {question:S.poll.question, options:opts}); break; }
+    case "poll-edit": openSheet(`<form data-form="poll" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">${S.poll?"Edit poll":"New poll"}</h2><div class="field"><label for="pl-q">Question</label><input id="pl-q" name="q" maxlength="60" value="${esc(S.poll?.question||"")}" placeholder="Friday dinner?" required autofocus></div>
+      <div class="field"><label for="pl-o">Choices, one per line</label><textarea id="pl-o" name="o" rows="4" maxlength="200" placeholder="Tacos&#10;Pizza" required>${esc((S.poll?.options||[]).map(o=>o.label).join("\n"))}</textarea></div>
+      <span class="small">Changing the choices resets the votes.</span>${S.poll?`<div class="row" style="gap:10px"><button type="button" class="btn danger" data-act="poll-del">Remove poll</button><button class="btn primary grow">Save</button></div>`:`<button class="btn primary">Start poll</button>`}</form>`); break;
+    case "poll-del": W.del("poll/current"); closeSheet(); break;
+    case "status": { const m = mem(id); if(!m) break; openSheet(`<form data-form="status" data-id="${esc(m.id)}" class="col" style="gap:14px"><div class="row">${face(m,44)}<h2 class="serif" style="font-size:28px;margin:0">Where's ${esc(m.name)}?</h2></div>
+      <div class="chips">${["home","work","school","out","on the way"].map(s=>`<button type="button" class="chip plain" data-status="${s}">${s}</button>`).join("")}</div>
+      <div class="field"><label for="st-t">Or type it</label><input id="st-t" name="status" maxlength="20" value="${esc(m.status||"")}"></div><button class="btn primary">Update</button></form>`); break; }
+    /* people */
+    case "setme": setMe(TRIBE, id); if(b.dataset.close) closeSheet(); render(); toast("Got it, "+memName(id)); break;
+    case "member-new": memberSheet(); break;
+    case "member-edit": memberSheet(id); break;
+    case "member-del": { const m = mem(id); if(!m) break; openSheet(`<div class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Remove ${esc(m.name)}?</h2><p style="margin:0;color:var(--muted)">Their plans and chores stay, but show as “Someone”.</p><div class="row" style="gap:10px"><button class="btn ghost grow" data-act="close">Keep</button><button class="btn dark grow" data-act="member-del-yes" data-id="${esc(m.id)}">Remove</button></div></div>`); break; }
+    case "member-del-yes": W.del("members/"+id); closeSheet(); break;
+    /* kid */
+    case "kid-pick": kidPick(); break;
+    case "kid-go": closeSheet(); UI.kid = id; go("kid"); break;
+    case "kid-exit": go("today"); break;
+  }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if(t.dataset.actChange === "driver"){ const ev = S.events.find(x=>x.id===t.dataset.id); if(ev){ ev.driver = t.value || null; W.upd("events/"+ev.id, {driver: t.value || null}); eventSheet(ev.id, t.dataset.day); render(); } }
+});
+
+/* ---------- forms ---------- */
+document.addEventListener("submit", async e => {
+  const f = e.target.closest("form[data-form]"); if(!f) return; e.preventDefault();
+  const v = Object.fromEntries(new FormData(f).entries()), kind = f.dataset.form;
+  if(kind === "ht"){ if(String(v.text||"").trim()) htUnderstand(v.text.trim()); return; }
+  if(!db) return;
+  const by = meId();
+  switch(kind){
+    case "auth-signin": case "auth-signup": case "auth-forgot": case "auth-reset": {
+      const btn = $("#au-go"), err = $("#au-err"), label = btn.textContent; UI.authEmail = (v.email||"").trim();
+      btn.disabled = true; btn.textContent = "One moment…"; err.textContent = "";
+      const fail = msg => { btn.disabled = false; btn.textContent = label; err.textContent = msg; };
+      const friendly = e => /invalid login/i.test(e?.message||"") ? "That email and password don't match. Try again or reset your password."
+        : /already registered|already exists/i.test(e?.message||"") ? "There's already an account with that email. Log in instead."
+        : /email not confirmed/i.test(e?.message||"") ? "Confirm your email first. Check your inbox for the link."
+        : /password/i.test(e?.message||"") ? (e.message||"Choose a stronger password.")
+        : "Something went wrong. Check your connection and try again.";
+      try {
+        if(kind === "auth-signin"){ const r = await sb.auth.signInWithPassword({ email: UI.authEmail, password: v.password }); if(r.error) return fail(friendly(r.error)); }
+        else if(kind === "auth-signup"){
+          const r = await sb.auth.signUp({ email: UI.authEmail, password: v.password, options: { emailRedirectTo: APP_URL + (UI.onboard ? "#"+UI.onboard : "") } });
+          if(r.error) return fail(friendly(r.error));
+          if(!r.data.session){ UI.auth = "check"; UI.authMsg = `We sent a link to ${UI.authEmail}. Open it to confirm your email, then you're in.`; render(); }
+        }
+        else if(kind === "auth-forgot"){
+          const r = await sb.auth.resetPasswordForEmail(UI.authEmail, { redirectTo: APP_URL });
+          if(r.error) return fail(friendly(r.error));
+          UI.auth = "check"; UI.authMsg = `If there's an account for ${UI.authEmail}, a reset link is on its way.`; render();
+        }
+        else if(kind === "auth-reset"){
+          const r = await sb.auth.updateUser({ password: v.password });
+          if(r.error) return fail(friendly(r.error));
+          toast("Password saved"); UI.auth = "signin"; await afterLogin();
+        }
+      } catch(e){ fail(friendly(e)); }
+      break; }
+    case "create-tribe": {
+      const name = String(v.tribe||"").trim(), you = String(v.you||"").trim(), btn = $("#tb-go"), err = $("#tb-err");
+      if(!name || !you){ err.textContent = "Add your family name and your first name."; return; }
+      btn.disabled = true; btn.textContent = "Creating…";
+      try {
+        const r = await sb.rpc("create_tribe", { p_name: name, p_you: you });
+        if(r.error) throw r.error;
+        const code = r.data.code;
+        store.set("ht-me-"+code, r.data.member_id); rememberTribe(code, name);
+        UI.onboard = null; UI.view = "family"; clearHash(); connect(code);
+        toast("Your tribe is ready. Invite code "+code);
+      } catch(x){ btn.disabled = false; btn.textContent = "Create our tribe"; err.textContent = "Couldn't create the tribe. Check your connection and try again."; }
+      break; }
+    case "join-tribe": {
+      const code = String(v.code||"").toUpperCase().replace(/[^A-Z0-9]/g,""), btn = $("#jn-go"), err = $("#jn-err");
+      if(code.length < 4){ err.textContent = "Type the code from your family, like K7Q2PX."; return; }
+      btn.disabled = true; btn.textContent = "Looking…";
+      try {
+        const r = await sb.rpc("join_tribe", { p_code: code });
+        if(r.error) throw r.error;
+        if(!r.data){ btn.disabled = false; btn.textContent = "Join"; err.textContent = "We couldn't find a tribe with that code. Check the letters and try again."; return; }
+        await loadMemberships(); UI.onboard = null; UI.view = "today"; UI.askWho = !store.get("ht-me-"+code); clearHash(); connect(code);
+      } catch(x){ btn.disabled = false; btn.textContent = "Join"; err.textContent = "Couldn't check that code. Check your connection and try again."; }
+      break; }
+    case "tribe-name": { const n = String(v.name||"").trim(); if(!n) return; try { await db.doc("tribes/"+TRIBE).update({ name:n }); } catch(x){ writeErr(x); } closeSheet(); break; }
+    case "item": { const text = (v.text||"").trim(); if(!text) return; f.reset(); const tmp = {id:"tmp"+uid(),text,list:UI.list,section:sectionFor(text),by,checked:false,at:Date.now()}; S.items.push(tmp); render(); const {id,...rest} = tmp; W.add("items", rest); break; }
+    case "event": { const start = fromHHMM(v.start), end = Math.max(fromHHMM(v.end), start+15);
+      W.add("events", {title:v.title.trim(), member:v.member, date:v.date, start, end:Math.min(end,1439), driver:v.driver||null, repeat:v.repeat==="weekly"?"weekly":null, place:(v.place||"").trim(), note:(v.note||"").trim(), by}); UI.calDay = v.date; closeSheet(); toast("Added to the calendar"); break; }
+    case "chore": { const days = [...f.querySelectorAll("[data-day-toggle].on")].map(x=>+x.dataset.dayToggle); if(!days.length){ toast("Pick at least one day"); return; }
+      if(f.dataset.id) W.upd("chores/"+f.dataset.id, {title:v.title.trim(), member:v.member, days}); else W.add("chores", {title:v.title.trim(), member:v.member, days, done:{}});
+      UI.choreMember = v.member; closeSheet(); render(); break; }
+    case "reward": W.upd("members/"+UI.choreMember, {reward:v.reward.trim(), goal:Math.max(1,Math.min(99,+v.goal||20))}); closeSheet(); break;
+    case "list": { const n = v.name.trim(); if(n){ UI.list = n; closeSheet(); render(); toast(`“${n}” is ready. Add the first item.`); } break; }
+    case "meal": {
+      const dish = (v.dish||"").trim(), ing = (v.ingredients||"").trim(), k = f.dataset.day;
+      if(dish || ing) W.set("meals/"+k, {dish, ingredients:ing}); else W.del("meals/"+k);
+      if(v.addIng && ing){ const parts = ing.split(/[,\n]+/).map(s=>s.trim()).filter(Boolean).slice(0,30); const have = new Set(S.items.filter(i=>!i.checked&&(i.list||"Groceries")==="Groceries").map(i=>i.text.toLowerCase()));
+        const add = parts.filter(p=>!have.has(p.toLowerCase())); for(const p of add) await W.add("items", {text:p,list:"Groceries",section:sectionFor(p),by,checked:false,at:Date.now()}); toast(add.length?`Added ${add.length} to Groceries`:"Already on the list"); }
+      closeSheet(); break; }
+    case "note": { const data = {text:v.text.trim(), tone:TONES.includes(v.tone)?v.tone:"white"}; if(f.dataset.id) W.upd("notes/"+f.dataset.id, data); else W.add("notes", {...data, by, at:Date.now()}); closeSheet(); break; }
+    case "poll": { const labels = v.o.split("\n").map(s=>s.trim()).filter(Boolean).slice(0,6); if(labels.length<2){ toast("Add at least two choices"); return; }
+      const same = S.poll && labels.join("|")===S.poll.options.map(o=>o.label).join("|");
+      W.set("poll/current", {question:v.q.trim(), options: same ? S.poll.options : labels.map(label=>({label,votes:[]}))}); closeSheet(); break; }
+    case "status": W.upd("members/"+f.dataset.id, {status:(v.status||"").trim()}); closeSheet(); break;
+    case "lunch": { const days = {}; [0,1,2,3,4].forEach(i => { const t = (v["d"+i]||"").trim(); if(t) days[i] = t; }); W.set("school/lunch-"+f.dataset.week, {kind:"lunch", week:f.dataset.week, days}); closeSheet(); break; }
+    case "sitter-info": W.set("info/sitter", {address:(v.address||"").trim(), wifi:(v.wifi||"").trim(), rules:(v.rules||"").trim(), notes:(v.notes||"").trim()}); closeSheet(); toast("Saved"); break;
+    case "member": { const data = {name:v.name.trim(), style:v.style, color:okColor(v.color), skin:okHex(v.skin,SKINS[1]), hair:okHex(v.hair,HAIRS[1])};
+      if(f.dataset.id) W.upd("members/"+f.dataset.id, data);
+      else { const ref = db.collection(P("members")).doc(); try { await ref.set({...data, order:S.members.length, status:"home"}); if(!mem(store.get(meKey())) && data.style!=="kid" && data.style!=="baby") setMe(TRIBE, ref.id); } catch(err){ writeErr(err); } }
+      closeSheet(); toast(f.dataset.id?"Saved":"Welcome, "+data.name); break; }
+    case "pack": { const t = (v.text||"").trim(); if(!t) return; f.reset(); tripWrite(UI.trip, "packing", arr => arr.concat([{id:uid(), text:t.slice(0,60), packed:false}])); break; }
+    case "plan": { const t = (v.text||"").trim(); if(!t) return; tripWrite(UI.trip, "plan", arr => arr.concat([{id:uid(), day:v.day||"", text:t.slice(0,80)}])); break; }
+    case "ent": {
+      const E = ENT[f.dataset.kind], id = f.dataset.id, err = $("#ent-err"); if(!E) return;
+      const rec = id ? (S[E.col].find(x=>x.id===id) || {}) : {};
+      let data = {...(E.fixed||{})};
+      for(const fl of E.fields){
+        if(fl.type === "file") continue;
+        let val = v[fl.name];
+        if(fl.type === "checkbox") val = !!f.querySelector(`[name="${fl.name}"]`)?.checked;
+        else if(fl.type === "number") val = (val===""||val==null) ? null : Number(val);
+        else val = String(val ?? "").trim();
+        if(fl.required && (val===""||val==null)){ err.textContent = `Add ${fl.label.toLowerCase().replace(/\s*\(.*\)/,"")}.`; return; }
+        data[fl.name] = val;
+      }
+      if(f.dataset.kind === "bill") data.dueDay = Math.min(31, Math.max(1, Math.round(data.dueDay||1)));
+      if(f.dataset.kind === "upkeep") data.every = Math.min(60, Math.max(1, Math.round(data.every||3)));
+      if(E.toData){ data = E.toData(data, rec); if(data && data.error){ err.textContent = data.error; return; } }
+      const fileEl = f.querySelector('input[type="file"]');
+      if(fileEl && fileEl.files && fileEl.files[0] && assets){
+        err.textContent = "Uploading…";
+        try { const r = await assets.upload(fileEl.files[0]); data.fileId = r.id; data.fileType = r.contentType || fileEl.files[0].type; data.fileName = fileEl.files[0].name.slice(0,80); }
+        catch(x){ err.textContent = "Couldn't upload that file. Try a photo or PDF under 20 MB."; return; }
+      }
+      const ok = id ? await W.upd(E.col+"/"+id, data) : await W.add(E.col, {...data, by, at:Date.now()});
+      if(ok){ closeSheet(); toast(id?"Saved":"Added"); }
+      break; }
+  }
+});
+window.addEventListener("hashchange", () => {
+  const h = location.hash.slice(1);
+  if(h === "create" || h === "join"){ UI.onboard = h; if(SESSION){ S.status = "welcome"; } else { UI.auth = "signup"; S.status = "auth"; } render(); }
+  else if(h === "sample"){ if(db){ clearHash(); connect("SAMPLE"); } }
+  else if(VIEWS.includes(h) && S.status === "ready") go(h);
+});
+setInterval(() => { if(!$("#scrim") && S.status==="ready" && ["today","calendar","baby","health","kid"].includes(UI.view)) render(); }, 60000);
+
+/* ---------- connect ---------- */
+const COLS = ["members","events","chores","items","meals","notes","baby","routines","meds","health","contacts","school","home","docs","trips","countdowns"];
+function apply(c, docs){
+  switch(c){
+    case "members": S.members = docs.filter(m=>m.name); break;
+    case "events": S.events = docs.filter(e=>e.title && e.date).map(e=>({...e, start:+e.start||0, end:+e.end||(+e.start||0)+60})); break;
+    case "meals": S.meals = Object.fromEntries(docs.map(m=>[m.id,m])); break;
+    case "baby": S.baby = Object.fromEntries(docs.map(b=>[b.id,b])); break;
+    case "chores": case "routines": S[c] = docs.filter(x=>x.title||x.name); break;
+    case "items": case "notes": S[c] = docs.filter(x=>x.text); break;
+    default: S[c] = docs;
+  }
+}
+function connect(code){
+  unsubs.forEach(u=>{ try{ u(); }catch(e){} }); unsubs = [];
+  TRIBE = code; store.set("ht-tribe", code); rememberTribe(code);
+  Object.assign(S, EMPTY()); S.status = "loading"; UI.who = null; UI.choreMember = null; render();
+  const got = new Set(), need = COLS.length + 3;
+  const done = k => {
+    got.add(k);
+    if(got.size >= need && S.status === "loading"){ S.status = "ready"; if(UI.askWho && S.members.length){ UI.askWho = false; setTimeout(whoSheet, 60); } }
+    if(S.status !== "welcome") render();
+  };
+  COLS.forEach(c => unsubs.push(db.collection(P(c)).onSnapshot(s => { apply(c, s.docs.map(d=>({id:d.id, ...d.data()}))); done(c); }, () => done(c))));
+  unsubs.push(db.doc(P("poll/current")).onSnapshot(s => { const d = s.exists ? s.data() : null; S.poll = d && Array.isArray(d.options) && d.options.length ? d : null; done("poll"); }, () => done("poll")));
+  unsubs.push(db.doc(P("info/sitter")).onSnapshot(s => { S.sitter = s.exists ? s.data() : {}; done("sitter"); }, () => done("sitter")));
+  unsubs.push(db.doc("tribes/"+code).onSnapshot(s => { S.tribe = s.exists ? {id:code, ...s.data()} : {id:code, name:"Your tribe"}; rememberTribe(code, S.tribe.name); done("tribe"); }, () => done("tribe")));
+  setTimeout(() => { if(S.status === "loading" && TRIBE === code){ S.status = "ready"; render(); } }, 6000);
+}
+
+/* ---------- boot ---------- */
+async function afterLogin(){
+  const h = (location.hash||"").slice(1);
+  const list = await loadMemberships();
+  if(list === null){ S.status = "offline"; render(); return; }
+  if(h === "create" || h === "join"){ clearHash(); UI.onboard = h; S.status = "welcome"; render(); return; }
+  const saved = store.get("ht-tribe");
+  const pick = list.find(t => t.code === saved) || list[0];
+  if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
+  else { TRIBE = null; S.status = "welcome"; render(); }
+}
+render();
+(async () => {
+  if(!window.supabase || !CFG.supabaseUrl || !CFG.supabaseAnonKey){ S.status = "offline"; render(); return; }
+  sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } });
+  db = makeDb(sb); assets = assetsApi; sampler = aiApi;
+  const h0 = (location.hash||"").slice(1);
+  if(h0 === "login" || h0 === "signup"){ UI.auth = h0 === "login" ? "signin" : "signup"; clearHash(); }
+  let first = true;
+  sb.auth.onAuthStateChange((event, session) => {
+    const was = SESSION?.user?.id; SESSION = session;
+    if(event === "PASSWORD_RECOVERY"){ UI.auth = "reset"; S.status = "auth"; render(); return; }
+    if(event === "SIGNED_OUT"){ db.reset(); unsubs.forEach(u=>{ try{u();}catch(e){} }); unsubs = []; TRIBE = null; Object.assign(S, EMPTY()); store.del("ht-tribe"); store.set("ht-tribes","[]"); try { Object.keys(localStorage).filter(k => /^ht-(me-|last-|view)/.test(k)).forEach(k => localStorage.removeItem(k)); } catch(e){} UI.view = "today"; UI.auth = "signin"; S.status = "auth"; render(); return; }
+    if(event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;
+    if(session && (first || session.user.id !== was)){ first = false; setTimeout(afterLogin, 0); return; }
+    if(!session && first){ first = false;
+      const h = (location.hash||"").slice(1);
+      if(h === "sample"){ clearHash(); connect("SAMPLE"); return; }
+      if(h === "create" || h === "join"){ UI.onboard = h; clearHash(); UI.auth = "signup"; }
+      S.status = "auth"; render();
+    }
+  });
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible" && TRIBE && TRIBE !== "SAMPLE") db.refresh(); });
+})();
+})();
+</script>
+</body></html>
