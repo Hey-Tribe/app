@@ -55,6 +55,8 @@
     [/^(.+) (Mon|Tue|Wed|Thu|Fri|Sat|Sun): (done|missed)$/, function(s, w, d, r){ return w + " " + DOW[d] + ": " + (r === "done" ? "hecho" : "faltó"); }],
     [/^Sleep( ·)? (\d+h \d+m)$/, function(s, dot, t){ return "Sueño" + (dot || "") + " " + t; }],
     [/^(Feeds|Diapers) (\d+)$/, function(s, w, n){ return (w === "Feeds" ? "Tomas " : "Pañales ") + n; }],
+    [/^Your tribe is ready\. Invite code ([A-Z0-9]+)$/, function(s, c){ return "Tu tribu está lista. Código de invitación " + c; }],
+    [/^(\d+) days left$/, function(s, n){ return "Quedan " + n + " días"; }],
     [/^(\d+) days? to go$/, function(s, n){ return n === "1" ? "falta 1 día" : "faltan " + n + " días"; }]
   ];
   function tr(dict, raw){

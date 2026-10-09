@@ -71,6 +71,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--sage)}
 .pill{display:inline-block;font-size:11.5px;font-weight:600;border-radius:8px;padding:2px 8px;background:var(--bg);color:var(--muted)}
 .banner{display:flex;gap:12px;align-items:flex-start;background:var(--warn-soft);color:#6B4A10;border-radius:14px;padding:12px 16px;margin-bottom:16px;font-size:14px}
 .banner b{color:#5A3D0A}
+.banner.ok{background:var(--good-soft);color:#2F5A43}.banner.ok b{color:#234632}.banner a{color:inherit;font-weight:600}
+.grid>*{min-width:0}
+.err-msg{min-width:220px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;overflow-wrap:anywhere}
+.bars{display:flex;flex-direction:column;gap:8px}.bars .r{display:grid;grid-template-columns:minmax(90px,1.2fr) 3fr auto;gap:10px;align-items:center;font-size:13.5px}.bars .t{height:10px;background:var(--line);border-radius:999px;overflow:hidden}.bars .t i{display:block;height:100%;background:#5E8C7A;border-radius:999px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}.seg button{padding:5px 12px;border-radius:999px;font-size:13px;font-weight:600;color:var(--muted)}.seg button.on{background:var(--ink);color:#fff}
 /* chart */
 .chart{position:relative}
 .chart svg{display:block;width:100%;height:auto;overflow:visible}
@@ -120,6 +125,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--sage)}
 <div id="root"></div>
 <script src="/app/vendor/supabase.js"></script>
 <script src="/app/config.js"></script>
+<script src="/t.js" defer></script>
 <script>
 (function(){
 "use strict";
@@ -135,12 +141,14 @@ const toast = t => { const el = document.createElement("div"); el.className = "t
 const ICON = {
   home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>', users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.3 0 4 1.5 4.6 4"/>',
   user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>', card:'<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h4"/>',
-  map:'<path d="M9 4l6 2 6-2v14l-6 2-6-2-6 2V6z"/><path d="M9 4v14M15 6v14"/>', inbox:'<path d="M4 13l2-8h12l2 8v6H4z"/><path d="M4 13h5l1 2h4l1-2h5"/>', gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'
+  map:'<path d="M9 4l6 2 6-2v14l-6 2-6-2-6 2V6z"/><path d="M9 4v14M15 6v14"/>', inbox:'<path d="M4 13l2-8h12l2 8v6H4z"/><path d="M4 13h5l1 2h4l1-2h5"/>', chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>', gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'
 };
 const ico = (n, s=18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]||""}</svg>`;
 const mark = w => `<svg width="${w}" height="${Math.round(w*112/120)}" viewBox="0 0 120 112" aria-hidden="true"><path d="M30 0H90A30 30 0 0 1 120 30V58A30 30 0 0 1 90 88H46L22 110V88A22 24 0 0 1 0 64V30A30 30 0 0 1 30 0Z" fill="#5E8C7A"/><circle cx="35" cy="44" r="11" fill="#fff"/><circle cx="63" cy="44" r="11" fill="#fff"/><circle cx="88" cy="49" r="7" fill="#fff"/></svg>`;
 const ST = { stats:null, view: (location.hash.slice(1) || "overview"), me:null };
-const VIEWS = [["overview","Overview","home"],["families","Families","users"],["people","People","user"],["billing","Billing","card"],["roadmap","Roadmap","map"],["inbox","Inbox","inbox"],["settings","Settings","gear"]];
+const VIEWS = [["overview","Overview","home"],["traffic","Traffic","chart"],["families","Families","users"],["people","People","user"],["billing","Billing","card"],["roadmap","Roadmap","map"],["inbox","Inbox","inbox"],["errors","Errors","alert"],["settings","Settings","gear"]];
+let BILLING_ON = null;
+async function billingOn(){ if(BILLING_ON === null){ try { BILLING_ON = !!(await (await fetch("/api/billing", { cache: "no-store" })).json()).enabled; } catch(e){ BILLING_ON = false; } } return BILLING_ON; }
 const STATUS_LABEL = { trialing:"Trial", active:"Paying", past_due:"Past due", canceled:"Canceled", comped:"Comped", free:"Free", none:"No plan", expired:"Trial ended" };
 function planOf(t){ if(!t.status) return "none"; if(t.status === "trialing" && t.trial_ends_at && new Date(t.trial_ends_at) < new Date()) return "expired"; return t.status; }
 const badge = s => `<span class="badge b-${s}">${STATUS_LABEL[s] || s}</span>`;
@@ -190,7 +198,7 @@ function shell(){
   const n = ST.stats?.inbox_new || 0;
   $("#root").innerHTML = `<div class="shell"><aside class="side">
     <div class="brand">${mark(24)}<span>hey<b>tribe</b></span><span class="tag">Admin</span></div>
-    ${VIEWS.map(([v,l,i]) => `<button class="nav ${ST.view===v?"on":""}" data-v="${v}">${ico(i)}<span>${l}</span>${v==="inbox"&&n?`<span class="n">${n}</span>`:""}</button>`).join("")}
+    ${VIEWS.map(([v,l,i]) => `<button class="nav ${ST.view===v?"on":""}" data-v="${v}">${ico(i)}<span>${l}</span>${v==="inbox"&&n?`<span class="n">${n}</span>`:""}${v==="errors"&&ST.stats?.errors_24h?`<span class="n">${ST.stats.errors_24h}</span>`:""}</button>`).join("")}
     <div class="me"><span>${esc(ST.me?.email||"")}</span><a href="https://www.heytribe.app/app/" target="_blank" rel="noopener">Open the app</a><button style="text-align:left;color:var(--sage-ink);font-weight:600" id="so">Sign out</button></div>
   </aside><main class="main" id="main"><div class="empty">Loading…</div></main></div>`;
   document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => go(b.dataset.v));
@@ -199,7 +207,7 @@ function shell(){
 function go(v){ ST.view = v; history.replaceState(null, "", "#" + v); shell(); render(); }
 async function render(){
   const m = $("#main"); if(!m) return;
-  try { await ({ overview, families, people, billing, roadmap, inbox, settings })[ST.view](m); }
+  try { await ({ overview, traffic, families, people, billing, roadmap, inbox, errors, settings })[ST.view](m); }
   catch(x){ m.innerHTML = `<div class="card"><h2>Couldn't load this page</h2><p class="sub">${esc(x.message || x)}</p></div>`; }
 }
 
@@ -211,7 +219,9 @@ async function overview(m){
   const soon = (tribes||[]).filter(t => t.status === "trialing" && t.trial_ends_at && new Date(t.trial_ends_at) > new Date() && new Date(t.trial_ends_at) - new Date() < 3*864e5);
   const kpi = (l, v, d) => `<div class="card kpi"><div class="l">${l}</div><div class="v tab">${v}</div><div class="d">${d}</div></div>`;
   m.innerHTML = `<div class="head"><div><h1>Overview</h1><p class="sub">${new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</p></div><button class="btn ghost sm" id="rf">Refresh</button></div>
+    ${s.errors_24h ? `<div class="banner"><span>⚠</span><div><b>${s.errors_24h} error report${s.errors_24h==1?"":"s"} in the last 24 hours.</b> <a href="#errors" data-goto="errors">See what's breaking</a></div></div>` : ""}
     <div class="grid kpis">
+      ${kpi("Visitors", s.visitors_7d ?? 0, "on the website and app, 7 days")}
       ${kpi("Sign-ups", s.users_total, `${s.users_7d} this week · ${s.users_today} today`)}
       ${kpi("Families", s.tribes_total, `${s.tribes_7d} new this week`)}
       ${kpi("Active families", s.tribes_active, "changed something in 7 days")}
@@ -228,30 +238,30 @@ async function overview(m){
       <div class="card"><h2>Newest families</h2><div class="list" style="margin-top:6px">${(tribes||[]).slice(0,6).map(t => `<div class="li"><div class="t"><b>${esc(t.name)}</b><small>${esc(t.owner_email||"")} · ${t.people} people · ${ago(t.created_at)}</small></div>${badge(planOf(t))}</div>`).join("") || `<div class="empty">No families yet.</div>`}</div></div>
       <div class="card"><h2>Trials ending in 3 days</h2><div class="list" style="margin-top:6px">${soon.map(t => `<div class="li"><div class="t"><b>${esc(t.name)}</b><small>ends ${fmtD(t.trial_ends_at)}</small></div><button class="btn ghost sm" data-ext="${esc(t.code)}">+7 days</button></div>`).join("") || `<div class="empty">None right now.</div>`}</div></div>
     </div>`;
-  barChart($("#ch"), daily);
+  barChart($("#ch"), daily, { key: "signups", aria: "Daily sign-ups for the last 30 days", tip: r => `${r.signups} sign-up${r.signups==1?"":"s"} · ${r.tribes} famil${r.tribes==1?"y":"ies"}`, head: ["Sign-ups","New families"], cells: r => [r.signups, r.tribes] });
   $("#rf").onclick = () => render();
   m.querySelectorAll("[data-goto]").forEach(b => b.onclick = () => go(b.dataset.goto));
   m.querySelectorAll("[data-ext]").forEach(b => b.onclick = async () => { await rpc("admin_set_subscription", { p_code: b.dataset.ext, p_status: "trialing", p_trial_days: 7, p_note: null }); toast("Trial extended 7 days"); render(); });
 }
 /* one series, one hue, rounded tops on a shared baseline, hover tooltip per bar */
-function barChart(el, rows){
-  const W = 640, H = 200, P = { l: 30, r: 6, t: 8, b: 24 }, n = rows.length, max = Math.max(4, ...rows.map(r => Number(r.signups)));
+function barChart(el, rows, o){
+  const K = o.key, W = 640, H = 200, P = { l: 34, r: 6, t: 8, b: 24 }, n = rows.length, max = Math.max(4, ...rows.map(r => Number(r[K])));
   const step = Math.ceil(max / 4), top = step * 4, bw = (W - P.l - P.r) / n, gap = 2, y = v => P.t + (H - P.t - P.b) * (1 - v / top);
   let g = "";
   for(let i = 0; i <= 4; i++){ const v = step * i, yy = y(v); g += `<line x1="${P.l}" x2="${W-P.r}" y1="${yy}" y2="${yy}" stroke="#E1E6E1" stroke-width="1"/><text x="${P.l-8}" y="${yy+4}" font-size="11" fill="#98A1A6" text-anchor="end">${v}</text>`; }
   rows.forEach((r, i) => {
-    const v = Number(r.signups), x = P.l + i * bw + gap / 2, w = bw - gap, h = Math.max(0, y(0) - y(v));
+    const v = Number(r[K]), x = P.l + i * bw + gap / 2, w = bw - gap, h = Math.max(0, y(0) - y(v));
     if(h > 0){ const rr = Math.min(4, w / 2, h); g += `<path d="M${x},${y(0)} V${y(v)+rr} Q${x},${y(v)} ${x+rr},${y(v)} H${x+w-rr} Q${x+w},${y(v)} ${x+w},${y(v)+rr} V${y(0)} Z" fill="#5E8C7A"/>`; }
     g += `<rect x="${P.l + i*bw}" y="${P.t}" width="${bw}" height="${H-P.t-P.b}" fill="transparent" data-i="${i}"/>`;
-    if(i % 5 === 0 || i === n - 1) g += `<text x="${x + w/2}" y="${H-6}" font-size="11" fill="#98A1A6" text-anchor="middle">${new Date(r.day + "T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}</text>`;
+    if(i % Math.max(1, Math.round(n / 6)) === 0 || i === n - 1) g += `<text x="${x + w/2}" y="${H-6}" font-size="11" fill="#98A1A6" text-anchor="middle">${new Date(r.day + "T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"})}</text>`;
   });
-  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily sign-ups for the last 30 days">${g}<line x1="${P.l}" x2="${W-P.r}" y1="${y(0)}" y2="${y(0)}" stroke="#C9D3CC"/></svg><div class="tip"></div>
-    <details style="margin-top:8px"><summary class="sub" style="cursor:pointer;font-size:12.5px">Show as a table</summary><table class="tbl" style="margin-top:6px"><tr><th>Day</th><th class="num">Sign-ups</th><th class="num">New families</th></tr>${rows.slice().reverse().map(r => `<tr><td>${fmtD(r.day+"T00:00:00")}</td><td class="num tab">${r.signups}</td><td class="num tab">${r.tribes}</td></tr>`).join("")}</table></details>`;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria}">${g}<line x1="${P.l}" x2="${W-P.r}" y1="${y(0)}" y2="${y(0)}" stroke="#C9D3CC"/></svg><div class="tip"></div>
+    <details style="margin-top:8px"><summary class="sub" style="cursor:pointer;font-size:12.5px">Show as a table</summary><table class="tbl" style="margin-top:6px"><tr><th>Day</th>${o.head.map(h => `<th class="num">${h}</th>`).join("")}</tr>${rows.slice().reverse().map(r => `<tr><td>${fmtD(r.day+"T00:00:00")}</td>${o.cells(r).map(c => `<td class="num tab">${c}</td>`).join("")}</tr>`).join("")}</table></details>`;
   const tip = el.querySelector(".tip"), svg = el.querySelector("svg");
   svg.querySelectorAll("rect[data-i]").forEach(rc => {
     rc.addEventListener("mouseenter", () => { const r = rows[+rc.dataset.i], b = rc.getBoundingClientRect(), o = el.getBoundingClientRect();
-      tip.innerHTML = `<b>${new Date(r.day+"T00:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}</b> · ${r.signups} sign-up${r.signups==1?"":"s"} · ${r.tribes} famil${r.tribes==1?"y":"ies"}`;
-      tip.style.left = (b.left - o.left + b.width/2) + "px"; tip.style.top = (y(Number(r.signups)) / H * svg.getBoundingClientRect().height) + "px"; tip.style.opacity = 1; });
+      tip.innerHTML = `<b>${new Date(r.day+"T00:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}</b> · ${o.tip(r)}`;
+      tip.style.left = (b.left - o.left + b.width/2) + "px"; tip.style.top = (y(Number(r[K])) / H * svg.getBoundingClientRect().height) + "px"; tip.style.opacity = 1; });
     rc.addEventListener("mouseleave", () => tip.style.opacity = 0);
   });
 }
@@ -276,7 +286,7 @@ async function familyDrawer(t){
     <dl class="dl"><dt>Owner</dt><dd>${esc(t.owner_email||"—")}</dd><dt>Plan</dt><dd>${badge(planOf(t))}</dd><dt>Trial ends</dt><dd>${fmtD(t.trial_ends_at)}</dd><dt>Last active</dt><dd>${ago(t.last_active)}</dd></dl>
     <div><h2 style="font-size:18px;margin-bottom:8px">What they use</h2><div class="counts">${Object.entries(d.counts).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `<div><b class="tab">${v}</b><small>${LBL[k]||k}</small></div>`).join("") || `<div><small>Nothing yet</small></div>`}</div></div>
     <div><h2 style="font-size:18px;margin-bottom:8px">Logins</h2><div class="list">${d.logins.map(l => `<div class="li"><div class="t"><b>${esc(l.email)}</b><small>joined ${fmtD(l.joined)}</small></div></div>`).join("") || `<div class="sub">No logins</div>`}</div></div>
-    <div class="card" style="background:var(--bg)"><h2 style="font-size:18px">Plan</h2><p class="sub">Until Stripe is connected, plans are managed here.</p>
+    <div class="card" style="background:var(--bg)"><h2 style="font-size:18px">Plan</h2><p class="sub">Change a family's plan by hand: extend a trial, give Premium for free, or fix a status. Paying status from Stripe updates on its own.</p>
       <div class="row" style="flex-wrap:wrap;margin-top:10px">
         <button class="btn sm" data-s="trialing" data-days="7">Extend trial 7 days</button>
         <button class="btn ghost sm" data-s="comped">Comp Premium</button>
@@ -308,10 +318,11 @@ async function people(m){
 
 /* ---------- billing ---------- */
 async function billing(m){
-  const [s, rows] = await Promise.all([rpc("admin_stats"), rpc("admin_tribes", { p_q:"", p_limit:200, p_offset:0 })]);
+  const [s, rows, on] = await Promise.all([rpc("admin_stats"), rpc("admin_tribes", { p_q:"", p_limit:200, p_offset:0 }), billingOn()]);
   const kpi = (l, v, d) => `<div class="card kpi"><div class="l">${l}</div><div class="v tab">${v}</div><div class="d">${d}</div></div>`;
   m.innerHTML = `<div class="head"><div><h1>Billing</h1><p class="sub">Premium is ${money(PRICE)} a month per family after a 7-day trial.</p></div></div>
-    <div class="banner"><span>⚠</span><div><b>Stripe isn't connected yet.</b> New families start a 7-day trial automatically, but nobody is charged and Premium limits aren't enforced. Connecting Stripe checkout will fill in paying status here on its own.</div></div>
+    ${on ? `<div class="banner ok"><span>✓</span><div><b>Stripe is connected.</b> Families can upgrade from the app, and Free-plan limits apply once a trial ends. Payments, cancellations and failed cards update here on their own. <a href="https://dashboard.stripe.com" target="_blank" rel="noopener">Open Stripe</a></div></div>`
+      : `<div class="banner"><span>⚠</span><div><b>Stripe isn't connected yet.</b> Everything is built and waiting. New families get a 7-day trial, nobody is charged, and no limits apply until checkout is switched on. To switch it on, add the Stripe keys in Vercel (see Settings).</div></div>`}
     <div class="grid kpis">
       ${kpi("MRR", money(s.active * PRICE), "from paying families")}
       ${kpi("Paying", s.active, `${s.past_due} past due`)}
@@ -396,9 +407,54 @@ async function settings(m){
         <div class="li"><div class="t"><b>App</b><small><a href="https://www.heytribe.app/app/" target="_blank" rel="noopener">www.heytribe.app/app</a></small></div></div>
         <div class="li"><div class="t"><b>Database and logins</b><small><a href="https://supabase.com/dashboard/project/ayafbypcbsfmqckuwqom" target="_blank" rel="noopener">Supabase project</a></small></div></div>
         <div class="li"><div class="t"><b>Hosting</b><small><a href="https://vercel.com/hey-tribe/heytribe" target="_blank" rel="noopener">Vercel project</a></small></div></div>
+        <div class="li"><div class="t"><b>Payments</b><small><a href="https://dashboard.stripe.com" target="_blank" rel="noopener">Stripe dashboard</a></small></div></div>
         <div class="li"><div class="t"><b>Code</b><small><a href="https://github.com/Hey-Tribe/app" target="_blank" rel="noopener">GitHub: Hey-Tribe/app</a></small></div></div>
       </div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Switching on payments</h2><ol class="sub" style="margin:8px 0 0;padding-left:20px;line-height:1.7">
+      <li>In Stripe, create a product “HeyTribe Premium” with a $4.99 monthly price. Copy the price id (price_…).</li>
+      <li>In Stripe → Developers → Webhooks, add <b>https://www.heytribe.app/api/stripe-webhook</b> with the events checkout.session.completed and customer.subscription.created, .updated and .deleted. Copy the signing secret (whsec_…).</li>
+      <li>In Vercel → heytribe → Settings → Environment Variables, add STRIPE_SECRET_KEY, STRIPE_PRICE_ID and STRIPE_WEBHOOK_SECRET, then redeploy.</li>
+      <li>In Stripe → Settings → Billing → Customer portal, turn on cancel and update payment method.</li></ol></div>`;
+}
+
+/* ---------- traffic ---------- */
+async function traffic(m){
+  const days = ST.tDays || 30;
+  const t = await rpc("admin_traffic", { p_days: days });
+  const kpi = (l, v, d) => `<div class="card kpi"><div class="l">${l}</div><div class="v tab">${v}</div><div class="d">${d}</div></div>`;
+  const signups = t.sources.reduce((a, x) => a + Number(x.signups), 0);
+  const maxSrc = Math.max(1, ...t.sources.map(x => Number(x.visitors))), maxPg = Math.max(1, ...t.pages.map(x => Number(x.views)));
+  const devs = Object.entries(t.devices || {}), devTotal = devs.reduce((a, [,n]) => a + Number(n), 0) || 1;
+  const pct = (a, b) => b ? Math.round(a / b * 100) + "%" : "—";
+  m.innerHTML = `<div class="head"><div><h1>Traffic</h1><p class="sub">Visits to the website and app. No cookies or personal details, just a random id per browser.</p></div>
+      <div class="seg">${[[7,"7 days"],[30,"30 days"],[90,"90 days"]].map(([d,l]) => `<button class="${days===d?"on":""}" data-d="${d}">${l}</button>`).join("")}</div></div>
+    <div class="grid kpis">
+      ${kpi("Visitors", t.visitors, `${t.views} page views`)}
+      ${kpi("Opened the app", t.app_opens, `${pct(t.app_opens, t.visitors)} of visitors`)}
+      ${kpi("New families", signups, `${pct(signups, t.visitors)} of visitors`)}
+    </div>
+    <div class="card" style="margin-top:16px"><div class="between"><h2>Visitors per day</h2></div><div class="chart" id="tch" style="margin-top:14px"></div></div>
+    <div class="grid two">
+      <div class="card"><h2>Where they came from</h2><p class="sub" style="font-size:13px">Add <b>?utm_source=instagram</b> (or any name) to links you share to see them here.</p>
+        ${t.sources.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Source</th><th class="num">Visitors</th><th class="num">New families</th><th class="num">Rate</th></tr></thead><tbody>${t.sources.map(x => `<tr><td>${x.src==="unknown"?`<span class="sub">not tracked</span>`:esc(x.src)}</td><td class="num tab">${x.visitors}</td><td class="num tab">${x.signups}</td><td class="num tab">${pct(x.signups, x.visitors)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty">No visits yet.</div>`}</div>
+      <div class="card"><h2>Top pages</h2>${t.pages.length ? `<div class="bars" style="margin-top:12px">${t.pages.map(x => `<div class="r"><span style="overflow-wrap:anywhere">${esc(x.path)}</span><span class="t"><i style="width:${Math.max(3, x.views / maxPg * 100)}%"></i></span><span class="tab">${x.views}</span></div>`).join("")}</div>` : `<div class="empty">No visits yet.</div>`}
+        ${devs.length ? `<h2 style="margin-top:20px">Devices</h2><div class="bars" style="margin-top:12px">${devs.sort((a,b)=>b[1]-a[1]).map(([d,n]) => `<div class="r"><span style="text-transform:capitalize">${esc(d)}</span><span class="t"><i style="width:${Math.max(3, n / devTotal * 100)}%"></i></span><span class="tab">${pct(n, devTotal)}</span></div>`).join("")}</div>` : ""}</div>
     </div>`;
+  barChart($("#tch"), t.daily, { key: "visitors", aria: `Daily visitors for the last ${days} days`, tip: r => `${r.visitors} visitor${r.visitors==1?"":"s"} · ${r.views} page view${r.views==1?"":"s"}`, head: ["Visitors","Page views"], cells: r => [r.visitors, r.views] });
+  m.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { ST.tDays = +b.dataset.d; render(); });
+}
+
+/* ---------- errors ---------- */
+async function errors(m){
+  const rows = await rpc("admin_errors", { p_days: 7 });
+  const where = { site: "Website", app: "App", admin: "Admin" };
+  const browser = ua => !ua ? "" : /iPhone|iPad/.test(ua) ? "iPhone/iPad" : /Android/.test(ua) ? "Android" : /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "Other";
+  m.innerHTML = `<div class="head"><div><h1>Errors</h1><p class="sub">Problems families' browsers ran into in the last 7 days, grouped by message. Most come and go with bad connections; a number that keeps climbing is worth fixing.</p></div><button class="btn ghost sm" id="rf">Refresh</button></div>
+    ${rows.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th>Message</th><th>Where</th><th class="num">Times</th><th class="num">People</th><th>Last seen</th><th>Browser</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td><div class="err-msg">${esc(r.message)}</div>${r.source ? `<small class="sub">${esc(r.source.replace(/^https?:\/\/[^/]+/, ""))}${r.line ? ":" + r.line : ""}</small>` : ""}</td><td>${where[r.area] || esc(r.area)}<br><small class="sub">${esc(r.path || "")}</small></td><td class="num tab">${r.n}</td><td class="num tab">${r.visitors}</td><td>${ago(r.last_at)}</td><td>${browser(r.ua)}</td></tr>`).join("")}</tbody></table></div>`
+      : `<div class="card empty">No errors in the last 7 days.</div>`}`;
+  $("#rf").onclick = () => render();
 }
 
 /* ---------- boot ---------- */

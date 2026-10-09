@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="HeyTribe">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>HeyTribe</title>
-<meta property="og:type" content="website"><meta property="og:site_name" content="HeyTribe"><meta property="og:title" content="HeyTribe"><meta property="og:description" content="The whole family, finally in sync. Plans, chores, lists, meals and more, shared live."><meta property="og:url" content="https://heytribe.vercel.app/app/"><meta property="og:image" content="https://heytribe.vercel.app/og.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://heytribe.vercel.app/og.jpg">
+<meta property="og:type" content="website"><meta property="og:site_name" content="HeyTribe"><meta property="og:title" content="HeyTribe"><meta property="og:description" content="The whole family, finally in sync. Plans, chores, lists, meals and more, shared live."><meta property="og:url" content="https://www.heytribe.app/app/"><meta property="og:image" content="https://www.heytribe.app/og.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://www.heytribe.app/og.jpg">
 <script>try{if(localStorage.getItem("ht-lang")==="es"){document.documentElement.classList.add("es-wait");setTimeout(function(){document.documentElement.classList.remove("es-wait")},2500)}}catch(e){}</script><style>.es-wait body{opacity:0}</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@400;500;600;700;800&display=swap">
@@ -336,6 +336,7 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
 <div id="toast" class="toast" hidden></div>
 
 <script src="/i18n/ht-i18n.js"></script>
+<script src="/t.js" defer></script>
 <script src="/app/vendor/supabase.js"></script>
 <script src="/app/config.js"></script>
 <script>
@@ -469,6 +470,55 @@ function makeDb(client){
     reset: teardown
   };
 }
+/* plan and billing: limits only apply once checkout is switched on, so nobody is limited before they can upgrade */
+let PLAN = null, BILLING = false;
+const premium = () => TRIBE === "SAMPLE" || !PLAN || ["active","comped","past_due"].includes(PLAN.status) || (PLAN.status === "trialing" && new Date(PLAN.trial_ends_at) > new Date());
+const limited = () => BILLING && !premium();
+fetch("/api/billing").then(r => r.ok ? r.json() : {}).then(j => { BILLING = !!j.enabled; if(S.status === "ready") render(); }).catch(() => {});
+async function loadPlan(code){
+  if(!sb || !SESSION || !code || code === "SAMPLE"){ PLAN = null; return; }
+  const r = await sb.from("subscriptions").select("status, trial_ends_at, current_period_end, stripe_customer_id").eq("tribe_code", code).maybeSingle();
+  if(TRIBE !== code) return;
+  PLAN = r.error ? null : r.data;
+  if(S.status === "ready") render();
+}
+function trialDays(){ return PLAN && PLAN.trial_ends_at ? Math.ceil((new Date(PLAN.trial_ends_at) - Date.now()) / 864e5) : 0; }
+function upsell(why){
+  openSheet(`<div class="col" style="gap:14px">
+    <span class="tag" style="align-self:flex-start">Premium</span>
+    <h2 class="serif" style="font-size:28px;margin:0">That's a Premium extra</h2>
+    <p style="margin:0;color:var(--muted)">${esc(why)}</p>
+    <p style="margin:0">Premium is $4.99 a month for the whole tribe. Cancel anytime.</p>
+    <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn primary grow" data-act="upgrade">Get Premium</button><button class="btn ghost" data-act="close">Not now</button></div></div>`);
+}
+function gate(ok, why){ if(ok || !limited()) return true; upsell(why); return false; }
+async function billingGo(action, btn){
+  if(!BILLING){ toast("Premium checkout opens soon."); return; }
+  const tok = (await sb.auth.getSession()).data.session?.access_token;
+  if(!tok || !TRIBE || TRIBE === "SAMPLE") return;
+  if(btn){ btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = "Opening…"; }
+  try {
+    const r = await fetch("/api/billing", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + tok }, body: JSON.stringify({ action, code: TRIBE, lang: (window.HTi18n && HTi18n.lang) || "en" }) });
+    const j = await r.json().catch(() => ({}));
+    if(r.ok && j.url){ closeSheet(); location.href = j.url; if(btn) setTimeout(() => { btn.disabled = false; btn.textContent = btn.dataset.label; }, 4000); return; }
+    toast(j.error || "Couldn't open checkout. Try again in a minute.");
+  } catch(e){ toast("Couldn't open checkout. Check your connection."); }
+  if(btn){ btn.disabled = false; btn.textContent = btn.dataset.label; }
+}
+function planCard(){
+  if(!SESSION || !TRIBE || TRIBE === "SAMPLE" || !PLAN) return "";
+  const st = PLAN.status, d = trialDays();
+  let head, sub, btn = "";
+  const up = label => BILLING ? `<button class="btn primary" data-act="upgrade">${label}</button>` : `<span class="small">Premium checkout opens soon.</span>`;
+  const manage = label => BILLING && PLAN.stripe_customer_id ? `<button class="btn ghost" data-act="billing-portal">${label}</button>` : "";
+  if(st === "comped"){ head = "Premium"; sub = "On the house. Enjoy every extra."; }
+  else if(st === "active"){ head = "Premium"; sub = PLAN.current_period_end ? "Renews " + fmtDay(ymd(new Date(PLAN.current_period_end))) : "Thanks for being Premium."; btn = manage("Manage billing"); }
+  else if(st === "past_due"){ head = "Premium"; sub = "Your last payment didn't go through. Update your card to keep Premium."; btn = manage("Update card"); }
+  else if(st === "trialing" && d > 0){ head = "Premium trial"; sub = d === 1 ? "1 day left" : d + " days left"; btn = up("Keep Premium · $4.99/mo"); }
+  else { head = "Free plan"; sub = "Every feature, in an everyday version."; btn = up("Get Premium · $4.99/mo"); }
+  return `${secHead("Your plan")}<div class="paper col" style="padding:16px;gap:10px"><div class="between" style="gap:10px;flex-wrap:wrap"><span class="col"><b style="font-weight:600;font-size:17px">${head}</b><span class="small">${sub}</span></span>${head==="Free plan"?"":`<span class="tag">${ico("star",13,2.2)} Premium</span>`}</div>${btn?`<div class="row" style="gap:8px;flex-wrap:wrap">${btn}</div>`:""}</div>`;
+}
+
 /* files: private bucket, one folder per tribe; shown through short-lived signed links */
 const FILES = new Map();
 function fileUrl(id){
@@ -596,7 +646,7 @@ function everyone(size=24){ return `<span class="faces">${sorted(S.members).slic
 const whoFace = (id, size) => id==="all" ? everyone(Math.round(size*0.7)) : face(mem(id), size);
 
 /* ---------- state ---------- */
-const EMPTY = () => ({ members:[], events:[], chores:[], items:[], meals:{}, notes:[], poll:null, baby:{}, routines:[], meds:[], health:[], contacts:[], school:[], home:[], docs:[], trips:[], countdowns:[], sitter:{}, tribe:null });
+const EMPTY = () => ({ usage:{}, members:[], events:[], chores:[], items:[], meals:{}, notes:[], poll:null, baby:{}, routines:[], meds:[], health:[], contacts:[], school:[], home:[], docs:[], trips:[], countdowns:[], sitter:{}, tribe:null });
 const S = Object.assign({ status:"loading" }, EMPTY());
 const VIEWS = ["today","calendar","chores","lists","menu","baby","fridge","routines","health","school","sitter","home","docs","trips","trip","contacts","kid","family"];
 const UI = { view:"today", calDay: todayKey(), choreMember:null, list:"Groceries", mealWeek:0, calWeek:0, who:null, trip:null, kid:null, onboard:null, askWho:false };
@@ -1347,6 +1397,7 @@ function family(){
     <button class="small" data-act="leave-tribe" style="text-align:left;margin-top:8px;text-decoration:underline;text-underline-offset:3px">Leave this tribe</button>
   </div>
   ${secHead("Language")}<div class="chips" style="margin-top:0">${[["en","English"],["es","Español"]].map(([l,n])=>`<button class="chip ${((window.HTi18n&&HTi18n.lang)||"en")===l?"on":""}" data-act="lang" data-l="${l}" data-no-tr>${n}</button>`).join("")}</div>
+  ${planCard()}
   ${SESSION?`${secHead("Your account")}<div class="paper col" style="padding:16px;gap:10px"><span style="font-weight:500;overflow-wrap:anywhere">${esc(SESSION.user.email||"")}</span><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="auth-change-pw">Change password</button><button class="btn ghost" data-act="sign-out">Log out</button></div></div>`:""}`;
 }
 
@@ -1649,6 +1700,13 @@ function describe(a){
 }
 async function htUnderstand(text){
   const out = $("#ht-out"); if(!out) return;
+  if(limited()){
+    const u = S.usage || {};
+    if(u.month === monthKey(new Date()) && (u.ht||0) >= 10){
+      out.innerHTML = `<p style="opacity:.9;margin:6px 0">You've used this month's 10 free quick adds. Premium makes Hey Tribe unlimited.</p><button class="btn" style="background:var(--night-ink);color:var(--night-a);margin-top:8px" data-act="upgrade">Get Premium</button>`;
+      return;
+    }
+  }
   out.innerHTML = `<p class="serif" style="font-size:20px;opacity:.75;margin:6px 0">Thinking…</p>`;
   let acts = null;
   if(sampler && TRIBE !== "SAMPLE"){
@@ -1678,6 +1736,7 @@ async function htCommit(){
     else if(a.type==="note") await W.add("notes", {text:a.text,by,tone:"white",at});
   }
   closeSheet(); toast(acts.length===1?"Added":"Added "+acts.length+" things");
+  if(TRIBE !== "SAMPLE"){ const mk = monthKey(new Date()), u = S.usage || {}; W.set("info/usage", { month: mk, ht: (u.month === mk ? (u.ht||0) : 0) + 1 }); }
 }
 
 /* ---------- writes ---------- */
@@ -1710,7 +1769,7 @@ document.addEventListener("click", async e => {
   const g = e.target.closest("[data-go]"); if(g){ closeSheet(); if(g.dataset.trip){ UI.trip = g.dataset.trip; } go(g.dataset.go); return; }
   const b = e.target.closest("[data-act]"); if(!b) return;
   const id = b.dataset.id, act = b.dataset.act;
-  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang"].includes(act);
+  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal"].includes(act);
   if(needsDb && !db) return;
   switch(act){
     case "close": closeSheet(); break;
@@ -1794,7 +1853,7 @@ document.addEventListener("click", async e => {
     case "plan-del": tripWrite(UI.trip, "plan", arr => arr.filter(x => x.id!==id)); break;
     case "pack-basics": { const base = ["Toothbrushes","Phone chargers","Pajamas","Medicines","Snacks for the road","Change of clothes","Swimsuits","Jackets"]; if(babyMember()) base.push("Diapers and wipes","Travel crib"); tripWrite(UI.trip, "packing", arr => arr.concat(base.filter(t=>!arr.some(x=>x.text===t)).map(t=>({id:uid(),text:t,packed:false})))); break; }
     /* generic */
-    case "ent-new": { const pre = {}; if(b.dataset.who) pre.member = b.dataset.who; if(b.dataset.role) pre.role = b.dataset.role; openEditor(b.dataset.kind, null, pre); break; }
+    case "ent-new": { if(b.dataset.kind === "countdown" && !gate(S.countdowns.length < 3, "Free tribes can count down to 3 big days at a time. Premium makes it unlimited, with yearly repeats.")) break; const pre = {}; if(b.dataset.who) pre.member = b.dataset.who; if(b.dataset.role) pre.role = b.dataset.role; openEditor(b.dataset.kind, null, pre); break; }
     case "ent-edit": openEditor(b.dataset.kind, id); break;
     case "ent-del": { const E = ENT[b.dataset.kind]; if(!E) break; W.del(E.col+"/"+id); closeSheet(); if(b.dataset.kind==="trip" && UI.view==="trip") go("trips"); toast("Deleted"); break; }
     /* fridge */
@@ -1809,7 +1868,7 @@ document.addEventListener("click", async e => {
     case "lay-panel": { const L = layoutOf(), k = b.dataset.k; L.panels = L.panels.includes(k) ? L.panels.filter(x=>x!==k) : [...L.panels, k]; saveLayout(L); break; }
     case "lay-move": { const L = layoutOf(), k = b.dataset.k, i = L.order.indexOf(k), j = i + (+b.dataset.dir); if(i<0 || j<0 || j>=L.order.length) break; [L.order[i], L.order[j]] = [L.order[j], L.order[i]]; saveLayout(L); break; }
     case "attn-all": UI.allAttn = true; render(); break;
-    case "note-new": openSheet(`<form data-form="note" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Stick a note up</h2><div class="field"><label for="nt-t">Note</label><textarea id="nt-t" name="text" rows="3" maxlength="140" placeholder="Spirit week: wear green Friday" required autofocus></textarea></div>
+    case "note-new": if(!gate(S.notes.length < 10, "Free tribes can keep 10 notes on the fridge. Premium makes it unlimited.")) break; openSheet(`<form data-form="note" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Stick a note up</h2><div class="field"><label for="nt-t">Note</label><textarea id="nt-t" name="text" rows="3" maxlength="140" placeholder="Spirit week: wear green Friday" required autofocus></textarea></div>
       <div class="field"><label>Paper</label><div class="swatches">${TONES.map((t,i)=>`<button type="button" class="sw ${i===0?"on":""}" data-pick="tone" data-v="${t}" style="background:var(--note-${t});border-color:var(--line)" aria-label="${t}"></button>`).join("")}</div></div><input type="hidden" name="tone" value="white"><button class="btn primary">Stick it up</button></form>`); break;
     case "note-del": W.del("notes/"+id); closeSheet(); toast("Taken down"); break;
     case "vote": { if(!S.poll) break; const me = meId(), i = +b.dataset.i; const opts = S.poll.options.map((o,j)=>({label:o.label, votes:(o.votes||[]).filter(v=>v!==me).concat(j===i && !(o.votes||[]).includes(me) ? [me] : [])}));
@@ -1823,7 +1882,9 @@ document.addEventListener("click", async e => {
       <div class="field"><label for="st-t">Or type it</label><input id="st-t" name="status" maxlength="20" value="${esc(m.status||"")}"></div><button class="btn primary">Update</button></form>`); break; }
     /* people */
     case "setme": setMe(TRIBE, id); if(b.dataset.close) closeSheet(); render(); toast("Got it, "+memName(id)); break;
-    case "member-new": memberSheet(); break;
+    case "member-new": if(!gate(S.members.length < 6, "Free tribes have room for 6 people. Premium makes room for everyone.")) break; memberSheet(); break;
+    case "upgrade": billingGo("checkout", b); break;
+    case "billing-portal": billingGo("portal", b); break;
     case "member-edit": memberSheet(id); break;
     case "member-del": { const m = mem(id); if(!m) break; openSheet(`<div class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Remove ${esc(m.name)}?</h2><p style="margin:0;color:var(--muted)">Their plans and chores stay, but show as “Someone”.</p><div class="row" style="gap:10px"><button class="btn ghost grow" data-act="close">Keep</button><button class="btn dark grow" data-act="member-del-yes" data-id="${esc(m.id)}">Remove</button></div></div>`); break; }
     case "member-del-yes": W.del("members/"+id); closeSheet(); break;
@@ -1884,6 +1945,7 @@ document.addEventListener("submit", async e => {
         if(r.error) throw r.error;
         const code = r.data.code;
         store.set("ht-me-"+code, r.data.member_id); rememberTribe(code, name);
+        try { const src = JSON.parse(store.get("ht-src") || "null"); sb.rpc("set_signup_source", { p_code: code, p_src: (src && src.src) || "direct", p_campaign: (src && src.campaign) || null }).then(()=>{}, ()=>{}); } catch(e){}
         UI.onboard = null; UI.view = "family"; clearHash(); connect(code);
         toast("Your tribe is ready. Invite code "+code);
       } catch(x){ btn.disabled = false; btn.textContent = "Create our tribe"; err.textContent = "Couldn't create the tribe. Check your connection and try again."; }
@@ -1943,6 +2005,10 @@ document.addEventListener("submit", async e => {
       if(f.dataset.kind === "bill") data.dueDay = Math.min(31, Math.max(1, Math.round(data.dueDay||1)));
       if(f.dataset.kind === "upkeep") data.every = Math.min(60, Math.max(1, Math.round(data.every||3)));
       if(E.toData){ data = E.toData(data, rec); if(data && data.error){ err.textContent = data.error; return; } }
+      if(f.dataset.kind === "routine" && limited()){
+        if(!id && S.routines.filter(r => r.member === data.member).length >= 2){ closeSheet(); upsell("Free tribes get two routines per person. Premium makes it unlimited."); return; }
+        if((data.steps||[]).length > 8){ err.textContent = "Free routines have up to 8 steps. Premium allows 20."; return; }
+      }
       const fileEl = f.querySelector('input[type="file"]');
       if(fileEl && fileEl.files && fileEl.files[0] && assets){
         err.textContent = "Uploading…";
@@ -1977,7 +2043,7 @@ function apply(c, docs){
 }
 function connect(code){
   unsubs.forEach(u=>{ try{ u(); }catch(e){} }); unsubs = [];
-  TRIBE = code; store.set("ht-tribe", code); rememberTribe(code);
+  TRIBE = code; store.set("ht-tribe", code); rememberTribe(code); PLAN = null; loadPlan(code);
   Object.assign(S, EMPTY()); S.status = "loading"; UI.who = null; UI.choreMember = null; render();
   const got = new Set(), need = COLS.length + 3;
   const done = k => {
@@ -1988,6 +2054,7 @@ function connect(code){
   COLS.forEach(c => unsubs.push(db.collection(P(c)).onSnapshot(s => { apply(c, s.docs.map(d=>({id:d.id, ...d.data()}))); done(c); }, () => done(c))));
   unsubs.push(db.doc(P("poll/current")).onSnapshot(s => { const d = s.exists ? s.data() : null; S.poll = d && Array.isArray(d.options) && d.options.length ? d : null; done("poll"); }, () => done("poll")));
   unsubs.push(db.doc(P("info/sitter")).onSnapshot(s => { S.sitter = s.exists ? s.data() : {}; done("sitter"); }, () => done("sitter")));
+  unsubs.push(db.doc(P("info/usage")).onSnapshot(s => { S.usage = s.exists ? s.data() : {}; }, () => {}));
   unsubs.push(db.doc("tribes/"+code).onSnapshot(s => { S.tribe = s.exists ? {id:code, ...s.data()} : {id:code, name:"Your tribe"}; rememberTribe(code, S.tribe.name); done("tribe"); }, () => done("tribe")));
   setTimeout(() => { if(S.status === "loading" && TRIBE === code){ S.status = "ready"; render(); } }, 6000);
 }
@@ -2009,6 +2076,8 @@ render();
   if(!window.supabase || !CFG.supabaseUrl || !CFG.supabaseAnonKey){ S.status = "offline"; render(); return; }
   sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } });
   db = makeDb(sb); assets = assetsApi; sampler = aiApi;
+  const bq = /[?&]billing=(success|cancel)/.exec(location.search);
+  if(bq){ try { history.replaceState(null, "", location.pathname + location.hash); } catch(e){} if(bq[1] === "success"){ setTimeout(() => toast("Welcome to Premium. Thanks for supporting HeyTribe!"), 1200); [3000, 8000, 15000].forEach(t => setTimeout(() => TRIBE && loadPlan(TRIBE), t)); } }
   const h0 = (location.hash||"").slice(1);
   if(h0 === "login" || h0 === "signup"){ UI.auth = h0 === "login" ? "signin" : "signup"; clearHash(); }
   let first = true;
@@ -2025,7 +2094,7 @@ render();
       S.status = "auth"; render();
     }
   });
-  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible" && TRIBE && TRIBE !== "SAMPLE") db.refresh(); });
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible" && TRIBE && TRIBE !== "SAMPLE"){ db.refresh(); loadPlan(TRIBE); } });
 })();
 })();
 </script>

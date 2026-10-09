@@ -200,7 +200,7 @@ insert into public.roadmap_items(title, details, status, area, priority, target)
  ('Hey Tribe AI key', 'Add ANTHROPIC_API_KEY in Vercel so Hey Tribe understands longer, messier notes (and Spanish).', 'planned', 'app', 2, 'Before launch'),
  ('Fill in legal placeholders', 'Support email, company name and address in Privacy, Terms and Contact. Have a lawyer review both.', 'planned', 'launch', 1, 'Before launch'),
  ('Founder story on About', 'Replace the placeholder with why you built HeyTribe.', 'idea', 'site', 3, null),
- ('Point the site at www.heytribe.app everywhere', 'Links, install instructions and share previews still mention heytribe.vercel.app in a few places.', 'planned', 'site', 2, 'Now'),
+ ('Point the site at www.heytribe.app everywhere', 'Links, install instructions and share previews still mention www.heytribe.app in a few places.', 'planned', 'site', 2, 'Now'),
  ('Calendar sync (Google / Apple)', 'Two-way sync for plans.', 'idea', 'app', 2, null),
  ('Push notifications', 'Reminders for meds, bills, forms and countdowns on the phone''s lock screen.', 'idea', 'app', 2, null),
  ('iPhone and Android store apps', 'Wrap the web app for the App Store and Google Play.', 'idea', 'app', 2, null),
