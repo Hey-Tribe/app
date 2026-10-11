@@ -611,3 +611,22 @@ html[lang="es"] .hero h1{font-size:clamp(46px,6.4vw,96px)}
 }
 
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* founder story */
+.story{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:clamp(28px,5vw,64px);align-items:start;margin-top:34px}
+.story-letter{background:var(--surface,#fff);border:1px solid var(--line);border-radius:28px;padding:clamp(24px,4vw,44px);box-shadow:0 18px 40px rgba(47,59,69,.06)}
+.story-letter p{font-size:17px;line-height:1.65;margin:0 0 16px;color:var(--ink)}
+.story-letter .story-lead{font-family:var(--f-display);font-size:clamp(21px,2.4vw,25px);line-height:1.4}
+.story-letter .story-sign{font-size:30px;color:var(--sage-ink);margin:22px 0 0 !important;line-height:1}
+.story-note{position:relative;background:var(--sand-soft);border-radius:6px;padding:30px 26px 24px;box-shadow:0 12px 24px rgba(47,59,69,.1);transform:rotate(1.5deg);position:sticky;top:110px}
+.story-note .tape{position:absolute;top:-10px;left:50%;width:70px;height:20px;margin-left:-35px;background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.8);transform:rotate(-3deg)}
+.story-note-h{font-size:28px;line-height:1.05;margin:0 0 12px}
+.story-list{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:8px}
+.story-list li{font-size:16px;padding-left:20px;position:relative}
+.story-list li::before{content:"";position:absolute;left:0;top:9px;width:8px;height:8px;border-radius:50%;background:var(--rose)}
+.story-note-f{font-size:26px;color:var(--sage-ink);margin:0;line-height:1}
+@media (max-width:860px){.story{grid-template-columns:1fr}.story-note{position:relative;top:0;transform:rotate(-1deg)}}
+.founder-note{display:flex;flex-wrap:wrap;align-items:center;gap:22px 40px;background:var(--sand-soft);border-radius:36px;padding:clamp(26px,4vw,48px)}
+.founder-note blockquote{margin:0;flex:1 1 420px;font-family:var(--f-display);font-size:clamp(22px,2.6vw,30px);line-height:1.35;color:var(--ink)}
+.founder-note .by{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.founder-note .by .hand{font-size:28px;color:var(--sage-ink);line-height:1}
