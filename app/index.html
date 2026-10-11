@@ -14,7 +14,9 @@
 <meta property="og:type" content="website"><meta property="og:site_name" content="HeyTribe"><meta property="og:title" content="HeyTribe"><meta property="og:description" content="The whole family, finally in sync. Plans, chores, lists, meals and more, shared live."><meta property="og:url" content="https://www.heytribe.app/app/"><meta property="og:image" content="https://www.heytribe.app/og.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://www.heytribe.app/og.jpg">
 <script>try{if(localStorage.getItem("ht-lang")==="es"){document.documentElement.classList.add("es-wait");setTimeout(function(){document.documentElement.classList.remove("es-wait")},2500)}}catch(e){}</script><style>.es-wait body{opacity:0}</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@400;500;600;700;800&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:ital,wght@0,400;0,500;1,400;1,500&family=Outfit:wght@400;500;600;700;800&display=swap"></noscript>
 <style>
 /* Layout: one phone-width column; views scroll above a fixed bottom nav; sheets slide up for forms. Light only: white paper, sage lead. */
 :root{
@@ -2546,12 +2548,13 @@ async function afterLogin(){
   if(list === null){ S.status = "offline"; render(); return; }
   if(!list.length && PENDING.length && h !== "create" && h !== "join"){ TRIBE = null; S.status = "pending"; render(); return; }
   if(h === "create" || h === "join"){ clearHash(); UI.onboard = h; S.status = "welcome"; render(); return; }
+  if(h === "sample"){ clearHash(); connect("SAMPLE"); return; }
   const saved = store.get("ht-tribe");
   const pick = list.find(t => t.code === saved) || list[0];
   if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
-if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json', document.body);
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261011', document.body);
 if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
 addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
 render();

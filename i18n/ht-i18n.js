@@ -117,6 +117,7 @@
     start: function(url, root){
       document.documentElement.lang = LANG;
       if(LANG !== "es"){ document.documentElement.classList.remove("es-wait"); return Promise.resolve(); }
+      try { var cl = document.querySelector('link[rel="canonical"]'); if(cl && /[?&]lang=es\b/.test(location.search)) cl.href = cl.href.split("?")[0] + "?lang=es"; } catch(e){}
       return load(url).then(function(dict){
         watch(dict, root || document.documentElement);
         document.title = tr(dict, document.title) || document.title;

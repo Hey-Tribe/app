@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /sitter/
+Disallow: /app/
+
+Sitemap: https://www.heytribe.app/sitemap.xml
