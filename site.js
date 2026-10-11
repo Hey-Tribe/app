@@ -1,5 +1,7 @@
 /* Spanish: translate first (when chosen), then start the page scripts */
 function __htBoot(){
+/* Spanish: show the app screens in Spanish */
+if(window.HTi18n && HTi18n.lang === "es"){ Array.prototype.forEach.call(document.querySelectorAll("img"), function(im){ ["src","data-src"].forEach(function(at){ var v = im.getAttribute(at); if(v && /assets\/f\/[a-z-]+\.webp$/.test(v)) im.setAttribute(at, v.replace(/assets\/f\/([a-z-]+\.webp)$/, "assets/f/es/$1")); }); }); }
 (function(){
 "use strict";
 var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -88,23 +90,53 @@ var ICON = {
   cart:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.5 11h11L21 8H6.5"/><circle cx="9" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/></svg>',
   note:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v12l-6 6H5z"/><path d="M13 21v-6h6"/></svg>'
 };
+var ES = !!(window.HTi18n && HTi18n.lang === "es");
+function parseEs(text){
+  var out = [], marks = [], rest = text;
+  function mark(phrase, cls){ if(!phrase) return; var i = text.toLowerCase().indexOf(phrase.toLowerCase()); if(i < 0) return; for(var k=0;k<marks.length;k++){ if(i < marks[k].e && i + phrase.length > marks[k].s) return; } marks.push({s:i, e:i+phrase.length, c:cls}); }
+  var lm = rest.match(/\b(?:agrega|agregar|añade|añadir|pon|poner|compra|comprar)\s+(.+?)\s+a\s+la\s+lista\b/i);
+  if(lm){ lm[1].split(/,|\by\b|&/i).map(function(s){ return s.trim().replace(/^(un|una|unos|unas|más)\s+/i,""); }).filter(Boolean).forEach(function(x){ out.push({type:"item", text:x}); mark(x, "i"); }); rest = rest.replace(lm[0], " "); }
+  var who = null, driver = null;
+  Object.keys(PEOPLE).forEach(function(k){ var n = PEOPLE[k].name, re = new RegExp("(^|[^\\wáéíóúñ])"+n+"(?![\\wáéíóúñ])","i"); if(re.test(text)){ mark(n,"p"); if(new RegExp(n+"\\s+(maneja|conduce|lleva)","i").test(text)) driver = k; else if(!who) who = k; } });
+  var day = null, dm = rest.match(/(?:(?:el|este)\s+)?(?:próximo\s+)?(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)|\bmañana\b|\besta noche\b|\bhoy\b/i);
+  if(dm){ day = dm[0]; mark(dm[0].replace(/^(el|este)\s+/i,""), "t"); }
+  var tm = rest.match(/\ba\s+las?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?|\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i), time = null;
+  if(tm){ var h = +(tm[1]||tm[4]), mm = tm[2]||tm[5]||"00", ap = (tm[3]||tm[6]||"").toLowerCase(); if(!ap) ap = (h >= 7 && h <= 11) ? "am" : "pm"; time = h + (mm !== "00" ? ":"+mm : "") + ap; mark(tm[0].replace(/^a\s+las?\s+/i,""), "t"); }
+  var dr = text.match(/([A-Za-záéíóúñ]+)\s+(maneja|conduce|lleva)\b/i); if(dr) mark(dr[0], "t");
+  rest = rest.replace(/^[\s,.;]+|[\s,.;]+$/g, "").replace(/^(ah,?\s*)?(y\s+)?/i, "");
+  if(rest && (day || time)){
+    var title = rest.split(/\s+para\s+|\s+a\s+las?\s+|\s+el\s+|,/i)[0];
+    if(dm) title = title.replace(dm[0], "");
+    title = title.replace(/\b(próximo|este|el)\s*$/i, "").trim() || "Plan";
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+    var when = day ? day.replace(/^(el|este)\s+/i,"").replace(/^próximo\s+/i,"") : "Hoy"; when = when.charAt(0).toUpperCase() + when.slice(1);
+    out.unshift({type:"event", title:title, who:who, driver:driver, when: when + (time ? " a las " + time : "")});
+  } else if(rest && !lm){ out.push({type:"note", text: rest.charAt(0).toUpperCase() + rest.slice(1)}); }
+  marks.sort(function(a,b){ return a.s - b.s; });
+  var html = "", p = 0; marks.forEach(function(m){ html += esc(text.slice(p, m.s)) + '<span class="mk '+m.c+'">' + esc(text.slice(m.s, m.e)) + '</span>'; p = m.e; });
+  html += esc(text.slice(p));
+  return {actions: out, html: html};
+}
+var T = ES ? { none: "Prueba con un día y una hora, o “agrega … a la lista”.", every: "Todos", drives: "maneja", groc: "Añadido a Compras", fridge: "Pegado en el refri" }
+           : { none: "Try naming a day and a time, or “add … to the list”.", every: "Everyone", drives: "drives", groc: "Added to Groceries", fridge: "Stuck on the fridge" };
 function renderDemo(text){
   var q = $("#demo-quote"), c = $("#demo-cards"); if(!q || !c) return;
-  var r = parse(text);
+  var r = ES ? parseEs(text) : parse(text);
   q.innerHTML = "“" + r.html + "”";
-  if(!r.actions.length){ c.innerHTML = '<p style="margin:0;color:rgba(255,255,255,.75)">Try naming a day and a time, or “add … to the list”.</p>'; return; }
+  if(!r.actions.length){ c.innerHTML = '<p style="margin:0;color:rgba(255,255,255,.75)">' + T.none + '</p>'; return; }
   c.innerHTML = r.actions.map(function(a, n){
     var delay = 'style="animation-delay:'+(n*90)+'ms"';
-    if(a.type === "event") return '<div class="rcard" '+delay+'><span class="ic" style="background:#fff;padding:0;overflow:hidden">'+(a.who ? face(a.who, 40) : '<span style="color:#3E5A55">'+ICON.cal+'</span>')+'</span><span><b>'+esc(a.title)+'</b><small>'+esc(a.when)+(a.who ? " · " + PEOPLE[a.who].name : " · Everyone")+(a.driver ? " · " + PEOPLE[a.driver].name + " drives" : "")+'</small></span></div>';
-    if(a.type === "item") return '<div class="rcard" '+delay+'><span class="ic" style="background:#5E8C7A;color:#fff">'+ICON.cart+'</span><span><b>'+esc(a.text)+'</b><small>Added to Groceries</small></span></div>';
-    return '<div class="rcard" '+delay+'><span class="ic" style="background:#F3E6E2;color:#8E6A64">'+ICON.note+'</span><span><b>'+esc(a.text)+'</b><small>Stuck on the fridge</small></span></div>';
+    if(a.type === "event") return '<div class="rcard" '+delay+'><span class="ic" style="background:#fff;padding:0;overflow:hidden">'+(a.who ? face(a.who, 40) : '<span style="color:#3E5A55">'+ICON.cal+'</span>')+'</span><span><b>'+esc(a.title)+'</b><small>'+esc(a.when)+(a.who ? " · " + PEOPLE[a.who].name : " · " + T.every)+(a.driver ? " · " + PEOPLE[a.driver].name + " " + T.drives : "")+'</small></span></div>';
+    if(a.type === "item") return '<div class="rcard" '+delay+'><span class="ic" style="background:#5E8C7A;color:#fff">'+ICON.cart+'</span><span><b>'+esc(a.text)+'</b><small>'+T.groc+'</small></span></div>';
+    return '<div class="rcard" '+delay+'><span class="ic" style="background:#F3E6E2;color:#8E6A64">'+ICON.note+'</span><span><b>'+esc(a.text)+'</b><small>'+T.fridge+'</small></span></div>';
   }).join("");
 }
 var df = $("#demo-form");
 if(df){
   var ta = $("#demo-text");
+  if(ES && ta.getAttribute("data-es")) ta.value = ta.getAttribute("data-es");
   df.addEventListener("submit", function(e){ e.preventDefault(); if(ta.value.trim()) renderDemo(ta.value.trim()); });
-  $$(".demo .chip").forEach(function(b){ b.addEventListener("click", function(){ ta.value = b.getAttribute("data-ex"); renderDemo(ta.value); }); });
+  $$(".demo .chip").forEach(function(b){ b.addEventListener("click", function(){ ta.value = ES ? b.textContent.trim() : b.getAttribute("data-ex"); renderDemo(ta.value); }); });
   renderDemo(ta.value.trim());
 }
 

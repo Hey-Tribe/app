@@ -44,7 +44,7 @@
     [/^Packing · (\d+) of (\d+)$/, function(s, a, b){ return "Equipaje · " + a + " de " + b; }],
     [/^(\d+)\/(\d+) packed$/, function(s, a, b){ return a + "/" + b + " empacado"; }],
     [/^(\d+) of (\d+) (done|given|steps)$/, function(s, a, b, w){ return a + " de " + b + " " + ({done:"listos", given:"dadas", steps:"pasos"})[w]; }],
-    [/^(.+) (?:was )?due at (.+)$/, function(s, w, t){ return w + (/was due/.test(s) ? " tocaba a las " : " toca a las ") + t; }],
+    [/^(.+?) (?:was )?due at (.+)$/, function(s, w, t){ return w + (/was due/.test(s) ? " tocaba a las " : " toca a las ") + t; }],
     [/^(.+) \((\$[\d.,]+)\) (?:due in (\d+) days?|due today|due tomorrow|is overdue)$/, function(s, w, a, n){ return w + " (" + a + ") " + (/overdue/.test(s) ? "está vencida" : /today/.test(s) ? "vence hoy" : /tomorrow/.test(s) ? "vence mañana" : "vence en " + n + (n === "1" ? " día" : " días")); }],
     [/^(.+) (?:due in (\d+) days?|due today|due tomorrow|is overdue|is due)$/, function(s, w, n){ return w + " " + (/overdue/.test(s) ? "está atrasado" : /is due/.test(s) ? "toca ya" : /today/.test(s) ? "vence hoy" : /tomorrow/.test(s) ? "vence mañana" : "vence en " + n + (n === "1" ? " día" : " días")); }],
     [/^(.+) expires in (\d+) days?$/, function(s, w, n){ return w + " vence en " + n + (n === "1" ? " día" : " días"); }],
@@ -65,6 +65,10 @@
     [/^Through (.+)$/, function(s, d){ return "Hasta el " + date(d); }],
     [/^due (.+)$/, function(s, d){ return "vence " + date(d); }],
     [/^(\d+) days left$/, function(s, n){ return "Quedan " + n + " días"; }],
+    [/^Hi (.+)!$/, function(s, n){ return "¡Hola, " + n + "!"; }],
+    [/^(Morning|Bedtime|Evening|After school) · (.+)$/, function(s, r, t){ return ({Morning:"Mañana", Bedtime:"Hora de dormir", Evening:"Noche", "After school":"Después de la escuela"})[r] + " · " + t; }],
+    [/^(\d+) stars?$/, function(s, n){ return n + (n === "1" ? " estrella" : " estrellas"); }],
+    [/^this week(?: · saving for (.+))?$/, function(s, r){ return "esta semana" + (r ? " · ahorrando para " + r : ""); }],
     [/^(\d+) days? to go$/, function(s, n){ return n === "1" ? "falta 1 día" : "faltan " + n + " días"; }]
   ];
   function tr(dict, raw){
