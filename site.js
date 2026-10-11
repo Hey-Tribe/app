@@ -233,10 +233,11 @@ $$("[data-year]").forEach(function(el){ el.textContent = new Date().getFullYear(
     });
     var c = ph[cur];
     if(cap){ cap.classList.add("fade"); setTimeout(function(){ cap.querySelector("b").textContent = c.getAttribute("data-name"); cap.querySelector("span").textContent = c.getAttribute("data-sub"); cap.classList.remove("fade"); }, 350); }
-    var ahead = ph[(cur + 2) % n].querySelector("img"); if(ahead && ahead.loading === "lazy") ahead.loading = "eager";
+    for(var k = -2; k <= 3; k++){ var im = ph[(cur + k + n) % n].querySelector("img"); if(im && im.getAttribute("data-src")){ im.src = im.getAttribute("data-src"); im.removeAttribute("data-src"); } }
   }
   function step(){ if(hover || document.hidden) return; cur = (cur + 1) % n; place(); }
   place();
+  addEventListener("load", function(){ setTimeout(function(){ stage.querySelectorAll("img[data-src]").forEach(function(im){ im.src = im.getAttribute("data-src"); im.removeAttribute("data-src"); }); }, 2500); });
   if(reduce) return;
   timer = setInterval(step, 3600);
   stage.addEventListener("mouseenter", function(){ hover = true; });

@@ -27,7 +27,7 @@ h2.big em,h1 em{font-style:italic}
 .btn.dark{background:var(--ink);color:#fff;padding:8px 8px 8px 26px}
 .btn.dark .go{width:44px;height:44px;border-radius:50%;background:var(--sage);display:flex;align-items:center;justify-content:center;transition:transform .25s}
 .btn.dark:hover .go{transform:rotate(-45deg)}
-.btn.sage{background:var(--sage);color:#fff;padding:15px 26px}
+.btn.sage{background:#527F6D;color:#fff;padding:15px 26px}
 .btn.line{border:1.5px solid var(--ink);padding:14px 24px;background:transparent;color:var(--ink)}
 .link{font-weight:600;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:6px;text-decoration-color:var(--sage)}
 
@@ -93,7 +93,7 @@ h2.big em,h1 em{font-style:italic}
 }
 
 /* marquee */
-.marquee{background:var(--sage);color:#fff;overflow:hidden;transform:rotate(-1.5deg);margin:40px -20px 0;padding:18px 0;box-shadow:0 10px 30px rgba(94,140,122,.25)}
+.marquee{background:#527F6D;color:#fff;overflow:hidden;transform:rotate(-1.5deg);margin:40px -20px 0;padding:18px 0;box-shadow:0 10px 30px rgba(94,140,122,.25)}
 .marquee .track{display:flex;width:max-content;animation:slide 110s linear infinite}
 .marquee span{font-family:var(--f-display);font-size:30px;padding:0 22px;white-space:nowrap;display:inline-flex;align-items:center;gap:22px}
 .marquee span:nth-child(even){font-style:italic}
@@ -222,7 +222,7 @@ details p{margin:12px 0 0;color:var(--muted);max-width:62ch}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 /* cta band + footer */
-.band{margin-top:130px;background:var(--sage);color:#fff;border-radius:44px;padding:clamp(34px,6vw,72px);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:28px;position:relative;overflow:hidden}
+.band{margin-top:130px;background:#527F6D;color:#fff;border-radius:44px;padding:clamp(34px,6vw,72px);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:28px;position:relative;overflow:hidden}
 .band h2.big{color:#fff;max-width:14ch}
 .band .btn.dark .go{background:#fff}
 .foot{padding-block:70px 50px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:30px;color:var(--muted);font-size:15px}
@@ -609,3 +609,5 @@ html[lang="es"] .hero h1{font-size:clamp(46px,6.4vw,96px)}
   .tiers-table{min-width:0 !important;width:100% !important}
   .tiers-table tr.grp th{display:block;width:100%}
 }
+
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

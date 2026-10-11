@@ -21,7 +21,7 @@
 /* Layout: one phone-width column; views scroll above a fixed bottom nav; sheets slide up for forms. Light only: white paper, sage lead. */
 :root{
   --bg:#FBFCFA; --surface:#FFFFFF; --ink:#2F3B45; --muted:#606A73; --line:#E1E6E1; --faint:#A3AAA7;
-  --sage:#5E8C7A; --sage-ink:#46705F; --sage-soft:#E6EEE9; --on-sage:#FFFFFF; --deep:#3E5A55;
+  --sage:#5E8C7A; --sage-btn:#527F6D; --sage-ink:#46705F; --sage-soft:#E6EEE9; --on-sage:#FFFFFF; --deep:#3E5A55;
   --rose:#B08A84; --rose-ink:#8E6A64; --blue:#6B8BA4; --blue-ink:#4E6F88; --olive:#8A8F6B; --sand:#C9A66B; --sand-ink:#8A6A33;
   --m-sage:#5E8C7A; --m-sage-bg:#D7E5DC; --m-blue:#6B8BA4; --m-blue-bg:#D9E3EB; --m-rose:#B08A84; --m-rose-bg:#EFE0DC;
   --m-olive:#8A8F6B; --m-olive-bg:#E6E8D7; --m-sand:#C9A66B; --m-sand-bg:#F1E7D3;
@@ -55,7 +55,7 @@ h1.title em{color:var(--sage-ink)}
 .iconbtn{width:42px;height:42px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid var(--line);flex-shrink:0;background:var(--surface)}
 .iconbtn.solid{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 20px;border-radius:999px;font-weight:600}
-.btn.primary{background:var(--sage);color:var(--on-sage)}
+.btn.primary{background:var(--sage-btn);color:var(--on-sage)}
 .btn.dark{background:var(--ink);color:var(--bg)}
 .btn.ghost{border:1.5px solid var(--line);background:var(--surface)}
 .btn.danger{color:var(--rose-ink);border:1.5px solid var(--line)}
@@ -65,7 +65,7 @@ h1.title em{color:var(--sage-ink)}
 .chip.plain{padding:6px 14px}
 [hidden]{display:none !important}
 /* dark mode: same calm palette at night */
-:root[data-theme="dark"]{--bg:#151B1F;--surface:#1E262C;--ink:#E6EBE8;--muted:#A3ADB2;--line:#2D373E;--faint:#6E797F;--sage:#6E9F8B;--sage-ink:#93C2AD;--sage-soft:#22332D;--deep:#2B3F39;
+:root[data-theme="dark"]{--sage-btn:#6E9F8B;--bg:#151B1F;--surface:#1E262C;--ink:#E6EBE8;--muted:#A3ADB2;--line:#2D373E;--faint:#6E797F;--sage:#6E9F8B;--sage-ink:#93C2AD;--sage-soft:#22332D;--deep:#2B3F39;
   --rose-ink:#D2ABA4;--blue-ink:#9DBAD0;--sand-ink:#D9B97E;--m-sage-bg:#23352E;--m-blue-bg:#223040;--m-rose-bg:#3A2A28;--m-olive-bg:#2E3226;--m-sand-bg:#3A3224;
   --note-white:#283036;--note-sage:#25362F;--note-rose:#3A2C2A;--note-blue:#25313F;--note-sand:#393226;--fridge-a:#1B2327;--fridge-b:#172024;--shadow:rgba(0,0,0,.45);--grain:.02;color-scheme:dark}
 :root[data-theme="dark"] .side-i.on,:root[data-theme="dark"] .btn.dark{color:var(--bg)}
@@ -92,7 +92,7 @@ a.btn{color:inherit;text-decoration:none}
 .tk-dot{width:9px;height:9px;border-radius:50%;background:var(--rose,#C9877D);flex-shrink:0}
 .tk-thread{display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow:auto;padding:2px}
 .tk-msg{max-width:88%;padding:10px 13px;border-radius:16px;font-size:15px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
-.tk-msg.me{align-self:flex-end;background:var(--sage);color:var(--on-sage);border-bottom-right-radius:6px}
+.tk-msg.me{align-self:flex-end;background:var(--sage-btn);color:var(--on-sage);border-bottom-right-radius:6px}
 .tk-msg.team{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:6px}
 .tk-msg small{display:block;font-size:11.5px;opacity:.7;margin-top:4px}
 .chip.late{border-color:var(--rose);color:var(--rose-ink)}
@@ -186,7 +186,7 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
 .hourlbl{position:absolute;left:0;width:30px;text-align:right;font-size:11px;color:var(--muted)}
 .blk{position:absolute;border-radius:10px;padding:5px 7px;overflow:hidden;text-align:left;border-left:3px solid;font-size:12px;font-weight:600;line-height:1.15}
 .blk .s{display:block;font-weight:400;opacity:.75;font-size:11px;margin-top:2px}
-.blk.all{border-left:0;color:var(--on-sage);background:var(--sage);display:flex;align-items:center;justify-content:space-between;padding:6px 10px;font-size:13px}
+.blk.all{border-left:0;color:var(--on-sage);background:var(--sage-btn);display:flex;align-items:center;justify-content:space-between;padding:6px 10px;font-size:13px}
 .blk .warn{font-family:var(--f-hand);font-size:15px;color:var(--rose-ink);font-weight:700;display:block}
 
 /* chores */
