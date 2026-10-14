@@ -630,3 +630,10 @@ html[lang="es"] .hero h1{font-size:clamp(46px,6.4vw,96px)}
 .founder-note blockquote{margin:0;flex:1 1 420px;font-family:var(--f-display);font-size:clamp(22px,2.6vw,30px);line-height:1.35;color:var(--ink)}
 .founder-note .by{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .founder-note .by .hand{font-size:28px;color:var(--sage-ink);line-height:1}
+
+/* app-store apps not out yet */
+.store.soon{background:transparent;color:var(--ink);border:1.5px dashed var(--muted)}
+.store.soon.light{background:rgba(255,255,255,.6)}
+.store.soon:hover{transform:none}
+.store.soon small{opacity:.9;font-weight:600}
+.soon-note{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin:14px 0 22px;color:var(--ink);font-size:15px;max-width:640px}
