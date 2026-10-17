@@ -1,13 +1,13 @@
 /* HeyTribe service worker: opens offline with the last saved app, and shows reminders. */
-const CACHE = "ht-app-v3";
-const SHELL = ["/app/", "/app/config.js", "/app/vendor/supabase.js", "/app/vendor/591.supabase.js", "/i18n/ht-i18n.js", "/app/i18n/es-app.json", "/app/manifest.webmanifest", "/app/icons/icon-192.png", "/favicon.svg", "/assets/fonts/outfit.woff2", "/assets/fonts/fraunces.woff2", "/assets/fonts/fraunces-italic.woff2", "/assets/fonts/caveat.woff2"];
+const CACHE = "ht-app-1b90ad8d";
+const SHELL = ["/app/", "/app/assets/app.1980a7ff8d.js", "/app/assets/app.0cbfe8a571.css", "/app/config.js", "/app/vendor/supabase.js", "/app/vendor/591.supabase.js", "/i18n/ht-i18n.js", "/app/i18n/es-app.json", "/app/manifest.webmanifest", "/app/icons/icon-192.png", "/favicon.svg", "/assets/fonts/outfit.woff2", "/assets/fonts/fraunces.woff2", "/assets/fonts/fraunces-italic.woff2", "/assets/fonts/caveat.woff2"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {
   const r = e.request, u = new URL(r.url);
   if (r.method !== "GET" || u.origin !== location.origin) return;
   // Fonts, icons and the Supabase library rarely change: answer from the cache right away and refresh it in the background.
-  if (u.pathname.startsWith("/assets/fonts/") || u.pathname.startsWith("/app/vendor/") || u.pathname.startsWith("/app/icons/")) {
+  if (u.pathname.startsWith("/assets/fonts/") || u.pathname.startsWith("/app/assets/") || u.pathname.startsWith("/app/vendor/") || u.pathname.startsWith("/app/icons/")) {
     e.respondWith(caches.open(CACHE).then(c => c.match(r).then(hit => {
       const net = fetch(r).then(res => { if (res.ok) c.put(r, res.clone()); return res; }).catch(() => hit);
       return hit || net;

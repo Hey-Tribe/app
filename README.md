@@ -5,7 +5,7 @@ The family planning app and its marketing site, in one Vercel project backed by 
 | Path | What it is |
 | --- | --- |
 | `/` | Marketing site (static HTML, `styles.css`, `site.js`) |
-| `/app/` | The HeyTribe app (single page; `app/config.js` holds the public Supabase settings) |
+| `/app/` | The HeyTribe app. Source in `app/src/`; run `npm run build:app` after editing (see CLAUDE.md). `app/config.js` holds the public Supabase settings |
 | `/api/forms` | Saves waitlist and contact form posts to Supabase |
 | `/api/heytribe` | Hey Tribe AI: turns a typed note into plans, list items and chores (optional) |
 | `supabase/` | Database schema, security rules and the sample family |

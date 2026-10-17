@@ -1,0 +1,2185 @@
+
+(function(){
+"use strict";
+/* ---------- helpers ---------- */
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const fromYmd = s => { const [y,m,d] = String(s).split("-").map(Number); return new Date(y||1970, (m||1)-1, d||1); };
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const monday = d => { const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; };
+const nowMin = () => { const d = new Date(); return d.getHours()*60+d.getMinutes(); };
+const todayKey = () => ymd(new Date());
+const fmtT = m => { m = Number(m)||0; let h = Math.floor(m/60), mm = m%60; const ap = h>=12 && h<24 ? "pm" : "am"; h = h%12||12; return h+(mm?":"+pad(mm):"")+ap; };
+const toHHMM = m => pad(Math.floor(m/60))+":"+pad(m%60);
+const fromHHMM = s => { const [h,m] = String(s||"").split(":").map(Number); return (h||0)*60+(m||0); };
+const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const DOW_LONG = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const dowIdx = d => (d.getDay()+6)%7;
+const uid = () => Math.random().toString(36).slice(2,10);
+const store = { get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }, set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }, del(k){ try { localStorage.removeItem(k); } catch(e){} } };
+/* ---------- Supabase data layer ----------
+   Keeps the app's simple document API (db.doc(path).set/update/delete, db.collection(path).add/onSnapshot)
+   and stores everything in Supabase: one row per document in public.docs, live updates over Realtime.
+   The SAMPLE tribe is read-only on the server, so changes there stay on this device. */
+const CFG = window.HEYTRIBE || {};
+function applyTheme(){ const t = (()=>{ try { return localStorage.getItem("ht-theme") || "auto"; } catch(e){ return "auto"; } })(); const dark = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches); document.documentElement.dataset.theme = dark ? "dark" : "light"; const m = document.querySelector('meta[name="theme-color"]'); if(m) m.content = dark ? "#151B1F" : "#FBFCFA"; }
+applyTheme(); try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme); } catch(e){}
+const APP_URL = location.origin + "/app/";
+const SAMPLE_BASE = "2026-10-09";
+let sb = null, SESSION = null, OFFLINE = false;
+const deepMerge = (a, b) => {
+  const out = (a && typeof a === "object" && !Array.isArray(a)) ? { ...a } : {};
+  for(const [k, v] of Object.entries(b || {})){
+    if(v && typeof v === "object" && !Array.isArray(v)){
+      if(v.__delete__ === true){ delete out[k]; continue; }
+      out[k] = deepMerge(out[k], v);
+    } else out[k] = v;
+  }
+  return out;
+};
+const rid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)).replace(/-/g, "").slice(0, 20);
+function shiftDates(obj, days){
+  if(!days) return obj;
+  const s = JSON.stringify(obj).replace(/\b(20\d\d)-(\d\d)-(\d\d)\b/g, (m, y, mo, d) => {
+    const dt = new Date(+y, +mo - 1, +d + days);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+  });
+  return JSON.parse(s);
+}
+function makeDb(client){
+  const T = { code:null, cols:new Map(), tribe:null, ready:null, channel:null, subs:new Set(), local:false, shift:0 };
+  const parse = path => { const p = String(path).split("/"); return { code:p[1], col:p[2] || null, id:p[3] || null }; };
+  const colMap = c => { if(!T.cols.has(c)) T.cols.set(c, new Map()); return T.cols.get(c); };
+  const snapCol = c => ({ docs: [...colMap(c).entries()].map(([id, data]) => ({ id, data: () => data })) });
+  const snapDoc = (c, id) => { const d = colMap(c).get(id); return { exists: !!d, id, data: () => d }; };
+  const snapTribe = () => ({ exists: !!T.tribe, id: T.code, data: () => T.tribe });
+  const notify = col => { for(const s of T.subs){ if(s.col === col || (col === "*")){ try { s.fire(); } catch(e){} } } };
+  function teardown(){ if(T.channel){ try { client.removeChannel(T.channel); } catch(e){} } T.channel = null; T.cols = new Map(); T.tribe = null; T.code = null; T.ready = null; }
+  function put(row){ const id = T.shift ? shiftDates({ v: row.id }, T.shift).v : row.id; colMap(row.col).set(id, T.shift ? shiftDates(row.data, T.shift) : row.data); }
+  function ensure(code){
+    if(T.code === code && T.ready) return T.ready;
+    teardown(); T.code = code; T.local = code === "SAMPLE";
+    T.shift = T.local ? Math.round((new Date(new Date().toDateString()) - new Date(SAMPLE_BASE + "T00:00:00")) / 864e5) : 0;
+    T.ready = (async () => {
+      const snapKey = "ht-snap-" + code, fromSnap = () => { try { const sn = JSON.parse(localStorage.getItem(snapKey) || "null"); if(!sn) return false; T.tribe = sn.tribe; sn.rows.forEach(put); OFFLINE = true; return true; } catch(e){ return false; } };
+      const tr = await client.from("tribes").select("name, created_at").eq("code", code).maybeSingle();
+      if(tr.error){ if(!T.local && fromSnap()) return; throw tr.error; }
+      T.tribe = tr.data ? { name: tr.data.name } : null;
+      const rows = [];
+      for(let from = 0; ; from += 1000){
+        const r = await client.from("docs").select("col, id, data").eq("tribe_code", code).range(from, from + 999);
+        if(r.error){ if(!T.local && fromSnap()) return; throw r.error; }
+        r.data.forEach(put); rows.push(...r.data);
+        if(r.data.length < 1000) break;
+      }
+      OFFLINE = false;
+      if(!T.local){ try { localStorage.setItem(snapKey, JSON.stringify({ tribe: T.tribe, rows, at: Date.now() })); } catch(e){} }
+      if(!T.local){
+        T.channel = client.channel("tribe-" + code)
+          .on("postgres_changes", { event: "*", schema: "public", table: "docs", filter: "tribe_code=eq." + code }, p => {
+            if(T.code !== code) return;
+            if(p.eventType === "DELETE"){ const o = p.old || {}; if(o.col && o.id){ colMap(o.col).delete(o.id); notify(o.col); } }
+            else { const n = p.new; put(n); notify(n.col); }
+          })
+          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "tribes", filter: "code=eq." + code }, p => {
+            if(T.code !== code) return; T.tribe = { name: p.new.name }; notify("__tribe");
+          })
+          .subscribe(status => { if(status === "CHANNEL_ERROR" || status === "TIMED_OUT"){ /* refetch on reconnect */ } });
+      }
+    })();
+    return T.ready;
+  }
+  function listen(col, fire, onErr, code){
+    const s = { col, fire }; T.subs.add(s);
+    ensure(code).then(() => { if(T.subs.has(s)) fire(); }).catch(e => { if(onErr) onErr(e); });
+    return () => T.subs.delete(s);
+  }
+  async function serverWrite(fn){
+    if(T.local) return;
+    const r = await fn();
+    if(r && r.error) throw { code: r.error.code || "write_failed", message: r.error.message };
+  }
+  function docRef(path){
+    const { code, col, id } = parse(path);
+    if(!col){ // the tribe document itself
+      return {
+        get: async () => { await ensure(code); return snapTribe(); },
+        onSnapshot: (cb, err) => listen("__tribe", () => cb(snapTribe()), err, code),
+        update: async data => { T.tribe = { ...(T.tribe || {}), ...data }; notify("__tribe"); await serverWrite(() => client.from("tribes").update({ name: data.name }).eq("code", code)); }
+      };
+    }
+    return {
+      id,
+      get: async () => { await ensure(code); return snapDoc(col, id); },
+      onSnapshot: (cb, err) => listen(col, () => cb(snapDoc(col, id)), err, code),
+      set: async data => { colMap(col).set(id, data); notify(col); await serverWrite(() => client.from("docs").upsert({ tribe_code: code, col, id, data })); },
+      update: async data => { colMap(col).set(id, deepMerge(colMap(col).get(id), data)); notify(col); await serverWrite(() => client.rpc("doc_merge", { p_code: code, p_col: col, p_id: id, p_patch: data })); },
+      delete: async () => { colMap(col).delete(id); notify(col); await serverWrite(() => client.from("docs").delete().match({ tribe_code: code, col, id })); }
+    };
+  }
+  return {
+    doc: docRef,
+    collection(path){
+      const { code, col } = parse(path);
+      return {
+        doc: (id) => docRef(`tribes/${code}/${col}/${id || rid()}`),
+        add: async data => { const ref = docRef(`tribes/${code}/${col}/${rid()}`); await ref.set(data); return ref; },
+        onSnapshot: (cb, err) => listen(col, () => cb(snapCol(col)), err, code)
+      };
+    },
+    refresh(){ const c = T.code; if(!c) return; T.ready = null; const subs = [...T.subs]; teardown(); T.subs = new Set(subs); ensure(c).then(() => notify("*")).catch(()=>{}); },
+    isLocal: () => T.local,
+    reset: teardown
+  };
+}
+/* desktop: spread sections across the full width in balanced columns (shortest column first, reading order kept) */
+const PAGE_COLS = ["home","health","docs","school","contacts","family","baby","routines","menu","sitter","trip","trips"];
+function masonry(host, items, n){
+  host.classList.add("mcols"); host.style.setProperty("--n", n);
+  const cols = Array.from({ length: n }, () => { const c = document.createElement("div"); c.className = "mcol"; host.appendChild(c); return c; });
+  items.forEach(it => { let best = cols[0]; for(const c of cols) if(c.offsetHeight < best.offsetHeight - 1) best = c; best.appendChild(it); });
+}
+function deskLayout(app){
+  if(!document.body.classList.contains("has-side") || innerWidth < 1024) return;
+  const w = app.clientWidth - parseFloat(getComputedStyle(app).paddingLeft) - parseFloat(getComputedStyle(app).paddingRight);
+  const dash = app.querySelector(".dash");
+  if(UI.view === "today" && dash){
+    // a planned desktop dashboard: countdowns across the top, plans beside what needs attention, then glance and the fridge
+    const get = k => dash.querySelector(`[data-k="${k}"]`);
+    const cd = get("countdowns"), pl = get("plans"), at = get("attention"), gl = get("glance"), fr = get("fridge");
+    dash.classList.add("dk");
+    [cd, pl, at, gl, fr].forEach(x => { if(x) dash.appendChild(x); });
+    if(pl && !at) pl.classList.add("dk-full");
+    if(at && !pl) at.classList.add("dk-full");
+    return;
+  }
+  if(UI.view === "lists"){
+    const pad = app.querySelector(".pad"), n = Math.max(1, Math.min(3, Math.floor((w + 24) / 440)));
+    if(!pad || n < 2) return;
+    const groups = []; let g = null;
+    [...pad.children].filter(k => k.tagName !== "FORM").forEach(k => { if(k.classList.contains("sec") || !g){ g = document.createElement("div"); g.className = "lgrp"; groups.push(g); } g.appendChild(k); });
+    if(groups.length < 2){ groups.forEach(x => pad.appendChild(x)); return; }
+    const wrap = document.createElement("div"); pad.appendChild(wrap); masonry(wrap, groups, n);
+    return;
+  }
+  if(!PAGE_COLS.includes(UI.view)) return;
+  // side-by-side cards: any run of 2+ full-width cards at the top level becomes a grid
+  let run = [];
+  const flush = () => { if(run.length > 1){ const grid = document.createElement("div"); grid.className = "cardgrid"; run[0].before(grid); run.forEach(x => grid.appendChild(x)); } run = []; };
+  [...app.children].forEach(k => { if(k.classList.contains("paper") && !k.classList.contains("cardgrid")) run.push(k); else flush(); }); flush();
+  [...app.children].forEach(k => { if(k.classList.contains("col") && k.children.length > 1 && [...k.children].every(c => c.classList.contains("paper"))) k.classList.add("cardgrid"); });
+  const n = Math.max(1, Math.min(3, Math.floor((w + 28) / 520)));
+  const kids = [...app.children], first = kids.findIndex(k => k.classList && k.classList.contains("sechead"));
+  if(n < 2 || first < 0) return;
+  const groups = []; let g = null;
+  kids.slice(first).forEach(k => { if(k.classList.contains("sechead") || !g){ g = document.createElement("div"); g.className = "mgrp"; groups.push(g); } g.appendChild(k); });
+  if(groups.length < 2){ groups.forEach(x => app.appendChild(x)); return; }
+  const wrap = document.createElement("div"); app.appendChild(wrap);
+  masonry(wrap, groups, n);
+}
+let deskT = 0; addEventListener("resize", () => { clearTimeout(deskT); deskT = setTimeout(() => { if(S.status === "ready" && innerWidth >= 1024 && !$("#scrim")) render(); }, 180); });
+
+/* plan and billing: limits only apply once checkout is switched on, so nobody is limited before they can upgrade */
+let PLAN = null, BILLING = false;
+const premium = () => TRIBE === "SAMPLE" || !PLAN || ["active","comped","past_due"].includes(PLAN.status) || (PLAN.status === "trialing" && new Date(PLAN.trial_ends_at) > new Date());
+const limited = () => BILLING && !premium();
+fetch("/api/billing").then(r => r.ok ? r.json() : {}).then(j => { BILLING = !!j.enabled; if(S.status === "ready") render(); }).catch(() => {});
+async function loadPlan(code){
+  if(!sb || !SESSION || !code || code === "SAMPLE"){ PLAN = null; return; }
+  const r = await sb.from("subscriptions").select("status, trial_ends_at, current_period_end, stripe_customer_id").eq("tribe_code", code).maybeSingle();
+  if(TRIBE !== code) return;
+  PLAN = r.error ? null : r.data;
+  if(S.status === "ready") render();
+}
+function trialDays(){ return PLAN && PLAN.trial_ends_at ? Math.ceil((new Date(PLAN.trial_ends_at) - Date.now()) / 864e5) : 0; }
+function upsell(why){
+  openSheet(`<div class="col" style="gap:14px">
+    <span class="tag" style="align-self:flex-start">Premium</span>
+    <h2 class="serif" style="font-size:28px;margin:0">That's a Premium extra</h2>
+    <p style="margin:0;color:var(--muted)">${esc(why)}</p>
+    <p style="margin:0">Premium is $4.99 a month for the whole tribe. Cancel anytime.</p>
+    <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn primary grow" data-act="upgrade">Get Premium</button><button class="btn ghost" data-act="close">Not now</button></div></div>`);
+}
+function gate(ok, why){ if(ok || !limited()) return true; upsell(why); return false; }
+async function billingGo(action, btn){
+  if(!BILLING){ toast("Premium checkout opens soon."); return; }
+  const tok = (await sb.auth.getSession()).data.session?.access_token;
+  if(!tok || !TRIBE || TRIBE === "SAMPLE") return;
+  if(btn){ btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = "Opening…"; }
+  try {
+    const r = await fetch("/api/billing", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + tok }, body: JSON.stringify({ action, code: TRIBE, lang: (window.HTi18n && HTi18n.lang) || "en" }) });
+    const j = await r.json().catch(() => ({}));
+    if(r.ok && j.url){ closeSheet(); location.href = j.url; if(btn) setTimeout(() => { btn.disabled = false; btn.textContent = btn.dataset.label; }, 4000); return; }
+    toast(j.error || "Couldn't open checkout. Try again in a minute.");
+  } catch(e){ toast("Couldn't open checkout. Check your connection."); }
+  if(btn){ btn.disabled = false; btn.textContent = btn.dataset.label; }
+}
+function planCard(){
+  if(!SESSION || !TRIBE || TRIBE === "SAMPLE" || !PLAN) return "";
+  const st = PLAN.status, d = trialDays();
+  let head, sub, btn = "";
+  const up = label => BILLING ? `<button class="btn primary" data-act="upgrade">${label}</button>` : `<span class="small">Premium checkout opens soon.</span>`;
+  const manage = label => BILLING && PLAN.stripe_customer_id ? `<button class="btn ghost" data-act="billing-portal">${label}</button>` : "";
+  if(st === "comped"){ head = "Premium"; sub = "On the house. Enjoy every extra."; }
+  else if(st === "active"){ head = "Premium"; sub = PLAN.current_period_end ? "Renews " + fmtDay(ymd(new Date(PLAN.current_period_end))) : "Thanks for being Premium."; btn = manage("Manage billing"); }
+  else if(st === "past_due"){ head = "Premium"; sub = "Your last payment didn't go through. Update your card to keep Premium."; btn = manage("Update card"); }
+  else if(st === "trialing" && d > 0){ head = "Premium trial"; sub = d === 1 ? "1 day left" : d + " days left"; btn = up("Keep Premium · $4.99/mo"); }
+  else { head = "Free plan"; sub = "Every feature, in an everyday version."; btn = up("Get Premium · $4.99/mo"); }
+  return `${secHead("Your plan")}<div class="paper col" style="padding:16px;gap:10px"><div class="between" style="gap:10px;flex-wrap:wrap"><span class="col"><b style="font-weight:600;font-size:17px">${head}</b><span class="small">${sub}</span></span>${head==="Free plan"?"":`<span class="tag">${ico("star",13,2.2)} Premium</span>`}</div>${btn?`<div class="row" style="gap:8px;flex-wrap:wrap">${btn}</div>`:""}</div>`;
+}
+
+/* search across everything */
+function searchIndex(){
+  const out = [], add = (k, title, sub, attrs) => { if(title) out.push({ k, title: String(title), sub: sub || "", attrs, hay: (title + " " + (sub||"")).toLowerCase() }); };
+  S.events.forEach(e => add("Plan", e.title, [e.date ? fmtDayW(e.date) : "", e.allDay ? "All day" : fmtT(e.start), e.repeat ? repLabel(e.repeat) : "", e.place, e.note].filter(Boolean).join(" · "), `data-act="event" data-id="${esc(e.id)}" data-day="${esc(e.date)}"`));
+  S.items.forEach(i => add("List", i.text, i.list || "Groceries", `data-go="lists"`));
+  S.notes.forEach(n => add("Fridge", n.text, "Note on the fridge", `data-go="today"`));
+  S.chores.forEach(c => add("Chore", c.title, memName(c.member), `data-go="chores"`));
+  S.routines.forEach(r => add("Routine", r.name, [memName(r.member), (r.steps||[]).map(x=>x.text).join(", ")].join(" · "), `data-go="routines"`));
+  S.meds.forEach(m => add("Medicine", m.name, [memName(m.member), m.dose, (m.times||[]).map(t=>fmtT(fromHHMM(t))).join(", ")].filter(Boolean).join(" · "), `data-act="ent-edit" data-kind="med" data-id="${esc(m.id)}"`));
+  S.health.forEach(h => add("Health", h.title, [memName(h.member), h.note].filter(Boolean).join(" · "), `data-act="ent-edit" data-kind="record" data-id="${esc(h.id)}"`));
+  S.contacts.forEach(c => add("Contact", c.name, [c.phone, c.email, c.note].filter(Boolean).join(" · "), `data-act="ent-edit" data-kind="contact" data-id="${esc(c.id)}"`));
+  S.docs.forEach(d => add("Document", d.title, [d.where, d.expires ? "expires " + fmtDay(d.expires) : "", d.note].filter(Boolean).join(" · "), `data-act="ent-edit" data-kind="doc" data-id="${esc(d.id)}"`));
+  S.school.forEach(x => add("School", x.title, x.due ? "due " + fmtDay(x.due) : "", `data-go="school"`));
+  S.home.forEach(x => add(x.kind === "bill" ? "Bill" : x.kind === "sub" ? "Subscription" : "Home", x.name, x.amount ? money(x.amount) : "", `data-go="home"`));
+  S.trips.forEach(t => add("Trip", t.name, [t.where, t.start ? fmtDay(t.start) : ""].filter(Boolean).join(" · "), `data-act="trip-open" data-id="${esc(t.id)}"`));
+  S.countdowns.forEach(c => add("Big day", c.title, c.date ? fmtDay(c.date) : "", `data-act="ent-edit" data-kind="countdown" data-id="${esc(c.id)}"`));
+  Object.entries(S.meals || {}).forEach(([k, m]) => m && m.dish && add("Dinner", m.dish, fmtDayW(k), `data-go="menu"`));
+  const si = S.sitter || {}; [["Address", si.address], ["Wi-Fi", si.wifi], ["House rules", si.rules], ["House notes", si.notes]].forEach(([l, v]) => v && add("House", l, v, `data-go="sitter"`));
+  S.members.forEach(m => add("Person", m.name, m.status || "", `data-act="member-edit" data-id="${esc(m.id)}"`));
+  return out;
+}
+function searchSheet(){
+  openSheet(`<div class="col" style="gap:10px"><div class="field"><label for="srch">Search everything</label><input id="srch" type="search" autocomplete="off" placeholder="Passport, dentist, Wi-Fi, milk…" autofocus></div><div class="searchres" id="srch-r"><p class="small" style="margin:6px 0">Plans, lists, medicine, documents, contacts, bills and more.</p></div></div>`, false, el => {
+    const inp = el.querySelector("#srch"), box = el.querySelector("#srch-r"), idx = searchIndex(); inp.focus();
+    inp.addEventListener("input", () => {
+      const q = inp.value.trim().toLowerCase(); if(!q){ box.innerHTML = `<p class="small" style="margin:6px 0">Plans, lists, medicine, documents, contacts, bills and more.</p>`; return; }
+      const words = q.split(/\s+/), hits = idx.filter(x => words.every(w => x.hay.includes(w))).slice(0, 40);
+      box.innerHTML = hits.length ? hits.map(x => `<button class="sr" ${x.attrs}><span class="k">${esc(x.k)}</span><span class="col grow" style="min-width:0"><b style="font-weight:500;overflow-wrap:anywhere">${esc(x.title)}</b>${x.sub?`<span class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.sub)}</span>`:""}</span></button>`).join("") : `<p class="small" style="margin:6px 0">Nothing found for “${esc(inp.value.trim())}”.</p>`;
+    });
+  });
+}
+document.addEventListener("keydown", e => { if(S.status !== "ready" || $("#scrim")) return; const tg = e.target.tagName; if(/INPUT|TEXTAREA|SELECT/.test(tg)) return; if(e.key === "/" || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k")){ e.preventDefault(); searchSheet(); } });
+
+/* guided first-run setup */
+function setupCard(){
+  if(!SESSION || TRIBE === "SAMPLE" || store.get("ht-setup-hide-" + TRIBE)) return "";
+  const steps = [
+    [S.members.length > 1, "Add the people in your house", 'data-act="member-new"'],
+    [S.events.length > 0, "Add your first plan", 'data-act="event-new"'],
+    [S.items.length > 0, "Put something on the grocery list", 'data-go="lists"'],
+    [LOGINS.length > 1, "Invite your partner or family", 'data-act="copy-code"'],
+    [!!REM.row, "Turn on reminders", 'data-go="family"']
+  ];
+  const done = steps.filter(x => x[0]).length;
+  if(done === steps.length) return "";
+  return `<div class="setup"><div class="between"><span class="col"><b style="font-weight:600;font-size:17px">Get your family set up</b><span class="small">${done} of ${steps.length} done · about 2 minutes</span></span><button class="small" data-act="setup-hide" style="font-weight:600">Hide</button></div>
+    <div style="margin-top:8px">${steps.map(([ok, t, a]) => `<button class="setup-s ${ok?"done":""}" ${ok?"disabled":a}><span class="bx">${ok?TICK:""}</span><span class="t grow">${t}</span>${ok?"":ico("fwd",16,2)}</button>`).join("")}</div></div>`;
+}
+
+/* announcements from the HeyTribe team */
+let ANN = [];
+async function loadAnnouncements(){
+  if(!sb || !SESSION) return;
+  const r = await sb.from("announcements").select("id, title, body, link").eq("active", true).order("created_at", { ascending: false }).limit(3);
+  let gone = []; try { gone = JSON.parse(store.get("ht-ann-hide") || "[]"); } catch(e){}
+  ANN = (r.data || []).filter(a => !gone.includes(a.id));
+  if(S.status === "ready" && UI.view === "today") render();
+}
+function annCard(){ return ANN.slice(0, 1).map(a => `<div class="ann"><span class="lic" style="background:var(--surface);color:var(--sage-ink);width:34px;height:34px">${mark(18)}</span><span class="col grow" style="min-width:0;gap:2px"><b style="font-weight:600" data-no-tr>${esc(a.title)}</b>${a.body?`<span class="small" style="font-size:14px;line-height:1.45" data-no-tr>${esc(a.body)}</span>`:""}${a.link?`<a class="small" href="${esc(a.link)}" target="_blank" rel="noopener" style="font-weight:600;color:var(--sage-ink)">Learn more</a>`:""}</span><button class="iconbtn" data-act="ann-hide" data-id="${a.id}" aria-label="Dismiss" style="width:30px;height:30px">${ico("x",14,2.2)}</button></div>`).join(""); }
+
+/* co-parenting schedule: who the kids are with each day */
+const CUSTODY = [["week","Week on, week off"],["223","2-2-3"],["2255","2-2-5-5"],["weekend","Every other weekend"]];
+function custodyOn(day){
+  const c = S.custody; if(!c || !c.a || !c.b || !c.start || !c.pattern) return null;
+  const n = Math.floor((fromYmd(day) - fromYmd(c.start)) / 864e5), i = ((n % 14) + 14) % 14, wk = Math.floor(n / 7), d = dowIdx(fromYmd(day));
+  let a = true;
+  if(c.pattern === "week") a = ((wk % 2) + 2) % 2 === 0;
+  else if(c.pattern === "223") a = [0,1,4,5,6,9,10].includes(i);
+  else if(c.pattern === "2255") a = i < 2 || (i >= 4 && i < 9);
+  else if(c.pattern === "weekend") a = !(((wk % 2) + 2) % 2 === 0 && d >= 4);
+  return a ? c.a : c.b;
+}
+function custodyLine(day){
+  const who = custodyOn(day); if(!who) return "";
+  const tmr = custodyOn(ymd(addDays(fromYmd(day), 1)));
+  return `Kids are with ${esc(memName(who))}${tmr && tmr !== who ? `, switching to ${esc(memName(tmr))} tomorrow${S.custody.handoff ? " at " + fmtT(fromHHMM(S.custody.handoff)) : ""}` : ""}.`;
+}
+function custodySheet(){
+  const c = S.custody || {}, ad = sorted(S.members).filter(m => m.style !== "kid" && m.style !== "baby");
+  const opts = sel => ad.map(m => `<option value="${esc(m.id)}" ${m.id===sel?"selected":""}>${esc(m.name)}</option>`).join("");
+  openSheet(`<form data-form="custody" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Co-parenting schedule</h2>
+    <p style="margin:0;color:var(--muted);line-height:1.5">Show whose time it is on the calendar and in the morning briefing.</p>
+    <div class="grid2"><div class="field"><label for="cu-a">Parent</label><select id="cu-a" name="a">${opts(c.a || ad[0]?.id)}</select></div><div class="field"><label for="cu-b">Other parent</label><select id="cu-b" name="b">${opts(c.b || ad[1]?.id)}</select></div></div>
+    <div class="field"><label for="cu-p">Schedule</label><select id="cu-p" name="pattern">${CUSTODY.map(([k,l]) => `<option value="${k}" ${k===(c.pattern||"week")?"selected":""}>${l}</option>`).join("")}</select></div>
+    <div class="grid2"><div class="field"><label for="cu-s">First day with the first parent</label><input id="cu-s" name="start" type="date" value="${esc(c.start || ymd(monday(new Date())))}" required></div><div class="field"><label for="cu-h">Handoff time</label><input id="cu-h" name="handoff" type="time" value="${esc(c.handoff || "18:00")}"></div></div>
+    <div class="row" style="gap:10px">${c.pattern?`<button type="button" class="btn ghost" data-act="custody-off">Turn off</button>`:""}<button class="btn primary grow">Save</button></div></form>`);
+}
+
+/* reminders on this device (web push) */
+const REM = { ok: "serviceWorker" in navigator && "PushManager" in window && "Notification" in window, sub: null, row: null, loaded: false };
+const REM_TYPES = [["plans","Plans"],["meds","Medicine"],["bills","Bills"],["school","School forms"],["countdowns","Big days"]];
+const b64u = s => { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from([...b].map(c => c.charCodeAt(0))); };
+async function loadReminders(){
+  if(!REM.ok || !SESSION){ REM.loaded = true; return; }
+  try { const reg = await navigator.serviceWorker.ready; REM.sub = await reg.pushManager.getSubscription(); } catch(e){ REM.sub = null; }
+  REM.row = null;
+  if(REM.sub){ const r = await sb.from("push_subscriptions").select("id, prefs, tribe_code").eq("endpoint", REM.sub.endpoint).maybeSingle(); REM.row = r.data || null; }
+  REM.loaded = true; if(S.status === "ready" && UI.view === "family") render();
+}
+async function remindersOn(){
+  if(!REM.ok){ toast("This browser can't show reminders."); return; }
+  const perm = await Notification.requestPermission();
+  if(perm !== "granted"){ toast("Reminders are blocked. Allow notifications for HeyTribe in your settings."); return; }
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(CFG.vapidPublicKey) });
+  const j = sub.toJSON();
+  const row = { tribe_code: TRIBE, member_id: meId(), endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York", dead: false };
+  const r = await sb.from("push_subscriptions").upsert(row, { onConflict: "endpoint" }).select("id, prefs, tribe_code").maybeSingle();
+  if(r.error){ toast("Couldn't turn on reminders. Try again."); return; }
+  REM.sub = sub; REM.row = r.data; toast("Reminders are on for this device"); render();
+}
+async function remindersOff(){
+  if(REM.sub){ await sb.from("push_subscriptions").delete().eq("endpoint", REM.sub.endpoint); try { await REM.sub.unsubscribe(); } catch(e){} }
+  REM.sub = null; REM.row = null; toast("Reminders are off for this device"); render();
+}
+/* install on phone / computer (PWA) */
+let INSTALL_EVT = null;
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); INSTALL_EVT = e; try { if(SESSION) render(); } catch(_){} });
+addEventListener("appinstalled", () => { INSTALL_EVT = null; try { toast("HeyTribe is on your home screen"); render(); } catch(_){} });
+function installCard(){
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  if(standalone) return "";
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1), android = /Android/.test(ua);
+  let body;
+  if(INSTALL_EVT) body = `<p class="small" style="margin:0;line-height:1.5">Add HeyTribe to your ${innerWidth < 1024 ? "home screen" : "computer"} so it opens like a regular app, full screen, with reminders.</p><div class="row"><button class="btn primary" data-act="install-app">${ico("download",17)} Install HeyTribe</button></div>`;
+  else if(ios) body = `<ol class="small" style="margin:0;padding-left:18px;line-height:1.7"><li>Open this page in <b>Safari</b>.</li><li>Tap the <b>Share</b> button (the square with an arrow).</li><li>Choose <b>Add to Home Screen</b>, then <b>Add</b>.</li><li>Open HeyTribe from your home screen.</li></ol>`;
+  else if(android) body = `<ol class="small" style="margin:0;padding-left:18px;line-height:1.7"><li>Open this page in <b>Chrome</b>.</li><li>Tap the <b>⋮</b> menu at the top right.</li><li>Choose <b>Install app</b> or <b>Add to Home screen</b>.</li></ol>`;
+  else body = `<p class="small" style="margin:0;line-height:1.5">In Chrome or Edge, click the install icon at the right end of the address bar. On your phone, open www.heytribe.app/app and add it to your home screen.</p>`;
+  return `${secHead("Get the app")}<div class="paper col" style="padding:16px;gap:10px"><b style="font-weight:600">Put HeyTribe on your ${ios||android ? "phone" : "device"}</b>${body}</div>`;
+}
+function remindersCard(){
+  if(!SESSION || TRIBE === "SAMPLE") return "";
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent), standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  let body;
+  if(!REM.ok) body = ios && !standalone ? `<p class="small" style="margin:0;line-height:1.5">To get reminders on iPhone, add HeyTribe to your Home Screen: tap the Share button, then <b>Add to Home Screen</b>. Open HeyTribe from there and turn reminders on.</p>` : `<p class="small" style="margin:0">This browser can't show reminders. Try Chrome, Edge, Firefox or Safari.</p>`;
+  else if(!REM.row) body = `<p class="small" style="margin:0;line-height:1.5">Get a nudge on this ${innerWidth < 1024 ? "phone" : "computer"} before plans, when medicine is due, for bills and school forms, and on big days.</p><div class="row" style="gap:8px"><button class="btn primary" data-act="rem-on">${ico("bellr",17)} Turn on reminders</button></div>`;
+  else { const pr = REM.row.prefs || {}; body = `<div class="chips" style="margin-top:0">${REM_TYPES.map(([k,l]) => `<button class="chip plain ${pr[k]!==false?"on":""}" data-act="rem-pref" data-k="${k}" aria-pressed="${pr[k]!==false}">${l}</button>`).join("")}</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="rem-test">Send a test</button><button class="btn ghost" data-act="rem-off">Turn off on this device</button></div>`; }
+  return `${secHead("Reminders")}<div class="paper col" style="padding:16px;gap:10px"><div class="between"><b style="font-weight:600">${REM.row ? "On for this device" : "Phone reminders"}</b>${REM.row?`<span class="tag">${ico("bellr",13,2)} On</span>`:""}</div>${body}</div>`;
+}
+
+/* sitter link (read-only, no login) and calendar subscription */
+async function sitterLinkSheet(){
+  const cur = await sb.from("sitter_links").select("token, expires_at").eq("tribe_code", TRIBE).maybeSingle();
+  const live = cur.data && new Date(cur.data.expires_at) > new Date() ? cur.data : null;
+  const url = t => location.origin + "/sitter/?t=" + t;
+  openSheet(`<div class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">Share with a sitter</h2>
+    <p style="margin:0;color:var(--muted);line-height:1.5">A private link that shows the care sheet: kids, allergies, medicine, bedtime routines, emergency contacts and house notes. No app or login needed. Health records, documents and everything else stay private.</p>
+    ${live ? `<div class="paper col" style="padding:14px;gap:8px"><span class="eyebrow">Link is on until ${fmtDay(ymd(new Date(live.expires_at)))}</span><span class="small" style="overflow-wrap:anywhere" data-no-tr>${esc(url(live.token))}</span>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="copy" data-text="${esc(url(live.token))}">${ico("copy",17)} Copy link</button><button class="btn ghost" data-act="sitter-stop">Turn off</button></div></div>` : ""}
+    <div class="col" style="gap:8px"><span class="eyebrow">${live ? "Make a new link" : "How long should it work?"}</span><div class="row" style="gap:8px;flex-wrap:wrap">${[[1,"Tonight"],[2,"2 days"],[7,"A week"],[30,"A month"]].map(([d,l])=>`<button class="chip plain" data-act="sitter-make" data-days="${d}">${l}</button>`).join("")}</div></div>
+  </div>`);
+}
+async function calSubSheet(reset){
+  const r = await sb.rpc("calendar_link", { p_code: TRIBE, p_reset: !!reset });
+  if(r.error){ toast("Couldn't make a calendar link. Try again."); return; }
+  const https = location.origin + "/api/calendar?t=" + r.data, webcal = https.replace(/^https?:/, "webcal:");
+  openSheet(`<div class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">Add to your calendar</h2>
+    <p style="margin:0;color:var(--muted);line-height:1.5">See the family's plans, trips and big days in Google, Apple or Outlook calendar. It updates on its own, about every few hours.</p>
+    <div class="col" style="gap:8px"><a class="btn primary" href="${esc(webcal)}">${ico("cal",17)} Add to Apple or Outlook</a>
+      <a class="btn ghost" href="https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}" target="_blank" rel="noopener">Add to Google Calendar</a>
+      <button class="btn ghost" data-act="copy" data-text="${esc(https)}">${ico("copy",17)} Copy the link</button></div>
+    <p class="small" style="margin:0;line-height:1.45">Anyone with this link can see your plans. If it gets shared by mistake, <button class="small" data-act="cal-reset" style="font-weight:600;text-decoration:underline;text-underline-offset:3px">make a new link</button> and the old one stops working.</p></div>`);
+}
+
+/* who has access: approve requests, roles, remove people */
+function accessCard(){
+  if(!SESSION || !TRIBE || TRIBE === "SAMPLE" || !LOGINS.length) return "";
+  const parent = isParent(), pend = LOGINS.filter(l => l.status === "pending"), act = LOGINS.filter(l => l.status === "active");
+  const who = l => { const m = l.member_id && mem(l.member_id); return m ? esc(m.name) : esc(l.email.split("@")[0]); };
+  return `${secHead("Who has access")}<div class="paper col" style="padding:6px 16px 12px">
+    ${pend.map(l => `<div class="lrow" style="flex-wrap:wrap;gap:10px"><span class="lic" style="background:var(--m-sand-bg);color:var(--sand-ink)">${ico("users",18)}</span><span class="col grow" style="min-width:160px"><b style="font-weight:600;overflow-wrap:anywhere">${esc(l.email)}</b><span class="small">wants to join</span></span>${parent?`<span class="row" style="gap:6px;flex-wrap:wrap"><button class="chip plain on" data-act="login-approve" data-u="${esc(l.user_id)}" data-role="family">Approve</button><button class="chip plain" data-act="login-approve" data-u="${esc(l.user_id)}" data-role="parent">As a parent</button><button class="chip plain" data-act="login-remove" data-u="${esc(l.user_id)}">Decline</button></span>`:`<span class="small">a parent can approve</span>`}</div>`).join("")}
+    ${act.map(l => `<div class="lrow"><span class="col grow" style="min-width:0"><b style="font-weight:500;overflow-wrap:anywhere">${who(l)}${l.is_me?` <span class="hand" style="font-size:17px;color:var(--sage-ink)">you</span>`:""}</b><span class="small" style="overflow-wrap:anywhere">${esc(l.email)}</span></span><span class="tag ${l.role==="parent"?"":"muted"}">${l.role==="parent"?"Parent":"Family"}</span>${parent && !l.is_me?`<button class="iconbtn" data-act="login-menu" data-u="${esc(l.user_id)}" aria-label="Manage ${esc(l.email)}" style="width:34px;height:34px">${ico("gear",16)}</button>`:""}</div>`).join("")}
+    <p class="small" style="margin:8px 0 0;line-height:1.45">${parent ? "New people who use your invite code wait here until a parent approves them. Parents can approve, remove people and delete the family." : "Parents approve new people and manage access."}</p></div>`;
+}
+async function manageLogin(u, action, role){
+  const r = await sb.rpc("manage_login", { p_code: TRIBE, p_user: u, p_action: action, p_role: role || null });
+  if(r.error){ toast(/at least one parent/.test(r.error.message||"") ? "A family needs at least one parent." : "Couldn't change that. Try again."); return; }
+  closeSheet(); toast(action === "approve" ? "Approved" : action === "remove" ? "Removed" : "Updated"); loadLogins(TRIBE);
+}
+function exportData(){
+  const out = { exported_at: new Date().toISOString(), family: S.tribe?.name || "", code: TRIBE, members: S.members, events: S.events, chores: S.chores, lists: S.items, dinners: S.meals, fridge_notes: S.notes, poll: S.poll, baby_log: S.baby, routines: S.routines, medicine: S.meds, health: S.health, contacts: S.contacts, school: S.school, home: S.home, documents: S.docs.map(d => { const x = {...d}; delete x.file; return x; }), trips: S.trips, countdowns: S.countdowns, sitter_info: S.sitter };
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "heytribe-" + (S.tribe?.name || TRIBE || "family").toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + todayKey() + ".json";
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast("Downloaded");
+}
+
+/* support requests: families write in from the app; the team answers in admin.heytribe.app */
+const SUP = { list: null, nagged: false };
+const TK_CATS = [["question","Question"],["bug","Something's broken"],["billing","Billing"],["account","My account"],["idea","Idea"]];
+const tkUnread = t => t.team_last_at && (!t.customer_seen_at || new Date(t.team_last_at) > new Date(t.customer_seen_at));
+const tkState = t => t.status === "resolved" ? "Resolved" : tkUnread(t) ? "New reply" : t.last_from === "team" ? "Replied" : "We'll reply soon";
+async function loadTickets(){
+  if(!sb || !SESSION){ SUP.list = null; return; }
+  const r = await sb.from("tickets").select("id, number, subject, status, updated_at, last_from, team_last_at, customer_seen_at").order("updated_at", { ascending: false }).limit(20);
+  if(r.error) return;
+  SUP.list = r.data || [];
+  const n = SUP.list.filter(tkUnread).length;
+  if(n && !SUP.nagged){ SUP.nagged = true; setTimeout(() => toast(n === 1 ? "Support replied to your request" : "Support replied to your requests"), 1500); }
+  if(S.status === "ready" && UI.view === "family") render();
+}
+function supportCard(){
+  if(!SESSION || TRIBE === "SAMPLE") return "";
+  const L = SUP.list || [];
+  return `${secHead("Help and support")}<div class="paper col" style="padding:${L.length?"6px 16px 14px":"16px"};gap:10px">
+    ${L.length ? `<div class="col">${L.slice(0,5).map(t => `<button class="tk-row" data-act="tk-open" data-id="${esc(t.id)}">${tkUnread(t)?`<span class="tk-dot" aria-label="New reply"></span>`:""}<span class="col grow" style="min-width:0"><b style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.subject)}</b><span class="small"><span data-no-tr>#${t.number}</span> · ${tkState(t)}</span></span>${ico("fwd",16,2)}</button>`).join("")}</div>` : `<p class="small" style="margin:0">Stuck, found a bug or have an idea? Write to us and a real person will answer, right here in the app.</p>`}
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="tk-new">${ico("note",18)} Contact support</button><a class="btn ghost" href="/help.html" target="_blank" rel="noopener">Help center</a></div></div>`;
+}
+function ticketNewSheet(cat){
+  openSheet(`<form data-form="ticket" class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">Contact support</h2>
+    <p class="small" style="margin:0">We usually answer within a day. You'll see our reply under Family & settings.</p>
+    <div class="col" style="gap:6px"><span class="eyebrow">What's it about?</span><div class="chips" style="margin-top:0">${TK_CATS.map(([k,l]) => `<button type="button" class="chip plain ${k===(cat||"question")?"on":""}" data-tk-cat="${k}">${l}</button>`).join("")}</div><input type="hidden" name="category" value="${esc(cat||"question")}"></div>
+    <div class="field"><label for="tk-s">Subject</label><input id="tk-s" name="subject" maxlength="120" placeholder="A few words, like “Calendar won't load”"></div>
+    <div class="field"><label for="tk-b">Message</label><textarea id="tk-b" name="body" rows="5" maxlength="5000" required placeholder="What happened, and what did you expect?"></textarea></div>
+    <p class="form-err small" id="tk-err" role="alert"></p>
+    <button class="btn primary" id="tk-go">Send</button></form>`);
+}
+async function ticketSheet(id){
+  const t = (SUP.list || []).find(x => x.id === id); if(!t) return;
+  const r = await sb.from("ticket_messages").select("author, body, created_at").eq("ticket_id", id).order("created_at");
+  const msgs = r.data || [];
+  const when = d => { const x = new Date(d); return fmtDay(ymd(x)) + ", " + fmtT(x.getHours()*60 + x.getMinutes()); };
+  openSheet(`<div class="col" style="gap:14px">
+    <div><span class="small" data-no-tr>#${t.number}</span><h2 class="serif" style="font-size:26px;margin:2px 0 0;overflow-wrap:anywhere">${esc(t.subject)}</h2></div>
+    <div class="tk-thread" id="tk-thread">${msgs.map(m => `<div class="tk-msg ${m.author==="customer"?"me":"team"}"><span data-no-tr>${esc(m.body)}</span><small>${m.author==="customer"?"You":"HeyTribe support"} · ${when(m.created_at)}</small></div>`).join("")}</div>
+    <form data-form="ticket-reply" data-id="${esc(id)}" class="col" style="gap:10px">
+      <div class="field"><label for="tk-r">${t.status === "resolved" ? "Still need help? Reply to reopen" : "Reply"}</label><textarea id="tk-r" name="body" rows="3" maxlength="5000" required></textarea></div>
+      <button class="btn primary">Send reply</button></form></div>`);
+  const th = $("#tk-thread"); if(th) th.scrollTop = th.scrollHeight;
+  if(tkUnread(t)){ t.customer_seen_at = new Date().toISOString(); sb.rpc("ticket_seen", { p_ticket: id }).then(() => {}, () => {}); render(); }
+}
+
+/* files: private bucket, one folder per tribe; shown through short-lived signed links */
+const FILES = new Map();
+function fileUrl(id){
+  if(!id) return "";
+  const hit = FILES.get(id);
+  if(hit && hit.exp > Date.now()) return hit.url;
+  if(!hit || !hit.pending){
+    FILES.set(id, { pending: true, url: hit?.url || "", exp: 0 });
+    sb.storage.from("family-files").createSignedUrl(id, 3600).then(r => {
+      if(r.data?.signedUrl){ FILES.set(id, { url: r.data.signedUrl, exp: Date.now() + 3300e3 }); render(); }
+    }).catch(() => {});
+  }
+  return hit?.url || "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
+}
+const assetsApi = {
+  async upload(file){
+    if(file.size > 20 * 1024 * 1024) throw { code: "too_big" };
+    const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5);
+    const path = `${TRIBE}/${rid()}.${ext}`;
+    const r = await sb.storage.from("family-files").upload(path, file, { contentType: file.type || undefined, upsert: false });
+    if(r.error) throw r.error;
+    return { id: path, contentType: file.type };
+  }
+};
+/* Hey Tribe: the server builds the prompt from the note and family context */
+const aiApi = {
+  async understand(text, ctx, signal){
+    const tok = SESSION?.access_token;
+    if(!tok) throw { code: "sampling_disabled" };
+    const r = await fetch("/api/heytribe", { method: "POST", signal, headers: { "content-type": "application/json", authorization: "Bearer " + tok }, body: JSON.stringify({ text, ctx }) });
+    if(r.status === 501 || r.status === 404) throw { code: "sampling_disabled" };
+    if(!r.ok) throw { code: "failed" };
+    return r.json();
+  }
+};
+let PENDING = [], MYROLE = {}, LOGINS = [];
+const isParent = () => TRIBE === "SAMPLE" || MYROLE[TRIBE] !== "family";
+async function loadLogins(code){
+  if(!sb || !SESSION || !code || code === "SAMPLE"){ LOGINS = []; return; }
+  const r = await sb.rpc("tribe_logins", { p_code: code });
+  if(TRIBE !== code) return;
+  LOGINS = r.error ? [] : r.data;
+  const me = LOGINS.find(l => l.is_me); if(me) MYROLE[code] = me.role;
+  if(S.status === "ready") render();
+}
+async function loadMemberships(){
+  if(!SESSION) return [];
+  const r = await sb.from("memberships").select("tribe_code, member_id, role, status, removed_at, tribes(name)").eq("user_id", SESSION.user.id);
+  if(r.error) return null;
+  PENDING = r.data.filter(m => m.status === "pending" && !m.removed_at).map(m => m.tribe_code);
+  r.data.forEach(m => { MYROLE[m.tribe_code] = m.role; });
+  const list = r.data.filter(m => m.status === "active").map(m => ({ code: m.tribe_code, name: m.tribes?.name || m.tribe_code, me: m.member_id }));
+  store.set("ht-tribes", JSON.stringify(list.map(({code, name}) => ({ code, name }))));
+  list.forEach(m => { if(m.me) store.set("ht-me-" + m.code, m.me); });
+  return list;
+}
+function setMe(code, memberId){
+  store.set("ht-me-" + code, memberId);
+  if(sb && SESSION && code !== "SAMPLE") sb.rpc("set_me", { p_code: code, p_member: memberId }).then(() => {}, () => {});
+}
+
+const monthKey = d => d.getFullYear()+"-"+pad(d.getMonth()+1);
+const daysIn = (y,m) => new Date(y,m+1,0).getDate();
+const dayDiff = (a,b) => Math.round((fromYmd(b)-fromYmd(a))/86400000);
+const fmtDay = k => { if(!k) return ""; const d = fromYmd(k); return MONTHS[d.getMonth()].slice(0,3)+" "+d.getDate()+(d.getFullYear()!==new Date().getFullYear()?", "+d.getFullYear():""); };
+const fmtDayW = k => k ? DOW[dowIdx(fromYmd(k))]+", "+fmtDay(k) : "";
+const rel = n => n===0?"today":n===1?"tomorrow":n===-1?"yesterday":n<0?(-n)+" days ago":"in "+n+" days";
+const money = n => { const v = Number(n)||0; return "$"+v.toLocaleString("en-US",{minimumFractionDigits:v%1?2:0,maximumFractionDigits:2}); };
+function parseClock(s){ const m = String(s).trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(a|am|p|pm)?\.?$/i); if(!m) return null; let h=+m[1], mm=+(m[2]||0); const ap=(m[3]||"").toLowerCase(); if(h>23||mm>59) return null; if(ap.startsWith("p")&&h<12) h+=12; if(ap.startsWith("a")&&h===12) h=0; return toHHMM(h*60+mm); }
+const COLORS = ["sage","blue","rose","olive","sand"];
+const okColor = c => COLORS.includes(c) ? c : "sage";
+const okHex = (c, f) => /^#[0-9a-fA-F]{6}$/.test(String(c)) ? c : f;
+const SKINS = ["#F1C9A5","#E2B48C","#D9A27A","#C98E66","#9C6B4A","#6E4A33"];
+const HAIRS = ["#1C1A1A","#3B2A22","#6E4A30","#8A6142","#C9A15E","#9A9A9A"];
+
+const I = {
+  home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  check:'<rect x="3" y="3" width="18" height="18" rx="5"/><path d="M8 12l3 3 5-6"/>',
+  cart:'<path d="M3 4h2l2.5 11h11L21 8H6.5"/><circle cx="9" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>', back:'<path d="M15 5l-7 7 7 7"/>', fwd:'<path d="M9 5l7 7-7 7"/>',
+  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>', x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  bellr:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  shieldk:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  moon2:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  download:'<path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>',
+  star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+  moon:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  bottle:'<path d="M10 2h4v3l2 3v12a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V8l2-3z"/><path d="M8 12h8"/>',
+  drop:'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  pot:'<path d="M4 10h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M2 10h20M9 6c0-1.5 1-2 1-3M14 6c0-1.5 1-2 1-3"/>',
+  note:'<path d="M5 3h14v12l-6 6H5z"/><path d="M13 21v-6h6"/>',
+  pin:'<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  car:'<path d="M4 16v-4l2-5h12l2 5v4z"/><circle cx="7.5" cy="16.5" r="1.5"/><circle cx="16.5" cy="16.5" r="1.5"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.3 0 4 1.5 4.6 4"/>',
+  trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  grid:'<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>',
+  pill:'<path d="M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7z"/><path d="M7 7l7 7"/>',
+  heart:'<path d="M12 20s-7-4.5-9-9a4.5 4.5 0 0 1 9-2.5A4.5 4.5 0 0 1 21 11c-2 4.5-9 9-9 9z"/>',
+  book:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7"/>',
+  shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  dollar:'<path d="M12 2v20M17 6.5c-1-1.5-3-2-5-2-2.5 0-4.5 1.2-4.5 3.4 0 4.6 10 2.4 10 7.1 0 2.3-2.2 3.5-5 3.5-2.3 0-4.4-.8-5.5-2.5"/>',
+  file:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/>',
+  plane:'<path d="M3 13l18-8-6 15-3-6z"/><path d="M12 14l9-9"/>',
+  phone:'<path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
+  sliders:'<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+  up:'<path d="M6 15l6-6 6 6"/>',
+  down:'<path d="M6 9l6 6 6-6"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  copy:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+  smile:'<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4 4 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/>',
+  repeat:'<path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>',
+  bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  wrench:'<path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3z"/><path d="M14.5 6.5L17 4l3 3-2.5 2.5"/>'
+};
+const ico = (n, s=22, sw=1.8) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]||""}</svg>`;
+const BUBBLE = 'M30 0H90A30 30 0 0 1 120 30V58A30 30 0 0 1 90 88H46L22 110V88A22 24 0 0 1 0 64V30A30 30 0 0 1 30 0Z';
+const mark = (w, bubble="var(--sage)", dots="var(--bg)") => `<svg width="${w}" height="${Math.round(w*112/120)}" viewBox="0 0 120 112" aria-hidden="true"><path d="${BUBBLE}" style="fill:${bubble}"/><circle cx="35" cy="44" r="11" style="fill:${dots}"/><circle cx="63" cy="44" r="11" style="fill:${dots}"/><circle cx="88" cy="49" r="7" style="fill:${dots}"/></svg>`;
+const scrib = () => `<svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><path d="M1 6 C 15 2, 25 9, 40 5 S 70 2, 99 5" fill="none" stroke="var(--sage)" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg>`;
+const squiggle = w => `<svg width="${w}" height="12" viewBox="0 0 120 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8 C 22 2, 38 11, 60 6 S 98 2, 118 7" fill="none" stroke="var(--sage)" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
+const TICK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
+const TICKB = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
+const strikeIf = (on, t) => on ? `<span class="strike">${esc(t)}${scrib()}</span>` : esc(t);
+
+function face(m, size=36){
+  if(!m) return `<span class="face" style="width:${size}px;height:${size}px;background:var(--line)"></span>`;
+  const s = ["short","long","kid","baby"].includes(m.style) ? m.style : "short";
+  const small = s==="kid" || s==="baby", hr = small?9.5:10, hy = small?22:21;
+  const skin = okHex(m.skin, SKINS[1]), hair = okHex(m.hair, HAIRS[1]), c = okColor(m.color);
+  const hp = {
+    short:`<path d="M9.8 20.5 Q9.6 9.5 20 9.6 Q30.4 9.5 30.2 20.5 Q28.5 14.2 21 14.6 Q15 13.8 12.5 17 Q11 18.4 9.8 20.5Z" fill="${hair}"/>`,
+    long:`<circle cx="20" cy="8.6" r="4.6" fill="${hair}"/><path d="M9.6 25 Q8.6 10.6 20 10.8 Q31.4 10.6 30.4 25 Q29.4 15.8 20 15.2 Q12.6 15.4 9.6 25Z" fill="${hair}"/>`,
+    kid:`<path d="M10.6 20.5 Q10.2 12 20 11.8 Q29.8 12 29.4 20.5 L27 16.2 L24.4 18 L22 14.8 L19 17.6 L16.2 15 L13.6 17.8Z" fill="${hair}"/>`,
+    baby:`<path d="M19 13.2 q1.4 -4.4 4.6 -2.6 q-2.6 0.2 -2.4 3" fill="none" stroke="${hair}" stroke-width="1.6" stroke-linecap="round"/>`
+  }[s];
+  return `<span class="face" style="width:${size}px;height:${size}px" title="${esc(m.name)}"><svg width="${size}" height="${size}" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" style="fill:var(--m-${c}-bg)"/><path d="M7 41 Q8 31 20 31 Q32 31 33 41Z" style="fill:var(--m-${c})"/><circle cx="20" cy="${hy}" r="${hr}" fill="${skin}"/>${hp}<circle cx="14.6" cy="${hy+3.6}" r="1.6" fill="#E59A8A" opacity=".45"/><circle cx="25.4" cy="${hy+3.6}" r="1.6" fill="#E59A8A" opacity=".45"/><circle cx="16.6" cy="${hy+.6}" r="1.15" fill="#2F3B45"/><circle cx="23.4" cy="${hy+.6}" r="1.15" fill="#2F3B45"/><path d="M17.6 ${hy+4.2} Q20 ${hy+6.2} 22.4 ${hy+4.2}" fill="none" stroke="#2F3B45" stroke-width="1.1" stroke-linecap="round"/></svg></span>`;
+}
+function everyone(size=24){ return `<span class="faces">${sorted(S.members).slice(0,4).map(m=>face(m,size)).join("")}</span>`; }
+const whoFace = (id, size) => id==="all" ? everyone(Math.round(size*0.7)) : face(mem(id), size);
+
+/* ---------- state ---------- */
+const EMPTY = () => ({ usage:{}, custody:null, members:[], events:[], chores:[], items:[], meals:{}, notes:[], poll:null, baby:{}, routines:[], meds:[], health:[], contacts:[], school:[], home:[], docs:[], trips:[], countdowns:[], sitter:{}, tribe:null });
+const S = Object.assign({ status:"loading" }, EMPTY());
+const VIEWS = ["today","calendar","chores","lists","menu","baby","fridge","routines","health","school","sitter","home","docs","trips","trip","contacts","kid","family"];
+const UI = { view:"today", calDay: todayKey(), choreMember:null, list:"Groceries", mealWeek:0, calWeek:0, who:null, trip:null, kid:null, onboard:null, askWho:false };
+{ const h = (location.hash||"").slice(1), sv = store.get("ht-view"); UI.view = VIEWS.includes(h) && !["trip","kid"].includes(h) ? h : (VIEWS.includes(sv) && !["trip","kid"].includes(sv) ? sv : "today"); }
+let db = null, sampler = null, assets = null, TRIBE = null, unsubs = [];
+const P = p => "tribes/"+TRIBE+"/"+p;
+const mem = id => S.members.find(m => m.id === id);
+const memName = id => id === "all" ? "Everyone" : (mem(id)?.name || "Someone");
+const sorted = arr => arr.slice().sort((a,b)=>(a.order??99)-(b.order??99) || String(a.name).localeCompare(String(b.name)));
+const meKey = () => "ht-me-"+TRIBE;
+const meId = () => { const id = store.get(meKey()); return mem(id) ? id : (S.members.find(m=>m.style!=="baby"&&m.style!=="kid")?.id || S.members[0]?.id || null); };
+const babyMember = () => S.members.find(m => m.style === "baby");
+const kids = () => sorted(S.members).filter(m => m.style==="kid" || m.style==="baby");
+
+function knownTribes(){ try { const a = JSON.parse(store.get("ht-tribes")||"[]"); return Array.isArray(a) ? a.filter(t=>t && typeof t.code==="string") : []; } catch(e){ return []; } }
+function rememberTribe(code, name){ const all = knownTribes(), old = all.find(t=>t.code===code); const a = all.filter(t=>t.code!==code); a.unshift({ code, name: name || old?.name || code }); store.set("ht-tribes", JSON.stringify(a.slice(0,8))); }
+function forgetTribe(code){ store.set("ht-tribes", JSON.stringify(knownTribes().filter(t=>t.code!==code))); }
+function clearHash(){ try { history.replaceState(null, "", location.pathname + location.search); } catch(e){} }
+
+/* ---------- render ---------- */
+function render(){
+  const app = $("#app");
+  const ready = S.status === "ready" && S.members.length;
+  document.body.classList.toggle("kidmode", !!ready && UI.view === "kid");
+  $("nav.bar").hidden = !ready;
+  $("#side").hidden = !ready || UI.view === "kid";
+  document.body.classList.toggle("has-side", !!ready && UI.view !== "kid");
+  app.dataset.view = ready ? UI.view : S.status;
+  const f = document.activeElement, fid = f && f.id, fval = f && "value" in f ? f.value : null, sel = f && f.selectionStart;
+  let html;
+  if(S.status === "loading") html = loading();
+  else if(S.status === "offline") html = offline();
+  else if(S.status === "auth") html = authScreen();
+  else if(S.status === "welcome") html = welcome();
+  else if(S.status === "pending") html = pendingScreen();
+  else if(!S.members.length) html = setup();
+  else { html = (VIEWFN[UI.view] || today)(); if(groupOf(UI.view)) html = groupBar() + html; if(OFFLINE && TRIBE !== "SAMPLE") html = `<div class="samplebar offbar"><span>You're offline. Showing what was saved on this device; changes need a connection.</span></div>` + html; if(TRIBE === "SAMPLE") html = `<div class="samplebar"><span>Sample family. Changes stay on this device.</span><button data-act="sample-exit">${SESSION ? "Back to my tribe" : "Make my own"}</button></div>` + html; }
+  app.innerHTML = html;
+  if(ready) renderNav();
+  if(ready) deskLayout(app);
+  const on = $(".gtab.on"); if(on){ const bar = on.parentElement; bar.scrollLeft = Math.max(0, on.offsetLeft - bar.offsetLeft - 24); }
+  if(fid && !$("#scrim")){ const el = document.getElementById(fid); if(el){ if(fval!==null && el.value!==fval) el.value = fval; el.focus(); try{ if(sel!=null) el.setSelectionRange(sel,sel); }catch(e){} } }
+}
+/* five tabs; every feature lives in one of three sections with its own short tab row */
+const GROUPS = {
+  plan: { label:"Plan", icon:"cal", views:[["calendar","Calendar"],["lists","Lists"],["menu","Dinner"],["trips","Trips"]] },
+  kids: { label:"Kids", icon:"smile", views:[["chores","Chores"],["routines","Routines"],["school","School"],["baby","Baby"]] },
+  home: { label:"Home", icon:"home", views:[["home","Bills"],["health","Health"],["docs","Documents"],["contacts","Contacts"],["sitter","Sitter"]] }
+};
+function groupOf(v){ if(v === "trip") return "plan"; return Object.keys(GROUPS).find(g => GROUPS[g].views.some(x => x[0] === v)) || null; }
+function lastIn(g){ const v = store.get("ht-last-"+g); return GROUPS[g].views.some(x=>x[0]===v) ? v : GROUPS[g].views[0][0]; }
+function groupBar(){
+  const g = groupOf(UI.view), cur = UI.view === "trip" ? "trips" : UI.view;
+  return `<div class="gbar"><div class="gtabs" role="tablist" aria-label="${GROUPS[g].label}">${GROUPS[g].views.map(([v,l])=>`<button class="gtab ${cur===v?"on":""}" data-go="${v}" role="tab" aria-selected="${cur===v}">${l}</button>`).join("")}${g==="kids"?`<button class="gtab kidv" data-act="kid-pick">${ico("smile",15,2)} Kid view</button>`:""}</div><button class="gme" data-go="family" aria-label="Family and settings">${face(mem(meId()),34)}</button></div>`;
+}
+function renderNav(){
+  renderSide();
+  const cg = groupOf(UI.view);
+  const t = (v,ic,l) => `<button class="tab ${UI.view===v?"on":""}" data-go="${v}" aria-label="${l}">${ico(ic,24,UI.view===v?2:1.7)}<span>${l}</span></button>`;
+  const gt = g => `<button class="tab ${cg===g?"on":""}" data-go="${lastIn(g)}" aria-label="${GROUPS[g].label}">${ico(GROUPS[g].icon,24,cg===g?2:1.7)}<span>${GROUPS[g].label}</span></button>`;
+  $("#nav").innerHTML = t("today","sun","Today") + gt("plan") + `<button class="mic" data-act="ht" aria-label="Hey Tribe">${mark(48)}</button>` + gt("kids") + gt("home");
+}
+function renderSide(){
+  const side = $("#side"); if(!side) return;
+  const me = mem(meId()), cur = UI.view === "trip" ? "trips" : UI.view;
+  const item = (v, ic, l) => `<button class="side-i ${cur===v?"on":""}" data-go="${v}">${ico(ic,19,cur===v?2.1:1.8)}<span>${l}</span></button>`;
+  const ICON = { calendar:"cal", lists:"cart", menu:"pot", trips:"plane", chores:"check", routines:"sun", school:"book", baby:"bottle", home:"dollar", health:"heart", docs:"file", contacts:"phone", sitter:"shield" };
+  const sec = g => `<div class="side-g"><span class="side-h">${GROUPS[g].label}</span>${GROUPS[g].views.map(([v,l]) => item(v, ICON[v] || "note", l)).join("")}${g==="kids"?`<button class="side-i" data-act="kid-pick">${ico("smile",19,1.8)}<span>Kid view</span></button>`:""}</div>`;
+  side.innerHTML = `<div class="side-top"><div class="row" style="gap:8px">${mark(26)}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div>
+    <button class="side-tribe" data-go="family"><span class="col" style="min-width:0;text-align:left"><b>${esc(S.tribe?.name || "Your tribe")}</b><small>Code ${esc(TRIBE||"")}</small></span>${ico("fwd",16,2)}</button></div>
+    <button class="side-ht" data-act="ht">${mark(22,"#fff","var(--sage)")}<span>Tell Hey Tribe</span></button>
+    <button class="side-i" data-act="search" style="border:1px solid var(--line)">${ico("search",18,1.9)}<span class="grow">Search</span><span class="small" style="border:1px solid var(--line);border-radius:6px;padding:0 6px">/</span></button>
+    <nav class="side-nav">${item("today","sun","Today")}${sec("plan")}${sec("kids")}${sec("home")}</nav>
+    <button class="side-me ${cur==="family"?"on":""}" data-go="family">${face(me,34)}<span class="col" style="min-width:0;text-align:left"><b>${esc(me?.name || "You")}</b><small>${esc(SESSION?.user?.email || "Family and settings")}</small></span>${ico("gear",18,1.8)}</button>`;
+}
+function go(v){ if(!VIEWS.includes(v) || v === "fridge") v = "today"; UI.view = v; if(!["trip","kid"].includes(v)) store.set("ht-view", v); const g = groupOf(v); if(g && v !== "trip") store.set("ht-last-"+g, v); window.scrollTo(0,0); render(); }
+
+function pageHead(title, actions="", back="today", sub=""){
+  const backLabel = back==="today" ? "Today" : back==="trips" ? "Trips" : "Back";
+  const inSection = back === "today" && !!groupOf(UI.view);
+  const backBtn = inSection ? "" : `<button class="small row" data-go="${back}" style="gap:4px;font-weight:600">${ico("back",14,2.4)}${backLabel}</button>`;
+  return `<div class="between" style="align-items:flex-start"><div class="col" style="gap:6px;min-width:0">${backBtn}<h1 class="title">${title}</h1>${sub?`<span class="small" style="font-size:14px">${sub}</span>`:""}</div><div class="row" style="gap:8px;flex-shrink:0;margin-top:${inSection?4:24}px">${actions}</div></div>`;
+}
+const addBtn = (attrs, label) => `<button class="iconbtn solid" ${attrs} aria-label="${esc(label)}">${ico("plus",20,2.2)}</button>`;
+const secHead = (label, attrs, action) => `<div class="sechead"><span class="eyebrow">${label}</span>${attrs?`<button ${attrs}>+ ${esc(action)}</button>`:""}</div>`;
+function personChips(sel, act, list){ return `<div class="chips" style="margin-top:14px">${(list||sorted(S.members)).map(p=>`<button class="chip ${p.id===sel?"on":""}" data-act="${act}" data-id="${esc(p.id)}">${face(p,28)}${esc(p.name)}</button>`).join("")}</div>`; }
+function pickWho(pool, def){ pool = pool || S.members; if(!UI.who || !pool.some(m=>m.id===UI.who)) UI.who = (pool.find(m=>m.id===def) || pool[0] || {}).id || null; return UI.who; }
+
+function loading(){ return `<div class="col" style="gap:18px;padding-top:40px;align-items:center;text-align:center">${mark(56)}<div class="serif" style="font-size:26px">Gathering your tribe…</div><div class="small">Syncing plans, chores and lists.</div></div>`; }
+function offline(){ return `<div class="col" style="gap:16px;padding-top:40px">${mark(44)}<h1 class="title">Can't reach HeyTribe</h1><p class="small" style="font-size:15px;line-height:1.5">Check your connection and try again. Anything you already see is safe.</p><button class="btn primary" onclick="location.reload()">Try again</button></div>`; }
+function authScreen(){
+  const m = UI.auth || "signin";
+  const logo = `<div class="row" style="gap:8px">${mark(26)}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div>`;
+  const email = (v="") => `<div class="field"><label for="au-email">Email</label><input id="au-email" name="email" type="${m==="signin"?"text":"email"}" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="username" required value="${esc(v)}" ${m!=="reset"?"autofocus":""}></div>`;
+  const pw = (id, label, ac) => `<div class="field"><label for="${id}">${label}</label><input id="${id}" name="${id==="au-pw2"?"password2":"password"}" type="password" minlength="8" autocomplete="${ac}" required></div>`;
+  const err = `<p class="form-err small" id="au-err" role="alert">${esc(UI.authErr||"")}</p>`;
+  const link = (mode, t) => `<button type="button" class="small" data-act="auth-mode" data-mode="${mode}" style="font-weight:600;color:var(--sage-ink)">${t}</button>`;
+  let body;
+  if(m === "signup") body = `<form data-form="auth-signup" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Make your <em>account</em></h1>
+      <p class="small" style="font-size:15px;margin:0">One login per person. Then start your tribe or join your family's with their code.</p>
+      ${email(UI.authEmail)}${pw("au-pw","Password (8 or more characters)","new-password")}
+      <button class="btn primary" id="au-go">Create account</button>${err}
+      <p class="small" style="margin:0">Already have one? ${link("signin","Log in")}</p></form>`;
+  else if(m === "forgot") body = `<form data-form="auth-forgot" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Reset your <em>password</em></h1>
+      <p class="small" style="font-size:15px;margin:0">We'll email you a link to choose a new one.</p>
+      ${email(UI.authEmail)}<button class="btn primary" id="au-go">Send the link</button>${err}
+      <p class="small" style="margin:0">${link("signin","Back to log in")}</p></form>`;
+  else if(m === "reset") body = `<form data-form="auth-reset" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Choose a new <em>password</em></h1>
+      ${pw("au-pw","New password (8 or more characters)","new-password")}<button class="btn primary" id="au-go">Save password</button>${err}</form>`;
+  else if(m === "check") body = `<div class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Check your <em>email</em></h1>
+      <p style="font-size:16px;line-height:1.5;margin:0;color:var(--muted)">${esc(UI.authMsg||"We sent you a link. Open it on this device to finish.")}</p>
+      <p class="small" style="margin:0">${link("signin","Back to log in")}</p></div>`;
+  else body = `<form data-form="auth-signin" class="col" style="gap:14px"><h1 class="title" style="font-size:44px">Welcome <em>back.</em></h1>
+      ${email(UI.authEmail)}${pw("au-pw","Password","current-password")}
+      <button class="btn primary" id="au-go">Log in</button>${err}
+      <div class="between" style="flex-wrap:wrap;gap:8px">${link("forgot","Forgot password?")}<span class="small">New here? ${link("signup","Make an account")}</span></div></form>`;
+  const langSw = `<button class="small lang-sw" data-act="lang" data-l="${((window.HTi18n&&HTi18n.lang)||"en")==="es"?"en":"es"}" data-no-tr>${((window.HTi18n&&HTi18n.lang)||"en")==="es"?"English":"Español"}</button>`;
+  return `<div class="col" style="gap:22px;padding-top:18px"><div class="between">${logo}${langSw}</div>${body}
+    ${m==="signin"||m==="signup"?`<button class="choice" data-act="try-sample"><span class="lic" style="background:var(--m-rose-bg);color:var(--m-rose)">${ico("smile",24)}</span><span class="col grow"><b style="font-weight:600;font-size:16px">Look around with a sample family</b><span class="small">No account needed</span></span>${ico("fwd",18,2)}</button>`:""}${m==="signin"?installCard():""}</div>`;
+}
+
+/* ---------- WELCOME (start / join / sample) ---------- */
+function pendingScreen(){
+  return `<div class="col" style="gap:18px;padding-top:30px">${mark(48)}
+    <h1 class="title">Waiting for <em>approval</em></h1>
+    <p style="margin:0;color:var(--muted);line-height:1.55">You asked to join the family with code <b class="sel" data-no-tr>${esc(PENDING[0]||"")}</b>. A parent in that family needs to approve you. Ask them to open HeyTribe and check Family &amp; settings.</p>
+    <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn primary" data-act="pending-check">Check again</button><button class="btn ghost" data-act="pending-cancel">Cancel request</button></div>
+    <button class="small" data-act="onboard" data-mode="" style="text-align:left;font-weight:600;text-decoration:underline;text-underline-offset:3px">Start or join a different family</button>
+    ${SESSION?`<p class="small" style="margin:0">Signed in as ${esc(SESSION.user.email||"")} · <button class="small" data-act="sign-out" style="font-weight:600;text-decoration:underline;text-underline-offset:3px">Log out</button></p>`:""}</div>`;
+}
+function welcome(){
+  const o = UI.onboard, known = knownTribes();
+  const logo = `<div class="row" style="gap:8px">${mark(26)}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div>`;
+  const choice = (mode, ic, tone, t, s) => `<button class="choice" data-act="onboard" data-mode="${mode}"><span class="lic" style="background:var(--m-${tone}-bg);color:var(--m-${tone})">${ico(ic,24)}</span><span class="col grow"><b style="font-weight:600;font-size:16px">${t}</b><span class="small">${s}</span></span>${ico("fwd",18,2)}</button>`;
+  let body;
+  if(o === "create") body = `<form data-form="create-tribe" class="col" style="gap:14px">
+      <h2 class="serif" style="font-size:30px;margin:0">Start your tribe</h2>
+      <div class="field"><label for="tb-name">Family name</label><input id="tb-name" name="tribe" maxlength="40" placeholder="The Rivera family" required autofocus></div>
+      <div class="field"><label for="tb-you">Your first name</label><input id="tb-you" name="you" maxlength="20" placeholder="Alex" required></div>
+      <button class="btn primary" id="tb-go">Create our tribe</button>
+      <p class="form-err small" id="tb-err" role="alert"></p>
+      <button type="button" class="small" data-act="onboard" data-mode="" style="font-weight:600">Back</button></form>`;
+  else if(o === "join") body = `<form data-form="join-tribe" class="col" style="gap:14px">
+      <h2 class="serif" style="font-size:30px;margin:0">Join your family</h2>
+      <p class="small" style="font-size:14px;margin:0">Ask someone in your tribe for the 6-character code. They'll find it under Family &amp; settings.</p>
+      <div class="field"><label for="jn-code">Invite code</label><input id="jn-code" name="code" maxlength="8" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="K7Q2PX" required autofocus style="text-transform:uppercase;letter-spacing:4px;font-size:22px"></div>
+      <button class="btn primary" id="jn-go">Join</button>
+      <p class="form-err small" id="jn-err" role="alert"></p>
+      <button type="button" class="small" data-act="onboard" data-mode="" style="font-weight:600">Back</button></form>`;
+  else body = `<div class="col" style="gap:10px">
+      ${choice("create","plus","sage","Start a new tribe","Set up your family in two minutes")}
+      ${choice("join","users","blue","Join with an invite code","Someone in your family already started one")}
+      <button class="choice" data-act="try-sample"><span class="lic" style="background:var(--m-rose-bg);color:var(--m-rose)">${ico("smile",24)}</span><span class="col grow"><b style="font-weight:600;font-size:16px">Look around with a sample family</b><span class="small">A shared demo anyone can try</span></span>${ico("fwd",18,2)}</button></div>`;
+  return `<div class="col" style="gap:22px;padding-top:18px">${logo}
+    ${!o?`<h1 class="title" style="font-size:44px">The whole family,<br><em>finally</em> in sync.</h1>
+    <p style="color:var(--muted);font-size:16px;line-height:1.5;margin:0">Plans, chores, lists, meds, bills and the baby's naps, shared live with everyone in your house.</p>`:""}
+    ${body}
+    ${!o && known.length?`<div class="col" style="gap:8px"><span class="eyebrow">Your tribes</span>${known.map(t=>`<button class="choice" data-act="switch-tribe" data-code="${esc(t.code)}"><span class="lic" style="background:var(--sage-soft);color:var(--sage-ink)">${ico("home",22)}</span><span class="col grow"><b style="font-weight:600">${esc(t.name)}</b><span class="small">Code ${esc(t.code)}</span></span>${ico("fwd",18,2)}</button>`).join("")}</div>`:""}
+    ${SESSION?`<p class="small" style="margin:0">Signed in as ${esc(SESSION.user.email||"")} · <button class="small" data-act="sign-out" style="font-weight:600;text-decoration:underline;text-underline-offset:3px">Log out</button></p>`:""}
+    ${TRIBE && S.members.length?`<button class="small" data-act="back-tribe" style="font-weight:600;text-align:left">Back to ${esc(S.tribe?.name || "your tribe")}</button>`:""}
+  </div>`;
+}
+function setup(){
+  return `<div class="col" style="gap:18px;padding-top:24px">
+    <div class="row" style="gap:8px">${mark(24)}<span style="font-size:18px">hey<b style="font-weight:800">tribe</b></span></div>
+    <h1 class="title">${esc(S.tribe?.name || "Your tribe")} is ready</h1>
+    <div class="empty"><span class="hand">nobody here yet</span>Add yourself first, then your partner and kids.</div>
+    <button class="btn dark" data-act="member-new">Add a family member</button>
+    <button class="small" data-act="onboard" data-mode="" style="font-weight:600">Switch tribe</button></div>`;
+}
+
+/* ---------- events ---------- */
+const REPEATS = [["","Just once"],["weekly","Every week"],["biweekly","Every 2 weeks"],["monthly","Every month"],["yearly","Every year"]];
+const repLabel = r => ({ weekly:"every week", biweekly:"every 2 weeks", monthly:"every month", yearly:"every year" })[r] || "";
+function occursOn(e, day){
+  if(e.skip && e.skip[day]) return false;
+  if(e.date === day) return true;
+  if(e.endDate && e.date < day && day <= e.endDate) return true;
+  if(!e.repeat || !e.date || e.date > day || (e.until && e.until < day)) return false;
+  const a = fromYmd(e.date), b = fromYmd(day);
+  if(e.repeat === "weekly") return dowIdx(a) === dowIdx(b);
+  if(e.repeat === "biweekly") return dowIdx(a) === dowIdx(b) && Math.round((b - a) / 864e5 / 7) % 2 === 0;
+  if(e.repeat === "monthly"){ const last = daysIn(b.getFullYear(), b.getMonth()); return b.getDate() === Math.min(a.getDate(), last); }
+  if(e.repeat === "yearly") return a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return false;
+}
+function eventsOn(day){ return S.events.filter(e => occursOn(e, day)).sort((a,b)=>(b.allDay?1:0)-(a.allDay?1:0) || a.start-b.start); }
+function conflictFor(e, day){ if(!e.driver || e.allDay) return null; return eventsOn(day).find(o => o.id!==e.id && o.member===e.driver && o.start < e.end && o.end > e.start - 30) || null; }
+function nextFor(test, horizon=90){ const now = nowMin(), k = todayKey(); for(let i=0;i<=horizon;i++){ const day = ymd(addDays(new Date(), i)); const hit = eventsOn(day).find(e => !e.allDay && test(e) && (day!==k || e.start > now)); if(hit) return { e: hit, day }; } return null; }
+
+/* ---------- smart layer ---------- */
+function medActive(m, day){ return (!m.start || m.start <= day) && (!m.until || m.until >= day); }
+function billState(b){
+  const t = fromYmd(todayKey()), y = t.getFullYear(), m = t.getMonth();
+  const dd = Math.min(Math.max(1, Number(b.dueDay)||1), daysIn(y,m)), due = new Date(y, m, dd), mk = monthKey(due);
+  if(b.paid && b.paid[mk]){ const nd = new Date(y, m+1, Math.min(Number(b.dueDay)||1, daysIn(y, m+1))); return { paid:true, mk, date: ymd(nd), days: dayDiff(ymd(t), ymd(nd)) }; }
+  return { paid:false, mk, date: ymd(due), days: dayDiff(ymd(t), ymd(due)) };
+}
+function upkeepNext(u){ const k = todayKey(); if(!u.last) return { date:k, days:0 }; const d = fromYmd(u.last); d.setMonth(d.getMonth() + (Number(u.every)||3)); return { date: ymd(d), days: dayDiff(k, ymd(d)) }; }
+function subNext(s){ if(!s.renews) return null; const t = fromYmd(todayKey()); const d = fromYmd(s.renews); let guard = 0; while(d < t && guard++ < 400){ if(s.cycle === "yearly") d.setFullYear(d.getFullYear()+1); else d.setMonth(d.getMonth()+1); } return { date: ymd(d), days: dayDiff(ymd(t), ymd(d)) }; }
+function headsUpAccess(){ return isParent() ? LOGINS.filter(l => l.status === "pending").map(l => ({ tone:"sand", text: l.email + " asked to join the family" })) : []; }
+function headsUp(){
+  const out = [], k = todayKey(), now = nowMin();
+  S.meds.forEach(m => { if(!medActive(m,k)) return; (m.times||[]).forEach(t => { const tm = fromHHMM(t), g = m.log && m.log[k] && m.log[k][t]; if(!g && tm <= now + 90) out.push({ p: tm < now ? 1 : 2, tone:"blue", go:"health", who:m.member, text:`${m.name} for ${memName(m.member)} ${tm < now ? "was due at" : "due at"} ${fmtT(tm)}` }); }); });
+  S.home.filter(b => b.kind==="bill" && !b.autopay).forEach(b => { const n = billState(b); if(!n.paid && n.days <= 5) out.push({ p: n.days < 0 ? 1 : 3, tone:"sand", go:"home", text:`${b.name}${b.amount ? " ("+money(b.amount)+")" : ""} ${n.days < 0 ? "is overdue" : "due "+rel(n.days)}` }); });
+  S.school.filter(x => x.kind==="slip" && !x.done && x.due).forEach(x => { const d = dayDiff(k, x.due); if(d <= 4) out.push({ p: d < 0 ? 1 : 3, tone:"rose", go:"school", who:x.member, text:`Sign “${x.title}” ${d < 0 ? "(was due "+fmtDay(x.due)+")" : d===0 ? "today" : "by "+(d===1 ? "tomorrow" : fmtDayW(x.due))}` }); });
+  S.home.filter(u => u.kind==="upkeep").forEach(u => { const n = upkeepNext(u); if(n.days <= 0) out.push({ p:4, tone:"olive", go:"home", text:`${u.name} ${n.days < 0 ? "is overdue" : "is due"}` }); });
+  S.docs.filter(d => d.expires).forEach(d => { const n = dayDiff(k, d.expires); if(n <= 60) out.push({ p: n < 0 ? 2 : 4, tone:"rose", go:"docs", text:`${d.member && d.member!=="all" ? memName(d.member)+"'s " : ""}${d.title} ${n < 0 ? "expired "+fmtDay(d.expires) : "expires "+rel(n)}` }); });
+  S.health.filter(r => r.next).forEach(r => { const n = dayDiff(k, r.next); if(n >= 0 && n <= 14) out.push({ p:5, tone:"blue", go:"health", who:r.member, text:`${memName(r.member)}: ${r.title} ${rel(n)}` }); });
+  S.trips.forEach(t => { if(!t.start) return; const n = dayDiff(k, t.start); if(n >= 0 && n <= 10){ const pk = t.packing||[], done = pk.filter(x=>x.packed).length; out.push({ p:5, tone:"sage", go:"trip", trip:t.id, text:`${t.name} ${rel(n)}${pk.length ? ` · ${done} of ${pk.length} packed` : ""}` }); } });
+  return out.sort((a,b)=>a.p-b.p);
+}
+
+/* ---------- COUNTDOWNS ---------- */
+function cdNext(c){
+  const k = todayKey();
+  if(!c.date) return null;
+  if(!c.yearly) return c.date;
+  const d = fromYmd(c.date), t = fromYmd(k); let n = new Date(t.getFullYear(), d.getMonth(), d.getDate());
+  if(n < t) n = new Date(t.getFullYear()+1, d.getMonth(), d.getDate());
+  return ymd(n);
+}
+function countdownsUpcoming(){ const k = todayKey(); return S.countdowns.map(c => { const d = cdNext(c); return d ? { c, d, n: dayDiff(k, d) } : null; }).filter(x => x && x.n >= 0).sort((a,b) => a.n - b.n); }
+function countdownRow(){
+  const list = countdownsUpcoming();
+  const card = ({c,d,n}) => { const tone = COLORS.includes(c.tone) ? c.tone : "sage";
+    return `<button class="cd ${n===0?"cd-today":""}" data-act="ent-edit" data-kind="countdown" data-id="${esc(c.id)}" style="background:var(--m-${tone}-bg)">
+      <span class="cd-face">${c.member && c.member!=="all" ? face(mem(c.member),26) : ""}</span>
+      <span class="cd-n tabular">${n===0?"Today!":n}</span>
+      <span class="cd-u">${n===0?"it's here":n===1?"day to go":"days to go"}</span>
+      <span class="cd-t">${esc(c.title)}</span>
+      <span class="cd-d">${esc(fmtDayW(d))}${c.yearly?" · yearly":""}</span></button>`; };
+  return `<div class="cdrow">${list.map(card).join("")}<button class="cd cd-add" data-act="ent-new" data-kind="countdown">${ico("plus",22,2)}<span class="cd-t">${list.length?"Add another":"Add a countdown"}</span><span class="cd-d">Birthdays, trips, the last day of school</span></button></div>`;
+}
+
+/* ---------- TODAY layout (each person picks their own) ---------- */
+const HSECS = [["attention","Needs attention","bell"],["countdowns","Counting down","clock"],["plans","Today's plans","cal"],["fridge","On the fridge","note"],["glance","At a glance","grid"]];
+const GPANELS = [["chores","Chores"],["dinner","Dinner"],["groceries","Groceries"],["meds","Meds today"],["bills","Bills to pay"],["routines","Routines"],["baby","Baby log"],["school","School forms"]];
+function layoutOf(){
+  const L = (mem(meId())||{}).layout || {}, known = HSECS.map(x=>x[0]);
+  const order = (Array.isArray(L.order)?L.order:[]).filter(k=>known.includes(k)); known.forEach(k => { if(!order.includes(k)) order.push(k); });
+  const arr = a => Array.isArray(a) ? a.filter(x=>typeof x==="string") : [];
+  return { order, hidden: arr(L.hidden), panels: arr(L.panels), brief: L.brief !== false };
+}
+function saveLayout(L){ const m = mem(meId()); if(!m) return; m.layout = { order:L.order, hidden:L.hidden, panels:L.panels, brief:L.brief }; render(); layoutSheet(); W.upd("members/"+m.id, { layout: m.layout }); }
+function layoutSheet(){
+  const L = layoutOf(), sw = (on, act, k, label) => `<button class="tsw ${on?"on":""}" role="switch" aria-checked="${on}" data-act="${act}" data-k="${k}" aria-label="Show ${esc(label)}"><i></i></button>`;
+  const rows = L.order.map((k,i) => { const d = HSECS.find(x=>x[0]===k), on = !L.hidden.includes(k);
+    return `<div class="lay-r ${on?"":"off"}"><span class="lay-i">${ico(d[2],17,2)}</span><b class="grow">${d[1]}</b>
+      <button class="iconbtn sm" data-act="lay-move" data-k="${k}" data-dir="-1" aria-label="Move ${d[1]} up" ${i===0?"disabled":""}>${ico("up",16,2.2)}</button>
+      <button class="iconbtn sm" data-act="lay-move" data-k="${k}" data-dir="1" aria-label="Move ${d[1]} down" ${i===L.order.length-1?"disabled":""}>${ico("down",16,2.2)}</button>
+      ${sw(on,"lay-sec",k,d[1])}</div>`; }).join("");
+  const panels = GPANELS.map(([k,l]) => { const on = !L.panels.includes(k); return `<div class="lay-r sm ${on?"":"off"}"><b class="grow">${l}</b>${sw(on,"lay-panel",k,l)}</div>`; }).join("");
+  const html = `<div class="col" style="gap:4px"><h2 class="serif" style="font-size:28px;margin:0">Your Today screen</h2><p class="small" style="margin:2px 0 12px">Pick what shows and in what order. This only changes your view, ${esc(memName(meId()))}.</p></div>
+    <div class="lay-r"><span class="lay-i">${ico("sun",17,2)}</span><b class="grow">Morning briefing</b>${sw(L.brief,"lay-brief","brief","Morning briefing")}</div>
+    <span class="eyebrow" style="display:block;margin:16px 0 6px">Sections</span>${rows}
+    <span class="eyebrow" style="display:block;margin:16px 0 6px">At a glance cards</span><div class="lay-grid">${panels}</div>
+    <div class="row" style="gap:10px;margin-top:18px"><button class="btn ghost grow" data-act="lay-reset">Reset to default</button><button class="btn primary grow" data-act="lay-done">Done</button></div>`;
+  const sh = $("#scrim .sheet.lay");
+  if(sh){ const st = sh.scrollTop; sh.innerHTML = `<div class="grab"></div>` + html; sh.scrollTop = st; }
+  else { openSheet(html); $("#scrim .sheet").classList.add("lay"); }
+}
+
+/* ---------- TODAY: the family fridge + dashboard ---------- */
+const sect = (tone, icon, title, action, body) => `<section class="dsec ${tone?"t-"+tone:"plain"}"><div class="dsec-h"><span class="dsec-i">${ico(icon,17,2)}</span><h2>${title}</h2>${action||""}</div>${body}</section>`;
+const sAct = (attrs, label) => `<button class="dsec-a" ${attrs}>+ ${label}</button>`;
+function today(){
+  const d = new Date(), key = todayKey(), me = mem(meId()), now = nowMin();
+  const evs = eventsOn(key), next = evs.find(e => !e.allDay && e.end > now);
+  const groceries = S.items.filter(i => !i.checked && (i.list||"Groceries")==="Groceries");
+  const due = S.chores.filter(c => (c.days||[0,1,2,3,4,5,6]).includes(dowIdx(d)));
+  const doneCount = due.filter(c => c.done && c.done[key]).length;
+  const hr = d.getHours(), hi = hr<12 ? "Morning" : hr<17 ? "Afternoon" : "Evening";
+  let brief = evs.length ? `${evs.length} ${evs.length===1?"plan":"plans"} today.` : "Nothing on the calendar today.";
+  if(next) brief += ` Next up: <b style="font-weight:600">${esc(next.title)}</b> at ${fmtT(next.start)}${next.member&&next.member!=="all"?" with "+esc(memName(next.member)):""}${next.driver?", "+esc(memName(next.driver))+" driving":""}.`;
+  else if(evs.length) brief += " That's everything for today.";
+  const cdToday = countdownsUpcoming().filter(x => x.n === 0);
+  if(cdToday.length) brief = `<b style="font-weight:600">Today's the day: ${cdToday.map(x=>esc(x.c.title)).join(", ")}!</b> ` + brief;
+  if(S.meals[key]?.dish) brief += ` Dinner is <b style="font-weight:600">${esc(S.meals[key].dish)}</b>.`;
+  if(custodyOn(key)) brief += " " + custodyLine(key);
+  const hu = [...headsUpAccess(), ...headsUp()];
+  let tl = "", nowPlaced = false;
+  const nowRow = `<div class="nowline" aria-hidden="true"><i></i><b></b><span>now</span></div>`;
+  evs.forEach(e => {
+    if(!nowPlaced && !e.allDay && e.start > now){ tl += nowRow; nowPlaced = true; }
+    const sub = [e.member==="all"?"Everyone":memName(e.member), e.driver?memName(e.driver)+" drives":"", e.place||""].filter(Boolean).join(" · ");
+    tl += `<button class="tl ${e.end<=now?"past":""}" data-act="event" data-id="${esc(e.id)}" data-day="${key}"><span class="t tabular">${e.allDay?"All day":fmtT(e.start)}</span><span class="d"></span><span class="col grow" style="gap:2px"><span class="name" style="font-size:16px;font-weight:500">${esc(e.title)}${e.repeat?` <span style="color:var(--faint)">${ico("repeat",13,2)}</span>`:""}</span><span class="small">${esc(sub)}</span></span>${whoFace(e.member,30)}</button>`;
+  });
+  if(evs.length && !nowPlaced) tl += nowRow;
+  return `
+  <div class="between" style="align-items:flex-end">
+    <div><div class="eyebrow">${esc(S.tribe?.name || "")} · ${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}</div><h1 class="title" style="font-size:44px;margin-top:4px">${DOW_LONG[dowIdx(d)]}</h1></div>
+    <div class="row" style="gap:10px"><button class="iconbtn" data-act="search" aria-label="Search everything">${ico("search",19,2)}</button><button data-go="family" aria-label="Family and settings">${face(me,46)}</button></div>
+  </div>
+  ${setupCard()}
+  ${annCard()}
+  ${layoutOf().brief ? `<div class="brief" style="margin-top:18px">
+    <div class="hi">${hi}, ${esc(me?.name||"there")} —</div>
+    <div style="font-size:15px;line-height:1.5;margin-top:6px">${brief}</div>
+    <button class="row" data-act="ht" style="gap:6px;margin-top:10px">${mark(16)}<span class="small" style="text-decoration:underline;text-underline-offset:3px">Tell Hey Tribe something</span></button>
+  </div>` : ""}
+  ${(()=>{ const L = layoutOf(), SEC = {
+    attention: () => hu.length ? sect("rose", "bell", "Needs attention", `<span class="small">${hu.length}</span>`, `<div class="attn">${hu.slice(0,UI.allAttn?99:4).map(h=>`<div class="attn-r"><span class="dot" style="background:var(--${h.tone})"></span><span class="grow">${esc(h.text)}</span></div>`).join("")}${hu.length>4&&!UI.allAttn?`<button class="attn-more" data-act="attn-all">Show ${hu.length-4} more</button>`:""}</div>`) : "",
+    countdowns: () => sect("", "clock", "Counting down", sAct('data-act="ent-new" data-kind="countdown"', "Add"), countdownRow()),
+    plans: () => sect("blue", "cal", "Today's plans", sAct(`data-act="event-new" data-day="${key}"`, "Add"), evs.length ? `<div class="timeline">${tl}</div>` : `<div class="empty"><span class="hand">a clear day</span>Add a plan, or tell Hey Tribe what's coming up.</div>`),
+    fridge: () => sect("sage", "note", "On the fridge", sAct('data-act="note-new"', "Note"), fridgeBoard()),
+    glance: () => { const g = glance(key, due, doneCount, groceries, L.panels); return g ? sect("sand", "grid", "At a glance", "", g) : ""; }
+  };
+  return `<div class="dash">` + L.order.filter(k => !L.hidden.includes(k)).map(k => SEC[k]().replace('<section class="dsec', `<section data-k="${k}" class="dsec`)).join("") + `</div><button class="custbtn" data-act="layout">${ico("sliders",17,2)} Customize this screen</button>`; })()}`;
+}
+function glance(key, due, doneCount, groceries, hiddenPanels=[]){
+  const panel = (tone, ic, title, big, body, wide) => `<div class="gp ${wide?"wide":""}"><div class="gp-h"><span class="ic" style="background:var(--m-${tone}-bg);color:var(--m-${tone})">${ico(ic,16)}</span><span>${title}</span></div>${big?`<div class="gp-big">${big}</div>`:""}${body||""}</div>`;
+  const li = (a, b, done) => `<div class="gp-li ${done?"done":""}"><span class="grow">${a}</span>${b?`<span class="small tabular">${b}</span>`:""}</div>`;
+  // chores per person
+  const kids = sorted(S.members).filter(m=>m.style!=="baby");
+  const chores = kids.map(m => { const mine = due.filter(c=>c.member===m.id); if(!mine.length) return ""; const dn = mine.filter(c=>c.done&&c.done[key]).length;
+    return `<div class="gp-who">${face(m,24)}<span class="grow" style="font-size:13.5px">${esc(m.name)}</span><span class="meter sm"><i style="width:${Math.round(dn/mine.length*100)}%"></i></span><span class="small tabular">${dn}/${mine.length}</span></div>`; }).join("");
+  // dinner: tonight + next two days
+  const meals = [0,1,2].map(i => { const k = ymd(addDays(new Date(), i)); return li(i===0 ? "<b style='font-weight:600'>Tonight</b>" : esc(DOW[dowIdx(fromYmd(k))]), esc(S.meals[k]?.dish || "not planned")); }).join("");
+  // meds
+  const doses = []; S.meds.forEach(m => { if(!medActive(m,key)) return; (m.times||[]).forEach(t => doses.push({ m, t, given: !!(m.log&&m.log[key]&&m.log[key][t]) })); });
+  doses.sort((a,b)=>fromHHMM(a.t)-fromHHMM(b.t));
+  const given = doses.filter(x=>x.given).length;
+  // bills
+  const bills = S.home.filter(b=>b.kind==="bill").map(b=>({b, st:billState(b)})).filter(x=>!x.st.paid).sort((a,b)=>a.st.days-b.st.days);
+  // routines
+  let st = 0, sd = 0; S.routines.forEach(r => { const dn = (r.done&&r.done[key])||{}; (r.steps||[]).forEach(s => { st++; if(dn[s.id]) sd++; }); });
+  const slips = S.school.filter(x=>x.kind==="slip"&&!x.done);
+  const bb = babyMember();
+  const out = [
+    ["chores", () => panel("rose","check","Chores", `${doneCount}<small> of ${due.length} done</small>`, chores, true)],
+    ["dinner", () => panel("sand","pot","Dinner", "", meals)],
+    ["groceries", () => panel("sage","cart","Groceries", `${groceries.length}<small> ${groceries.length===1?"item":"items"}</small>`, groceries.slice(0,3).map(i=>li(esc(i.text||i.name||""))).join("") + (groceries.length>3?`<div class="small" style="margin-top:4px">+ ${groceries.length-3} more</div>`:""))],
+    ["meds", () => doses.length ? panel("blue","heart","Meds today", `${given}<small> of ${doses.length} given</small>`, doses.slice(0,3).map(x=>li(`${esc(x.m.name)} · ${esc(memName(x.m.member))}`, fmtT(fromHHMM(x.t)), x.given)).join("")) : ""],
+    ["bills", () => bills.length ? panel("olive","dollar","Bills to pay", "", bills.slice(0,3).map(({b,st})=>li(esc(b.name), st.days<0?"overdue":rel(st.days))).join("")) : ""],
+    ["routines", () => st ? panel("sand","sun","Routines", `${sd}<small> of ${st} steps</small>`, `<span class="meter"><i style="width:${Math.round(sd/st*100)}%"></i></span>`) : ""],
+    ["baby", () => bb ? panel("olive","bottle", esc(bb.name), "", `<div style="font-size:14px">${esc(babyLastFed())}</div>`) : ""],
+    ["school", () => slips.length ? panel("sage","book","School forms", `${slips.length}<small> to sign</small>`, slips.slice(0,2).map(x=>li(esc(x.title), x.due?fmtDay(x.due):"")).join("")) : ""]
+  ].filter(([k]) => !hiddenPanels.includes(k)).map(([k,f]) => f()).filter(Boolean);
+  if(!out.length) return "";
+  out[0] = out[0].replace('class="gp "','class="gp wide"');
+  if(out.length % 2 === 0) out[out.length-1] = out[out.length-1].replace('class="gp "','class="gp wide"');
+  return `<div class="glance">${out.join("")}</div>`;
+}
+/* ---------- CALENDAR ---------- */
+const H0 = 7, H1 = 21, PX = 40;
+function calendar(){
+  const base = addDays(monday(new Date()), UI.calWeek*7), sel = UI.calDay, key = todayKey();
+  const lanes = sorted(S.members), n = lanes.length || 1;
+  const days = [...Array(7)].map((_,i)=>addDays(base,i)).map(dd => {
+    const k = ymd(dd), evs = eventsOn(k), cols = [...new Set(evs.map(e=>e.member==="all"?"sage":okColor(mem(e.member)?.color)))].slice(0,3);
+    return `<button class="day ${k===sel?"on":""} ${k===key?"today":""}" data-act="calday" data-day="${k}" aria-label="${DOW_LONG[dowIdx(dd)]} ${dd.getDate()}"><span class="small" style="font-size:11px">${DOW[dowIdx(dd)][0]}</span><span class="n">${dd.getDate()}</span><span class="dots">${cols.map(c=>`<i style="background:var(--m-${c})"></i>`).join("")}</span>${(()=>{ const w = custodyOn(k); return w ? `<span class="cus" style="background:var(--m-${okColor(mem(w)?.color)})" title="With ${esc(memName(w))}"></span>` : ""; })()}</button>`;
+  }).join("");
+  const sd = fromYmd(sel), evs = eventsOn(sel);
+  const laneW = `((100% - 38px) / ${n})`;
+  let grid = "";
+  for(let h=H0; h<=H1; h++) grid += `<div class="hourline" style="top:${(h-H0)*PX}px"></div><div class="hourlbl" style="top:${(h-H0)*PX-8}px">${fmtT(h*60)}</div>`;
+  let blocks = "";
+  const alld = evs.filter(e => e.allDay);
+  evs.filter(e => !e.allDay).forEach(e => {
+    if(e.end/60 <= H0 || e.start/60 >= H1) return;
+    const top = Math.max(0,(e.start/60-H0)*PX)+1, h = Math.max(24, ((Math.min(e.end, H1*60) - Math.max(e.start, H0*60))/60)*PX - 3);
+    if(e.member === "all"){ blocks += `<button class="blk all" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="left:38px;right:0;top:${top}px;height:${h}px;z-index:2"><span>${esc(e.title)} · everyone</span><span class="hand" style="font-size:16px">${fmtT(e.start)}</span></button>`; return; }
+    const li = Math.max(0, lanes.findIndex(m=>m.id===e.member)), c = okColor(mem(e.member)?.color), cf = conflictFor(e, sel);
+    blocks += `<button class="blk" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="left:calc(38px + ${laneW} * ${li});width:calc(${laneW} - 4px);top:${top}px;height:${h}px;background:color-mix(in srgb, var(--m-${c}) 18%, var(--surface));border-color:var(--m-${c})">${esc(e.title)}${h>40?`<span class="s">${fmtT(e.start)}${e.driver?" · "+esc(memName(e.driver)):""}</span>`:""}${cf?`<span class="warn">${esc(memName(e.driver))} is busy!</span>`:""}</button>`;
+  });
+  if(sel === key){ const nm = nowMin()/60; if(nm>H0 && nm<H1) blocks += `<div aria-hidden="true" style="position:absolute;left:32px;right:0;top:${(nm-H0)*PX}px;display:flex;align-items:center;z-index:3;pointer-events:none"><span style="width:9px;height:9px;border-radius:50%;background:var(--rose)"></span><span style="flex:1;height:1.5px;background:var(--rose)"></span></div>`; }
+  const early = evs.filter(e => !e.allDay && (e.end/60 <= H0 || e.start/60 >= H1));
+  const head = lanes.map(m=>`<div class="col" style="align-items:center;gap:3px;min-width:0">${face(m,30)}<span style="font-size:11px;font-weight:500;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.name)}</span></div>`).join("");
+  return `
+  <div class="between" style="flex-wrap:wrap;gap:10px 12px"><h1 class="title" style="white-space:nowrap">${MONTHS[sd.getMonth()]} <em>${sd.getDate()}</em></h1>
+    <div class="row" style="gap:8px;margin-left:auto">${TRIBE!=="SAMPLE"&&SESSION?`<button class="iconbtn" data-act="cal-sub" aria-label="Add to Google, Apple or Outlook calendar" title="Add to your phone's calendar">${ico("link",18)}</button>`:""}${S.members.length>1?`<button class="iconbtn" data-act="custody" aria-label="Co-parenting schedule" title="Co-parenting schedule">${ico("users",18)}</button>`:""}<button class="iconbtn" data-act="calweek" data-dir="-1" aria-label="Previous week">${ico("back",18,2)}</button><button class="iconbtn" data-act="calweek" data-dir="1" aria-label="Next week">${ico("fwd",18,2)}</button><button class="iconbtn solid" data-act="event-new" data-day="${sel}" aria-label="Add a plan">${ico("plus",20,2.2)}</button></div></div>
+  <div class="week" style="margin-top:14px">${days}</div>
+  ${custodyOn(sel) ? `<p class="small" style="margin:10px 2px 0;font-size:13.5px">${custodyLine(sel)}</p>` : ""}
+  ${alld.length?`<div class="alld">${alld.map(e=>{ const c = e.member==="all"?"sage":okColor(mem(e.member)?.color); return `<button class="alld-i" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="background:color-mix(in srgb, var(--m-${c}) 18%, var(--surface));border-color:var(--m-${c})"><span class="eyebrow" style="font-size:10px">${e.endDate?"Multi-day":"All day"}</span><b>${esc(e.title)}</b>${whoFace(e.member,22)}</button>`; }).join("")}</div>`:""}
+  <div class="lanehead" style="grid-template-columns:repeat(${n},minmax(0,1fr));margin-top:16px;margin-bottom:10px">${head}</div>
+  <div class="lanes" style="height:${(H1-H0)*PX}px">${grid}${blocks}</div>
+  ${early.length?`<div class="col" style="gap:6px;margin-top:12px"><span class="eyebrow">Outside these hours</span>${early.map(e=>`<button class="hu" data-act="event" data-id="${esc(e.id)}" data-day="${sel}"><span class="tabular small">${fmtT(e.start)}</span><span class="grow">${esc(e.title)}</span>${whoFace(e.member,24)}</button>`).join("")}</div>`:""}
+  ${evs.length?"":`<p class="hand" style="text-align:center;font-size:20px;color:var(--sage-ink);margin-top:12px">nothing planned. Tap + to add</p>`}`;
+}
+
+/* ---------- CHORES ---------- */
+function chores(){
+  const people = sorted(S.members).filter(m=>m.style!=="baby");
+  if(!UI.choreMember || !mem(UI.choreMember)) UI.choreMember = (people.find(m=>m.style==="kid")||people[0])?.id;
+  const m = mem(UI.choreMember), base = monday(new Date()), tIdx = dowIdx(new Date());
+  const list = S.chores.filter(c=>c.member===UI.choreMember);
+  const rot = [-12,8,-5,14,-9,6,-14,10];
+  let stars = 0;
+  const rows = list.map((c,r) => {
+    const days = c.days || [0,1,2,3,4,5,6];
+    const cells = [...Array(7)].map((_,i) => {
+      const k = ymd(addDays(base,i)), on = days.includes(i), done = !!(c.done && c.done[k]);
+      if(done) stars++;
+      if(!on) return `<td><span class="stamp off" aria-label="Not scheduled">·</span></td>`;
+      if(done) return `<td><button class="stamp done" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" style="transform:rotate(${rot[(r+i)%8]}deg)" aria-label="${esc(c.title)} ${DOW[i]}: done">${ico("star",16,2)}</button></td>`;
+      if(i > tIdx) return `<td><span class="stamp" style="border:1.5px solid var(--line)" aria-label="Upcoming"></span></td>`;
+      if(i === tIdx) return `<td><button class="stamp todo" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" aria-label="${esc(c.title)} today: tap when done">today</button></td>`;
+      return `<td><button class="stamp miss" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" aria-label="${esc(c.title)} ${DOW[i]}: missed"></button></td>`;
+    }).join("");
+    return `<tr><td class="name"><button data-act="chore-edit" data-id="${esc(c.id)}" style="text-align:left">${esc(c.title)}</button></td>${cells}</tr>`;
+  }).join("");
+  const goal = Math.max(1, Number(m?.goal)||20), level = Math.min(1, stars/goal), liquidTop = 112 - level*92;
+  const jar = `<svg width="92" height="114" viewBox="0 0 96 118" aria-hidden="true"><rect x="22" y="2" width="52" height="12" rx="4" style="fill:var(--ink)"/><path d="M18 16 H78 Q86 16 86 26 V104 Q86 114 76 114 H20 Q10 114 10 104 V26 Q10 16 18 16Z" style="fill:var(--surface);stroke:var(--ink)" stroke-width="2.5"/>${level>0?`<path d="M12 ${liquidTop} Q30 ${liquidTop-6} 48 ${liquidTop} T84 ${liquidTop-2} V104 Q84 112 76 112 H20 Q12 112 12 104Z" style="fill:var(--rose)" opacity=".85"/>`:""}${[...Array(Math.min(stars,12))].map((_,i)=>`<circle cx="${22+(i*17)%56}" cy="${104-Math.floor(i/4)*12}" r="4.5" fill="#fff" opacity=".55"/>`).join("")}</svg>`;
+  const cheer = level>=1 ? `you did it, ${esc(m?.name)}!` : level>=.75 ? `almost there, ${esc(m?.name)}!` : level>0 ? "keep stamping" : "first star today?";
+  return `
+  ${pageHead("Chore chart", addBtn('data-act="chore-new"', "Add a chore"))}
+  ${personChips(UI.choreMember, "chore-who", people)}
+  ${list.length ? `<div style="overflow-x:auto;margin-top:16px"><table class="chart"><thead><tr><th style="width:30%"></th>${DOW.map((d,i)=>`<th class="${i===tIdx?"today":""}">${d[0]}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`
+    : `<div class="empty" style="margin-top:16px"><span class="hand">no chores for ${esc(m?.name||"them")} yet</span>Tap + to give them a job and start stamping.</div>`}
+  <div class="paper jar" style="margin-top:20px">${jar}
+    <div class="col grow"><span class="eyebrow">Saving up for</span>
+      <span class="serif" style="font-size:23px;line-height:1.1;margin-top:4px">${esc(m?.reward || "Pick a reward")}</span>
+      <span style="font-size:14px;margin-top:8px" class="tabular"><b style="font-weight:600">${stars}</b> of ${goal} stars this week</span>
+      <span class="hand" style="color:var(--rose-ink);font-size:19px">${cheer}</span>
+      <button class="small" data-act="reward" style="text-align:left;text-decoration:underline;text-underline-offset:3px;margin-top:2px">Change reward</button>
+    </div>
+  </div>`;
+}
+
+/* ---------- ROUTINES ---------- */
+function routines(){
+  const pool = sorted(S.members).filter(m=>m.style!=="baby" || S.routines.some(r=>r.member===m.id));
+  const who = pickWho(pool, (S.members.find(m=>m.style==="kid")||{}).id), k = todayKey();
+  const list = S.routines.filter(r=>r.member===who).sort((a,b)=>fromHHMM(a.time)-fromHHMM(b.time));
+  const cards = list.map(r => {
+    const steps = r.steps||[], done = (r.done&&r.done[k])||{}, n = steps.filter(s=>done[s.id]).length;
+    return `<div class="paper" style="padding:16px 18px">
+      <div class="between"><button data-act="ent-edit" data-kind="routine" data-id="${esc(r.id)}" class="col" style="text-align:left;min-width:0"><span class="serif" style="font-size:22px">${esc(r.name)}</span><span class="small">${r.time?"Starts "+fmtT(fromHHMM(r.time))+" · ":""}tap to edit</span></button><span class="tag ${n===steps.length&&steps.length?"":"muted"} tabular">${n}/${steps.length}</span></div>
+      <span class="meter" style="margin:10px 0 4px"><i style="width:${steps.length?n/steps.length*100:0}%"></i></span>
+      ${steps.map(s=>`<button class="lrow" data-act="rstep" data-id="${esc(r.id)}" data-step="${esc(s.id)}" aria-pressed="${!!done[s.id]}"><span class="box ${done[s.id]?"on":""}">${done[s.id]?TICK:""}</span><span class="grow" style="font-size:16px">${strikeIf(done[s.id], s.text)}</span></button>`).join("")}
+      ${n===steps.length&&steps.length?`<p class="hand" style="font-size:20px;color:var(--sage-ink);margin:8px 0 0">all done, nice work!</p>`:""}
+    </div>`;
+  }).join("");
+  return `${pageHead("Routines", addBtn(`data-act="ent-new" data-kind="routine" data-who="${esc(who||"")}"`, "Add a routine"))}
+  ${personChips(who, "who", pool)}
+  <div class="col" style="gap:12px;margin-top:16px">${cards || `<div class="empty"><span class="hand">no routines yet</span>Add a morning or bedtime checklist. Kids can tick steps off in Kid view.</div>`}</div>
+  ${who && mem(who) && mem(who).style==="kid" ? `<button class="btn ghost" data-act="kid-go" data-id="${esc(who)}" style="width:100%;margin-top:14px">${ico("smile",18)} Open ${esc(mem(who).name)}'s kid view</button>` : ""}`;
+}
+
+/* ---------- LISTS ---------- */
+const SECTIONS = [
+  ["produce",/avocado|banana|apple|cilantro|lettuce|tomato|onion|lime|lemon|berr|potato|carrot|pepper|spinach|fruit|veg|garlic|cucumber|grape|orange|mango|plantain|corn\b/i],
+  ["dairy",/milk|egg|cheese|yogurt|yoghurt|butter|cream/i],
+  ["bakery",/bread|tortilla|bagel|bun\b|buns|roll|pita|muffin/i],
+  ["meat & fish",/chicken|beef|pork|fish|turkey|salmon|bacon|sausage|shrimp|steak|ham\b/i],
+  ["pantry",/rice|bean|pasta|flour|sugar|oil|cereal|coffee|salt|sauce|can\b|cans|oat|honey|spice|salsa|chips|snack|cracker|tea\b/i],
+  ["baby",/diaper|wipe|formula|puffs|baby|pacifier/i],
+  ["household",/paper|soap|detergent|towel|trash|foil|sponge|bleach|batter|bulb|toilet/i],
+  ["pharmacy",/vitamin|tylenol|ibuprofen|bandage|medicine|prescription|toothpaste|shampoo/i]
+];
+const sectionFor = t => (SECTIONS.find(([,r])=>r.test(t))||["other"])[0];
+function listNames(){ return [...new Set(["Groceries","Costco","Pharmacy",...S.items.map(i=>i.list||"Groceries")])]; }
+function lists(){
+  const names = listNames(); if(!names.includes(UI.list)) UI.list = "Groceries";
+  const items = S.items.filter(i=>(i.list||"Groceries")===UI.list);
+  const order = [...SECTIONS.map(s=>s[0]),"other"];
+  const groups = order.map(s=>[s, items.filter(i=>(i.section||sectionFor(i.text))===s).sort((a,b)=>(a.checked-b.checked)||((a.at||0)-(b.at||0)))]).filter(([,a])=>a.length);
+  const checked = items.filter(i=>i.checked).length;
+  const tabs = names.map(n=>{ const c = S.items.filter(i=>(i.list||"Groceries")===n && !i.checked).length; return `<button class="ltab ${n===UI.list?"on":""}" data-act="list" data-name="${esc(n)}">${esc(n)}${c?` <span class="small tabular">${c}</span>`:""}</button>`; }).join("");
+  const body = groups.map(([s,arr]) => `<div class="sec">${esc(s)}</div>` + arr.map(i => `<button class="item" data-act="item" data-id="${esc(i.id)}" aria-pressed="${i.checked?"true":"false"}"><span class="box ${i.checked?"on":""}">${i.checked?TICK:""}</span><span class="txt">${strikeIf(i.checked, i.text)}</span>${face(mem(i.by),24)}</button>`).join("")).join("");
+  const contributors = [...new Set(items.map(i=>i.by))].map(mem).filter(Boolean).slice(0,4);
+  return `
+  <div class="between"><h1 class="title">The list</h1><span class="faces">${contributors.map(m=>face(m,30)).join("")}</span></div>
+  <div class="tabs" style="margin-top:16px">${tabs}<button class="ltab" data-act="list-new" aria-label="New list">+</button></div>
+  <div class="pad">
+    <form data-form="item"><input id="new-item" name="text" autocomplete="off" placeholder="Add to ${esc(UI.list)}…" aria-label="Add an item to ${esc(UI.list)}" maxlength="80"><button aria-label="Add item" style="color:var(--sage-ink)">${ico("plus",22,2.2)}</button></form>
+    ${body || `<div class="sec" style="color:var(--faint)">all clear</div><div class="small" style="height:38px;line-height:44px">Type above to add the first thing.</div>`}
+  </div>
+  ${checked ? `<div class="between" style="margin-top:14px"><span class="small">${checked} checked off</span><button class="btn ghost" data-act="clear-checked" style="min-height:40px">Clear checked</button></div>` : ""}`;
+}
+
+/* ---------- MENU ---------- */
+function menu(){
+  const base = addDays(monday(new Date()), UI.mealWeek*7), key = todayKey(), end = addDays(base,6);
+  const rows = [...Array(7)].map((_,i)=>{ const d = addDays(base,i), k = ymd(d), dish = S.meals[k]?.dish;
+    return `<button class="mrow ${k===key?"today":""}" data-act="meal" data-day="${k}"><span class="eyebrow" style="width:34px;flex-shrink:0;${k===key?"color:var(--sage-ink)":""}">${DOW[i]}</span><span class="dish ${dish?"":"none"}">${esc(dish||"Add a dinner")}</span><span class="lead"></span><span class="small tabular">${d.getDate()}</span></button>`; }).join("");
+  const planned = [...Array(7)].filter((_,i)=>S.meals[ymd(addDays(base,i))]?.dish).length;
+  return `
+  ${pageHead("Dinner <em>menu</em>", `<button class="iconbtn" data-act="mealweek" data-dir="-1" aria-label="Previous week">${ico("back",18,2)}</button><button class="iconbtn" data-act="mealweek" data-dir="1" aria-label="Next week">${ico("fwd",18,2)}</button>`)}
+  <div class="paper menu" style="margin-top:14px">
+    <div class="col" style="align-items:center;text-align:center">${mark(26)}
+      <span class="eyebrow" style="margin-top:10px">${MONTHS[base.getMonth()].slice(0,3)} ${base.getDate()} – ${MONTHS[end.getMonth()].slice(0,3)} ${end.getDate()}</span>
+      <h2 class="serif" style="font-size:30px;margin:4px 0 0">This week's <em style="color:var(--sage-ink)">menu</em></h2></div>
+    <div class="col" style="margin-top:12px">${rows}</div>
+  </div>
+  <p class="hand" style="font-size:20px;color:var(--sage-ink);margin:14px 0 0 8px;transform:rotate(-1.5deg)">${planned===7?"every night is covered":planned?`${7-planned} ${7-planned===1?"night":"nights"} still open`:"tap a night to plan dinner"}</p>`;
+}
+
+/* ---------- BABY ---------- */
+function babyEntries(){ return (S.baby[todayKey()]?.entries || []).filter(e=>e && ["feed","sleep","diaper"].includes(e.kind)); }
+function babyLastFed(){ const feeds = babyEntries().filter(e=>e.kind==="feed").sort((a,b)=>b.at-a.at); if(!feeds.length) return "No feeds yet today"; const ago = Math.max(0, nowMin()-feeds[0].at); return ago<60 ? `Fed ${ago}m ago` : `Fed ${Math.floor(ago/60)}h ${ago%60}m ago`; }
+function baby(){
+  const b = babyMember();
+  if(!b) return `${pageHead("Baby log")}<div class="empty" style="margin-top:20px"><span class="hand">no little one yet</span>Add a family member with the baby look to start logging feeds, sleep and diapers.<div style="margin-top:12px"><button class="btn primary" data-act="member-new">Add a baby</button></div></div>`;
+  const E = babyEntries(), now = nowMin();
+  const C = 140, R = 104, pt = (min,r)=>{ const a = (min/1440)*2*Math.PI - Math.PI/2; return [C+r*Math.cos(a), C+r*Math.sin(a)]; };
+  const arc = (a,b2,r) => { b2 = Math.min(b2,1439.5); if(b2-a<4) b2=a+4; const [x1,y1]=pt(a,r),[x2,y2]=pt(b2,r); return `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${(b2-a)>720?1:0} 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" fill="none" style="stroke:var(--olive)" stroke-width="18" stroke-linecap="round"/>`; };
+  let ring = `<circle cx="${C}" cy="${C}" r="${R}" fill="none" style="stroke:var(--line)" stroke-width="18"/>`;
+  let sleepMin = 0, feeds = 0, diapers = 0;
+  E.forEach(e => {
+    if(e.kind==="sleep"){ const end = e.end==null ? now : e.end; sleepMin += Math.max(0,end-e.at); ring += arc(e.at, end, R); }
+    if(e.kind==="feed"){ feeds++; const [x,y] = pt(e.at, R+26); ring += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" style="fill:var(--blue)"/>`; }
+    if(e.kind==="diaper"){ diapers++; const [x1,y1] = pt(e.at,R-18),[x2,y2] = pt(e.at,R-29); ring += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" style="stroke:var(--sand)" stroke-width="4" stroke-linecap="round"/>`; }
+  });
+  [[0,"12a"],[720,"12p"]].forEach(([m,l])=>{ const [x,y]=pt(m,R-38); ring += `<text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" text-anchor="middle" font-size="11" style="fill:var(--muted)" font-family="Outfit, sans-serif">${l}</text>`; });
+  const [nx,ny] = pt(now, R+12); ring += `<circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="5.5" style="fill:var(--rose)"/>`;
+  const lastFeed = E.filter(e=>e.kind==="feed").sort((a,c)=>c.at-a.at)[0];
+  const ago = lastFeed ? Math.max(0, now-lastFeed.at) : null;
+  const sleeping = E.find(e=>e.kind==="sleep" && e.end==null);
+  const nx2 = nextFor(e => e.member===b.id);
+  const fmtDur = m => m<60 ? `${m}m` : `${Math.floor(m/60)}h ${m%60}m`;
+  const log = E.slice().sort((a,c)=>c.at-a.at).map(e => {
+    const meta = {feed:["bottle","Feed","var(--blue)","var(--m-blue-bg)"],sleep:["moon",e.end==null?"Sleeping now":"Sleep · "+fmtDur(e.end-e.at),"var(--olive)","var(--m-olive-bg)"],diaper:["drop","Diaper","var(--sand)","var(--m-sand-bg)"]}[e.kind];
+    return `<div class="lrow"><span class="lic" style="background:${meta[3]};color:${meta[2]}">${ico(meta[0],18)}</span><span class="col grow"><span style="font-weight:500">${esc(meta[1])}</span><span class="small">${fmtT(e.at)}${e.end!=null&&e.kind==="sleep"?" – "+fmtT(e.end):""} · ${esc(memName(e.by))}</span></span><button class="iconbtn" style="width:34px;height:34px;border:0;color:var(--faint)" data-act="baby-del" data-id="${esc(e.id)}" aria-label="Remove this entry">${ico("x",16,2)}</button></div>`;
+  }).join("");
+  return `
+  <div class="between"><div class="row">${face(b,48)}<div class="col"><h1 class="title" style="font-size:32px">${esc(b.name)}</h1><span class="small">Baby log · today</span></div></div></div>
+  <div style="position:relative;width:280px;max-width:100%;aspect-ratio:1;margin:10px auto 0">
+    <svg viewBox="0 0 280 280" width="100%" height="100%" role="img" aria-label="Today's sleep, feeds and diapers on a 24-hour clock">${ring}</svg>
+    <div class="col" style="position:absolute;inset:0;align-items:center;justify-content:center;text-align:center">
+      <span class="eyebrow">${sleeping?"Asleep for":"Last fed"}</span>
+      <span class="serif tabular" style="font-size:36px;line-height:1.1">${sleeping?fmtDur(now-sleeping.at):ago==null?"—":fmtDur(ago)+" ago"}</span>
+      <span class="small">${sleeping?"since "+fmtT(sleeping.at):lastFeed?fmtT(lastFeed.at)+" · "+esc(memName(lastFeed.by)):"no feeds logged"}</span>
+    </div>
+  </div>
+  <div class="row" style="justify-content:center;gap:14px;flex-wrap:wrap;margin-top:4px">
+    <span class="row small" style="gap:6px"><i style="width:10px;height:10px;border-radius:3px;background:var(--olive)"></i>Sleep ${fmtDur(sleepMin)}</span>
+    <span class="row small" style="gap:6px"><i style="width:10px;height:10px;border-radius:50%;background:var(--blue)"></i>Feeds ${feeds}</span>
+    <span class="row small" style="gap:6px"><i style="width:10px;height:10px;border-radius:3px;background:var(--sand)"></i>Diapers ${diapers}</span>
+  </div>
+  <div class="row" style="gap:10px;margin-top:18px">
+    <button class="logbtn" data-act="baby-log" data-kind="feed"><span class="ic" style="background:var(--m-blue-bg);color:var(--blue)">${ico("bottle",22)}</span>Feed</button>
+    <button class="logbtn ${sleeping?"active":""}" data-act="baby-log" data-kind="sleep"><span class="ic" style="background:var(--m-olive-bg);color:var(--olive)">${ico(sleeping?"clock":"moon",22)}</span>${sleeping?"Woke up":"Sleep"}</button>
+    <button class="logbtn" data-act="baby-log" data-kind="diaper"><span class="ic" style="background:var(--m-sand-bg);color:var(--sand)">${ico("drop",22)}</span>Diaper</button>
+  </div>
+  ${nx2?`<button class="row" data-act="event" data-id="${esc(nx2.e.id)}" data-day="${nx2.day}" style="margin-top:14px;padding:12px 16px;border-radius:16px;background:var(--sage-soft);width:100%;text-align:left"><span class="hand grow" style="font-size:20px;color:var(--deep)">Next up: ${esc(nx2.e.title)}, ${nx2.day===todayKey()?"today":esc(DOW_LONG[dowIdx(fromYmd(nx2.day))])} at ${fmtT(nx2.e.start)}</span></button>`:""}
+  <div class="col" style="margin-top:18px"><span class="eyebrow" style="margin-bottom:8px">Today's log</span><div class="paper" style="padding:4px 16px">${log||`<div class="small" style="padding:14px 0">Nothing logged yet. Tap Feed, Sleep or Diaper as it happens.</div>`}</div></div>`;
+}
+
+/* ---------- HEALTH ---------- */
+const RKIND = { checkup:["heart","blue","Checkup"], vaccine:["shield","sage","Vaccine"], dentist:["smile","sand","Dentist"], allergy:["bell","rose","Allergy"], other:["note","olive","Note"] };
+function health(){
+  const who = pickWho(sorted(S.members), (S.members.find(m=>m.style==="kid")||{}).id || meId()), k = todayKey(), now = nowMin();
+  const meds = S.meds.filter(m=>m.member===who && medActive(m,k));
+  const done = S.meds.filter(m=>m.member===who && !medActive(m,k));
+  const recs = S.health.filter(r=>r.member===who);
+  const allergies = recs.filter(r=>r.kind==="allergy");
+  const upcoming = recs.filter(r=>r.next && r.next>=k).sort((a,b)=>a.next.localeCompare(b.next));
+  const hist = recs.filter(r=>r.kind!=="allergy").sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+  const medCard = m => `<div class="paper" style="padding:14px 16px">
+    <div class="between"><button data-act="ent-edit" data-kind="med" data-id="${esc(m.id)}" class="col" style="text-align:left;min-width:0"><b style="font-weight:600;font-size:16px">${esc(m.name)}</b><span class="small">${esc([m.dose, m.until?"until "+fmtDay(m.until):"", m.note].filter(Boolean).join(" · "))}</span></button><span class="lic" style="background:var(--m-blue-bg);color:var(--blue)">${ico("pill",18)}</span></div>
+    <div class="chips" style="margin-top:10px">${(m.times||[]).map(t=>{ const g = m.log && m.log[k] && m.log[k][t]; const tm = fromHHMM(t);
+      return g ? `<button class="chip on plain" data-act="med-give" data-id="${esc(m.id)}" data-t="${esc(t)}" aria-pressed="true">${TICK} ${fmtT(tm)} · ${esc(memName(g.by))}</button>`
+               : `<button class="chip plain ${tm<now?"late":""}" data-act="med-give" data-id="${esc(m.id)}" data-t="${esc(t)}" aria-pressed="false">${fmtT(tm)} · Give</button>`; }).join("")}</div></div>`;
+  const recRow = r => { const kd = RKIND[r.kind] || RKIND.other; const n = r.next ? dayDiff(k, r.next) : null;
+    return `<button class="lrow" data-act="ent-edit" data-kind="record" data-id="${esc(r.id)}"><span class="lic" style="background:var(--m-${kd[1]}-bg);color:var(--m-${kd[1]})">${ico(kd[0],18)}</span><span class="col grow"><span style="font-weight:500">${esc(r.title)}</span><span class="small">${esc([kd[2], r.date?fmtDay(r.date):"", r.note].filter(Boolean).join(" · "))}</span></span>${n!=null&&n>=0?`<span class="tag ${n<=14?"blue":"muted"}">${n===0?"today":"next "+fmtDay(r.next)}</span>`:""}</button>`; };
+  return `${pageHead("Health", addBtn(`data-act="ent-new" data-kind="record" data-who="${esc(who||"")}"`, "Add a health record"))}
+  ${personChips(who, "who")}
+  ${allergies.length?`<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:14px;padding:12px 14px;border-radius:16px;background:var(--m-rose-bg)"><span style="color:var(--rose-ink)">${ico("bell",18)}</span><b style="font-weight:600;color:var(--rose-ink)">Allergies:</b>${allergies.map(a=>`<button class="tag warn" style="background:var(--surface)" data-act="ent-edit" data-kind="record" data-id="${esc(a.id)}">${esc(a.title)}</button>`).join("")}</div>`:""}
+  ${secHead("Medicine today", `data-act="ent-new" data-kind="med" data-who="${esc(who||"")}"`, "Add medicine")}
+  <div class="col" style="gap:10px">${meds.map(medCard).join("") || `<div class="empty">No medicine scheduled for ${esc(memName(who))}. Add one to get reminders and a “given by” log.</div>`}</div>
+  ${upcoming.length?secHead("Coming up")+`<div class="paper" style="padding:4px 16px">${upcoming.map(recRow).join("")}</div>`:""}
+  ${secHead("History")}
+  <div class="paper" style="padding:4px 16px">${hist.map(recRow).join("") || `<div class="small" style="padding:14px 0">Checkups, vaccines and dentist visits will show here.</div>`}</div>
+  ${done.length?`<p class="small" style="margin-top:14px">Finished medicine: ${done.map(m=>`<button data-act="ent-edit" data-kind="med" data-id="${esc(m.id)}" style="text-decoration:underline">${esc(m.name)}</button>`).join(", ")}</p>`:""}`;
+}
+
+/* ---------- SCHOOL ---------- */
+function school(){
+  const pool = S.members.some(m=>m.style==="kid") ? sorted(S.members).filter(m=>m.style==="kid") : sorted(S.members);
+  const who = pickWho(pool), k = todayKey();
+  const slips = S.school.filter(x=>x.kind==="slip" && (x.member===who || x.member==="all")).sort((a,b)=>(a.done-b.done)||String(a.due||"9").localeCompare(String(b.due||"9")));
+  const wk = ymd(monday(new Date())), lunch = S.school.find(x=>x.id==="lunch-"+wk), days = (lunch && lunch.days) || {};
+  const cons = S.contacts.filter(c=>c.role==="school" && (!c.member || c.member==="all" || c.member===who));
+  const tIdx = dowIdx(new Date());
+  return `${pageHead("School", "")}
+  ${personChips(who, "who", pool)}
+  ${secHead("Forms and slips", `data-act="ent-new" data-kind="slip" data-who="${esc(who||"")}"`, "Add a form")}
+  <div class="paper" style="padding:4px 16px">${slips.map(x=>{ const n = x.due ? dayDiff(k, x.due) : null;
+    return `<div class="lrow"><button data-act="slip-toggle" data-id="${esc(x.id)}" aria-pressed="${!!x.done}" aria-label="Signed and returned"><span class="box ${x.done?"on":""}">${x.done?TICK:""}</span></button><button class="col grow" data-act="ent-edit" data-kind="slip" data-id="${esc(x.id)}" style="text-align:left;min-width:0"><span style="font-weight:500">${strikeIf(x.done, x.title)}</span><span class="small">${x.done?"Signed and returned":x.due?"Due "+fmtDayW(x.due):"No due date"}</span></button>${!x.done&&n!=null?`<span class="tag ${n<=2?"warn":"muted"}">${n<0?"late":rel(n)}</span>`:""}</div>`; }).join("") || `<div class="small" style="padding:14px 0">No forms waiting. Add permission slips and order forms here so nobody forgets to sign.</div>`}</div>
+  <div class="sechead"><span class="eyebrow">Lunch this week</span><button data-act="lunch-edit">Edit</button></div>
+  <div class="paper" style="padding:6px 16px">${[0,1,2,3,4].map(i=>`<div class="lrow" style="min-height:40px;${i===tIdx?"font-weight:600":""}"><span class="eyebrow" style="width:40px;${i===tIdx?"color:var(--sage-ink)":""}">${DOW[i]}</span><span class="grow">${esc(days[i]||"—")}</span></div>`).join("")}</div>
+  ${secHead("Teachers and school contacts", `data-act="ent-new" data-kind="contact" data-role="school" data-who="${esc(who||"")}"`, "Add")}
+  <div class="paper" style="padding:4px 16px">${cons.map(contactRow).join("") || `<div class="small" style="padding:14px 0">Add the teacher, the front office and the bus line.</div>`}</div>`;
+}
+
+/* ---------- SITTER ---------- */
+function sitterData(){
+  const k = todayKey(), info = S.sitter || {};
+  const ks = kids().map(m => ({
+    m,
+    allergies: S.health.filter(r=>r.member===m.id && r.kind==="allergy"),
+    meds: S.meds.filter(x=>x.member===m.id && medActive(x,k)),
+    bed: S.routines.filter(r=>r.member===m.id && /bed|night|sleep/i.test(r.name||"")).sort((a,b)=>fromHHMM(a.time)-fromHHMM(b.time))
+  }));
+  const em = S.contacts.filter(c=>["emergency","doctor"].includes(c.role)).sort((a,b)=>(a.role==="emergency"?0:1)-(b.role==="emergency"?0:1));
+  return { info, ks, em };
+}
+function careText(){
+  const { info, ks, em } = sitterData();
+  const L = [`HeyTribe care sheet: ${S.tribe?.name || "our family"}`, ""];
+  ks.forEach(({m, allergies, meds, bed}) => {
+    L.push(m.name.toUpperCase());
+    if(allergies.length) L.push("Allergies: " + allergies.map(a=>a.title+(a.note?" ("+a.note+")":"")).join("; "));
+    meds.forEach(x => L.push(`Medicine: ${x.name}${x.dose?" "+x.dose:""} at ${(x.times||[]).map(t=>fmtT(fromHHMM(t))).join(", ")}`));
+    bed.forEach(r => L.push(`${r.name}${r.time?" at "+fmtT(fromHHMM(r.time)):""}: ${(r.steps||[]).map(s=>s.text).join(", ")}`));
+    L.push("");
+  });
+  if(em.length){ L.push("CONTACTS"); em.forEach(c => L.push(`${c.name}${c.phone?": "+c.phone:""}${c.note?" ("+c.note+")":""}`)); L.push(""); }
+  if(info.address) L.push("Address: " + info.address);
+  if(info.wifi) L.push("Wi-Fi: " + info.wifi);
+  if(info.rules) L.push("House rules: " + info.rules);
+  if(info.notes) L.push("Notes: " + info.notes);
+  return L.join("\n").trim();
+}
+function sitter(){
+  const { info, ks, em } = sitterData();
+  const kidCard = ({m, allergies, meds, bed}) => `<div class="paper" style="padding:16px 18px">
+    <div class="row">${face(m,44)}<span class="serif" style="font-size:24px">${esc(m.name)}</span></div>
+    ${allergies.length?`<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px;padding:10px 12px;border-radius:14px;background:var(--m-rose-bg)"><b style="font-weight:600;color:var(--rose-ink)">Allergic to</b>${allergies.map(a=>`<span class="tag warn" style="background:var(--surface)">${esc(a.title)}</span>`).join("")}${allergies.filter(a=>a.note).map(a=>`<span class="small" style="width:100%;color:var(--rose-ink)">${esc(a.note)}</span>`).join("")}</div>`:""}
+    ${meds.map(x=>`<div class="lrow"><span class="lic" style="background:var(--m-blue-bg);color:var(--blue)">${ico("pill",18)}</span><span class="col grow"><b style="font-weight:500">${esc(x.name)}${x.dose?" · "+esc(x.dose):""}</b><span class="small">${(x.times||[]).map(t=>fmtT(fromHHMM(t))).join(", ")}${x.note?" · "+esc(x.note):""}</span></span></div>`).join("")}
+    ${bed.map(r=>`<div class="lrow" style="align-items:flex-start"><span class="lic" style="background:var(--m-olive-bg);color:var(--olive)">${ico("moon",18)}</span><span class="col grow"><b style="font-weight:500">${esc(r.name)}${r.time?" at "+fmtT(fromHHMM(r.time)):""}</b><span class="small">${(r.steps||[]).map(s=>esc(s.text)).join(" → ")}</span></span></div>`).join("")}
+    ${!allergies.length&&!meds.length&&!bed.length?`<p class="small" style="margin:10px 0 0">No allergies, medicine or bedtime routine added yet.</p>`:""}
+  </div>`;
+  const infoRow = (l, v) => v ? `<div class="lrow" style="align-items:flex-start"><span class="eyebrow" style="width:74px;padding-top:3px">${l}</span><span class="grow" style="white-space:pre-line">${esc(v)}</span></div>` : "";
+  return `${pageHead("Sitter <em>sheet</em>", `<button class="iconbtn" data-act="sitter-edit" aria-label="Edit house info">${ico("gear",18)}</button>`, "today", "Everything a sitter or grandparent needs, built from your tribe.")}
+  <div class="row" style="gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn dark grow" data-act="copy-care">${ico("copy",18)} Copy care sheet</button>${TRIBE!=="SAMPLE"&&SESSION?`<button class="btn primary grow" data-act="sitter-link">${ico("link",18)} Share a sitter link</button>`:""}</div>
+  <div class="col" style="gap:12px;margin-top:16px">${ks.map(kidCard).join("") || `<div class="empty">Add kids to your tribe to build their care sheet.</div>`}</div>
+  ${secHead("Emergency and doctors", 'data-act="ent-new" data-kind="contact" data-role="emergency"', "Add")}
+  <div class="paper" style="padding:4px 16px">${em.map(contactRow).join("") || `<div class="small" style="padding:14px 0">Add who to call: parents, grandparents, the pediatrician and poison control.</div>`}</div>
+  <div class="sechead"><span class="eyebrow">House info</span><button data-act="sitter-edit">Edit</button></div>
+  <div class="paper" style="padding:4px 16px">${infoRow("Address", info.address)+infoRow("Wi-Fi", info.wifi)+infoRow("Rules", info.rules)+infoRow("Notes", info.notes) || `<div class="small" style="padding:14px 0">Add the address, Wi-Fi, house rules and anything else a sitter should know.</div>`}</div>`;
+}
+
+/* ---------- HOME & BILLS ---------- */
+function home(){
+  const k = todayKey();
+  const bills = S.home.filter(x=>x.kind==="bill").map(b=>({b, s:billState(b)})).sort((a,c)=>(a.s.paid-c.s.paid)||(a.s.days-c.s.days));
+  const ups = S.home.filter(x=>x.kind==="upkeep").map(u=>({u, n:upkeepNext(u)})).sort((a,c)=>a.n.days-c.n.days);
+  const subs = S.home.filter(x=>x.kind==="sub").map(s=>({s, n:subNext(s)})).sort((a,c)=>(a.n?a.n.days:999)-(c.n?c.n.days:999));
+  const monthly = bills.reduce((t,x)=>t+(Number(x.b.amount)||0),0) + subs.reduce((t,x)=>t+(x.s.cycle==="yearly"?(Number(x.s.amount)||0)/12:(Number(x.s.amount)||0)),0);
+  const left = bills.filter(x=>!x.s.paid && !x.b.autopay).reduce((t,x)=>t+(Number(x.b.amount)||0),0);
+  const billRow = ({b,s}) => `<div class="lrow"><button class="col grow" data-act="ent-edit" data-kind="bill" data-id="${esc(b.id)}" style="text-align:left;min-width:0"><span style="font-weight:500">${esc(b.name)} ${b.amount?`<span class="tabular" style="color:var(--muted);font-weight:400">${money(b.amount)}</span>`:""}</span><span class="small">${b.autopay?"Autopay · ":""}${s.paid?"Paid for "+MONTHS[fromYmd(k).getMonth()]+" · next "+fmtDay(s.date):s.days<0?"Overdue since "+fmtDay(s.date):"Due "+fmtDayW(s.date)}</span></button>${b.autopay&&!s.paid?`<span class="tag muted">auto</span>`:`<button class="chip plain ${s.paid?"on":""} ${!s.paid&&s.days<0?"late":""}" data-act="bill-paid" data-id="${esc(b.id)}" aria-pressed="${s.paid}">${s.paid?TICK+" Paid":"Mark paid"}</button>`}</div>`;
+  const upRow = ({u,n}) => `<div class="lrow"><button class="col grow" data-act="ent-edit" data-kind="upkeep" data-id="${esc(u.id)}" style="text-align:left;min-width:0"><span style="font-weight:500">${esc(u.name)}</span><span class="small">Every ${Number(u.every)||3} ${Number(u.every)===1?"month":"months"} · ${u.last?"last done "+fmtDay(u.last):"not done yet"}</span></button><span class="tag ${n.days<0?"warn":n.days<=14?"sand":"muted"}">${n.days<0?"overdue":n.days===0?"due":fmtDay(n.date)}</span><button class="chip plain" data-act="upkeep-done" data-id="${esc(u.id)}">Done</button></div>`;
+  const subRow = ({s,n}) => `<button class="lrow" data-act="ent-edit" data-kind="sub" data-id="${esc(s.id)}"><span class="col grow"><span style="font-weight:500">${esc(s.name)}</span><span class="small">${n?"Renews "+fmtDay(n.date):"No renewal date"}</span></span><span class="tabular" style="font-weight:500">${money(s.amount)}<span class="small">/${s.cycle==="yearly"?"yr":"mo"}</span></span></button>`;
+  return `${pageHead("Home <em>&amp; bills</em>", "")}
+  <div class="paper" style="padding:18px 20px;margin-top:16px;background:var(--sage-soft);border:0">
+    <span class="eyebrow">Every month</span>
+    <div class="serif tabular" style="font-size:40px;line-height:1.1;margin-top:4px">${money(Math.round(monthly))}</div>
+    <span class="small" style="font-size:14px">in bills and subscriptions${left?` · <b style="color:var(--ink)">${money(left)}</b> still to pay this month`:""}</span>
+  </div>
+  ${secHead("Bills", 'data-act="ent-new" data-kind="bill"', "Add a bill")}
+  <div class="paper" style="padding:4px 16px">${bills.map(billRow).join("") || `<div class="small" style="padding:14px 0">Add rent, utilities, daycare and anything with a due date.</div>`}</div>
+  ${secHead("Home upkeep", 'data-act="ent-new" data-kind="upkeep"', "Add a task")}
+  <div class="paper" style="padding:4px 16px">${ups.map(upRow).join("") || `<div class="small" style="padding:14px 0">Filters, smoke detectors, oil changes. Add them once and get reminded.</div>`}</div>
+  ${secHead("Subscriptions", 'data-act="ent-new" data-kind="sub"', "Add")}
+  <div class="paper" style="padding:4px 16px">${subs.map(subRow).join("") || `<div class="small" style="padding:14px 0">Track streaming, apps and deliveries so renewals don't sneak up.</div>`}</div>`;
+}
+
+/* ---------- DOCUMENTS ---------- */
+const DKIND = [["passport","Passport"],["id","ID or license"],["insurance","Insurance"],["medical","Medical"],["school","School"],["vehicle","Vehicle"],["warranty","Warranty"],["legal","Legal"],["other","Other"]];
+function docs(){
+  const k = todayKey();
+  const list = S.docs.slice().sort((a,b)=>String(a.expires||"9999").localeCompare(String(b.expires||"9999"))||String(a.title).localeCompare(String(b.title)));
+  const row = d => { const n = d.expires ? dayDiff(k, d.expires) : null; const kl = (DKIND.find(x=>x[0]===d.kind)||DKIND[8])[1];
+    return `<button class="lrow" data-act="ent-edit" data-kind="doc" data-id="${esc(d.id)}"><span class="lic" style="background:var(--m-blue-bg);color:var(--blue)">${d.fileId&&/^image\//.test(d.fileType||"")?`<img src="${esc(fileUrl(d.fileId))}" alt="" style="width:38px;height:38px;object-fit:cover;border-radius:12px">`:ico("file",18)}</span><span class="col grow"><span style="font-weight:500">${esc(d.title)}${d.member&&d.member!=="all"?` <span class="small">· ${esc(memName(d.member))}</span>`:""}</span><span class="small">${esc([kl, d.where?"Kept: "+d.where:""].filter(Boolean).join(" · "))}</span></span>${n!=null?`<span class="tag ${n<0?"warn":n<=90?"sand":"muted"}">${n<0?"expired":"exp. "+fmtDay(d.expires)}</span>`:""}</button>`; };
+  return `${pageHead("Documents", addBtn('data-act="ent-new" data-kind="doc"', "Add a document"))}
+  <p class="small" style="font-size:14px;margin:10px 0 0">Keep track of where the important papers are and when they expire. Avoid storing full ID or account numbers here.</p>
+  <div class="paper" style="padding:4px 16px;margin-top:14px">${list.map(row).join("") || `<div class="small" style="padding:14px 0">Passports, insurance cards, birth certificates, warranties. Add them once and HeyTribe reminds you before they expire.</div>`}</div>`;
+}
+
+/* ---------- TRIPS ---------- */
+function trips(){
+  const k = todayKey(), list = S.trips.slice().sort((a,b)=>String(a.start||"9").localeCompare(String(b.start||"9")));
+  const up = list.filter(t=>!t.end || t.end>=k), past = list.filter(t=>t.end && t.end<k).reverse();
+  const card = t => { const pk = t.packing||[], done = pk.filter(x=>x.packed).length, n = t.start ? dayDiff(k, t.start) : null;
+    return `<button class="paper col" data-act="trip-open" data-id="${esc(t.id)}" style="padding:18px;gap:8px;text-align:left;width:100%"><div class="between"><span class="serif" style="font-size:24px;min-width:0">${esc(t.name)}</span>${n!=null&&n>0?`<span class="tag">${rel(n)}</span>`:n!=null&&t.end>=k?`<span class="tag sand">happening now</span>`:""}</div><span class="small">${esc([t.where, t.start?fmtDay(t.start)+(t.end&&t.end!==t.start?" – "+fmtDay(t.end):""):""].filter(Boolean).join(" · "))}</span>${pk.length?`<div class="row" style="gap:10px"><span class="meter grow"><i style="width:${done/pk.length*100}%"></i></span><span class="small tabular">${done}/${pk.length} packed</span></div>`:""}</button>`; };
+  return `${pageHead("Trips", addBtn('data-act="ent-new" data-kind="trip"', "Plan a trip"))}
+  <div class="col cardgrid" style="gap:12px;margin-top:16px">${up.map(card).join("") || `<div class="empty"><span class="hand">no trips planned</span>Plan one to get a shared packing list, a day-by-day plan and pet-care notes.</div>`}</div>
+  ${past.length?secHead("Past trips")+`<div class="col cardgrid" style="gap:10px">${past.map(card).join("")}</div>`:""}`;
+}
+function trip(){
+  const t = S.trips.find(x=>x.id===UI.trip); if(!t){ UI.view = "trips"; return trips(); }
+  const pk = t.packing||[], plan = (t.plan||[]).slice().sort((a,b)=>String(a.day).localeCompare(String(b.day))), done = pk.filter(x=>x.packed).length;
+  const sub = [t.where, t.start?fmtDay(t.start)+(t.end&&t.end!==t.start?" – "+fmtDay(t.end):""):""].filter(Boolean).join(" · ");
+  return `${pageHead(esc(t.name), `<button class="iconbtn" data-act="ent-edit" data-kind="trip" data-id="${esc(t.id)}" aria-label="Edit trip">${ico("gear",18)}</button>`, "trips", esc(sub))}
+  <div class="sechead"><span class="eyebrow">Packing · ${done} of ${pk.length}</span>${pk.length?"":`<button data-act="pack-basics">+ Add the basics</button>`}</div>
+  <div class="paper" style="padding:4px 16px 6px">
+    <form data-form="pack" class="inline-add"><input id="pack-new" name="text" maxlength="60" placeholder="Add something to pack" aria-label="Add something to pack"><button aria-label="Add" style="color:var(--sage-ink)">${ico("plus",22,2.2)}</button></form>
+    ${pk.length?`<span class="meter" style="margin:2px 0 6px"><i style="width:${done/pk.length*100}%"></i></span>`:""}
+    ${pk.slice().sort((a,b)=>a.packed-b.packed).map(x=>`<div class="lrow"><button class="row grow" data-act="pack-toggle" data-id="${esc(x.id)}" aria-pressed="${!!x.packed}" style="text-align:left"><span class="box ${x.packed?"on":""}">${x.packed?TICK:""}</span><span class="grow">${strikeIf(x.packed, x.text)}</span></button><button class="iconbtn" style="width:32px;height:32px;border:0;color:var(--faint)" data-act="pack-del" data-id="${esc(x.id)}" aria-label="Remove ${esc(x.text)}">${ico("x",15,2)}</button></div>`).join("")}
+  </div>
+  ${secHead("Plan")}
+  <div class="paper" style="padding:4px 16px 10px">
+    ${plan.map(p=>`<div class="lrow"><span class="tag" style="min-width:86px;justify-content:center">${p.day?esc(fmtDayW(p.day)):"Anytime"}</span><span class="grow">${esc(p.text)}</span><button class="iconbtn" style="width:32px;height:32px;border:0;color:var(--faint)" data-act="plan-del" data-id="${esc(p.id)}" aria-label="Remove">${ico("x",15,2)}</button></div>`).join("")}
+    <form data-form="plan" class="row" style="gap:8px;padding-top:10px;flex-wrap:wrap"><input id="plan-day" name="day" type="date" value="${esc(t.start||todayKey())}" aria-label="Day" style="border:1.5px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--surface)"><input id="plan-text" name="text" maxlength="80" placeholder="Leave after school" aria-label="What's happening" style="flex:1 1 150px;min-width:0;border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;background:var(--surface)"><button class="btn primary" style="min-height:40px;padding:0 16px">Add</button></form>
+  </div>
+  <div class="sechead"><span class="eyebrow">Pet and plant care</span><button data-act="ent-edit" data-kind="trip" data-id="${esc(t.id)}">Edit</button></div>
+  <div class="paper" style="padding:14px 16px">${t.petcare?`<p style="margin:0;white-space:pre-line">${esc(t.petcare)}</p>`:`<span class="small">Who's feeding the pets and watering the plants while you're away?</span>`}</div>`;
+}
+
+/* ---------- CONTACTS ---------- */
+const ROLES = [["emergency","Emergency"],["doctor","Doctors and dentists"],["school","School"],["family","Family and friends"],["sitter","Sitters"],["other","Other"]];
+function contactRow(c){ return `<div class="lrow"><button class="col grow" data-act="ent-edit" data-kind="contact" data-id="${esc(c.id)}" style="text-align:left;min-width:0"><b style="font-weight:600">${esc(c.name)}</b><span class="small">${esc([c.member&&c.member!=="all"?memName(c.member):"", c.note].filter(Boolean).join(" · "))}</span></button>${c.phone?`<span class="sel tabular" style="font-size:14px;white-space:nowrap">${esc(c.phone)}</span><button class="iconbtn" style="width:34px;height:34px" data-act="copy" data-text="${esc(c.phone)}" aria-label="Copy ${esc(c.name)}'s number">${ico("copy",15)}</button>`:""}</div>`; }
+function contacts(){
+  const groups = ROLES.map(([r,l])=>[l, S.contacts.filter(c=>(c.role||"other")===r).sort((a,b)=>String(a.name).localeCompare(String(b.name)))]).filter(g=>g[1].length);
+  return `${pageHead("Contacts", addBtn('data-act="ent-new" data-kind="contact"', "Add a contact"))}
+  ${groups.length ? groups.map(([l,arr])=>secHead(l)+`<div class="paper" style="padding:4px 16px">${arr.map(contactRow).join("")}</div>`).join("") : `<div class="empty" style="margin-top:16px"><span class="hand">nobody saved yet</span>Add the pediatrician, the school office, grandparents and your go-to sitter. Emergency contacts show up on the sitter sheet.</div>`}`;
+}
+
+/* ---------- FRIDGE ---------- */
+const TONES = ["white","sage","rose","blue","sand"];
+const hash = s => { let h = 0; for(const c of String(s)) h = (h*31 + c.charCodeAt(0))|0; return Math.abs(h); };
+function fridgeBoard(){
+  const meIdv = meId();
+  const status = sorted(S.members).map(m=>`<button class="chip" data-act="status" data-id="${esc(m.id)}">${face(m,26)}<span style="font-size:12.5px"><b style="font-weight:600">${esc(m.name)}</b> <span style="color:var(--muted)">${esc(m.status||"—")}</span></span></button>`).join("");
+  const notes = S.notes.slice().sort((a,b)=>(b.at||0)-(a.at||0)).map(n => {
+    const h = hash(n.id), rot = ((h%9)-4)*0.8, tone = TONES.includes(n.tone)?n.tone:"white", pin = h%2 ? `<span class="tape"></span>` : `<span class="mag" style="background:var(--${["rose","sage","blue","olive"][h%4]})"></span>`;
+    return `<button class="note" data-act="note" data-id="${esc(n.id)}" style="background:var(--note-${tone});transform:rotate(${rot}deg)">${pin}<span class="t">${esc(n.text)}</span><span class="row" style="gap:6px">${face(mem(n.by),22)}<span class="small">${esc(memName(n.by))}</span></span></button>`;
+  }).join("");
+  const p = S.poll, total = p ? p.options.reduce((s,o)=>s+(o.votes||[]).length,0) : 0;
+  const poll = p ? `<div class="note" style="background:var(--note-white);transform:rotate(-1deg);grid-column:1 / -1;min-height:0"><span class="tape"></span>
+      <div class="between"><span style="font-weight:600;font-size:15px">${esc(p.question)}</span><button class="small" data-act="poll-edit" style="text-decoration:underline;text-underline-offset:3px">Edit</button></div>
+      ${p.options.map((o,i)=>{ const v = o.votes||[], pct = total? Math.round(v.length/total*100):0, mine = v.includes(meIdv);
+        return `<button class="pollopt" data-act="vote" data-i="${i}" aria-pressed="${mine}"><span class="between"><span class="hand" style="font-size:21px;font-weight:700">${esc(o.label)}${mine?` <span style="color:var(--sage-ink);font-size:16px">your vote</span>`:""}</span><span class="faces">${v.map(id=>face(mem(id),20)).join("")}</span></span><span class="meter"><i style="width:${pct}%"></i></span></button>`; }).join("")}
+    </div>` : "";
+  return `
+  <div class="statusrow">${status}</div>
+  <div class="fridge" style="margin-top:12px">
+    <div class="notes">${poll}${notes}</div>
+    ${!notes && !poll ? `<div class="empty"><span class="hand">bare fridge</span>Stick up a note, a reminder or a dinner poll.</div>` : ""}
+    <div class="row" style="gap:8px;margin-top:22px;justify-content:center;flex-wrap:wrap">
+      <button class="btn ghost" data-act="note-new">Add note</button>
+      <button class="btn ghost" data-act="poll-edit">${p?"New poll":"Start a poll"}</button>
+    </div>
+  </div>`;
+}
+
+/* ---------- KID VIEW ---------- */
+function kid(){
+  const m = mem(UI.kid); if(!m){ UI.view = "today"; return today(); }
+  const k = todayKey(), d = new Date(), ti = dowIdx(d), base = monday(d);
+  const evs = eventsOn(k).filter(e=>e.member===m.id || e.member==="all");
+  const rts = S.routines.filter(r=>r.member===m.id).sort((a,b)=>fromHHMM(a.time)-fromHHMM(b.time));
+  const chs = S.chores.filter(c=>c.member===m.id && (c.days||[0,1,2,3,4,5,6]).includes(ti));
+  let stars = 0; S.chores.filter(c=>c.member===m.id).forEach(c=>{ for(let i=0;i<7;i++) if(c.done && c.done[ymd(addDays(base,i))]) stars++; });
+  return `<div class="col" style="gap:22px">
+    <div class="between"><div class="row">${face(m,76)}<div class="col"><span class="hand" style="font-size:30px;color:var(--sage-ink);line-height:1">Hi ${esc(m.name)}!</span><span class="serif" style="font-size:30px">${DOW_LONG[ti]}</span></div></div><button class="btn ghost" data-act="kid-exit">Done</button></div>
+    <div class="row" style="padding:16px 18px;gap:14px;background:var(--m-rose-bg);border-radius:22px"><span style="width:54px;height:54px;border-radius:50%;background:var(--rose);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ico("star",26,2)}</span><div class="col"><span class="serif tabular" style="font-size:30px;line-height:1">${stars} ${stars===1?"star":"stars"}</span><span class="small" style="color:var(--rose-ink);font-size:14px">this week${m.reward?" · saving for "+esc(m.reward):""}</span></div></div>
+    ${evs.length?`<div class="col" style="gap:10px"><span class="eyebrow">Today</span>${evs.map(e=>`<div class="bigstep"><span class="serif tabular" style="font-size:19px;width:72px;flex-shrink:0">${fmtT(e.start)}</span><span>${esc(e.title)}</span></div>`).join("")}</div>`:""}
+    ${rts.map(r=>{ const done = (r.done&&r.done[k])||{}; return `<div class="col" style="gap:10px"><span class="eyebrow">${esc(r.name)}${r.time?" · "+fmtT(fromHHMM(r.time)):""}</span>${(r.steps||[]).map(s=>`<button class="bigstep ${done[s.id]?"on":""}" data-act="rstep" data-id="${esc(r.id)}" data-step="${esc(s.id)}" aria-pressed="${!!done[s.id]}"><span class="bx">${done[s.id]?TICKB:""}</span><span class="txt">${esc(s.text)}</span></button>`).join("")}</div>`; }).join("")}
+    ${chs.length?`<div class="col" style="gap:10px"><span class="eyebrow">Chores</span>${chs.map(c=>{ const on = !!(c.done&&c.done[k]); return `<button class="bigstep chore ${on?"on":""}" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" aria-pressed="${on}"><span class="bx">${on?ico("star",24,2):""}</span><span class="txt">${esc(c.title)}</span></button>`; }).join("")}</div>`:""}
+    ${!evs.length&&!rts.length&&!chs.length?`<div class="empty"><span class="hand">nothing to do today!</span>Ask a grown-up to add chores or a routine.</div>`:""}
+  </div>`;
+}
+
+/* ---------- FAMILY & SETTINGS ---------- */
+function family(){
+  const t = S.tribe || { name:"Your tribe" }, me = meId(), known = knownTribes().filter(x=>x.code!==TRIBE), ks = sorted(S.members).filter(m=>m.style==="kid");
+  return `${pageHead("Your <em>tribe</em>")}
+  <div class="paper col" style="padding:20px;gap:12px;margin-top:16px">
+    <div class="between"><span class="serif" style="font-size:26px;min-width:0;overflow-wrap:anywhere">${esc(t.name)}</span><button class="small" data-act="tribe-rename" style="font-weight:600;color:var(--sage-ink)">Rename</button></div>
+    <span class="eyebrow">Invite code</span>
+    <div class="between" style="flex-wrap:wrap"><span class="code sel">${esc(TRIBE)}</span><button class="btn ghost" data-act="copy-code">${ico("copy",18)} Copy invite</button></div>
+    <p class="small" style="margin:0;font-size:14px;line-height:1.45">Anyone with this code can join and see your tribe, so share it only with family, grandparents or your sitter. They open HeyTribe, tap <b>Join with an invite code</b> and type it in.</p>
+  </div>
+  ${secHead("People", 'data-act="member-new"', "Add someone")}
+  <div class="paper" style="padding:4px 16px">${sorted(S.members).map(m=>`<div class="lrow">${face(m,40)}<span class="grow" style="font-weight:500">${esc(m.name)}${m.style==="kid"||m.style==="baby"?` <span class="tag muted">${m.style}</span>`:""}</span>${m.id===me?`<span class="hand" style="font-size:19px;color:var(--sage-ink)">that's you</span>`:`<button class="chip plain" data-act="setme" data-id="${esc(m.id)}">That's me</button>`}<button class="iconbtn" data-act="member-edit" data-id="${esc(m.id)}" aria-label="Edit ${esc(m.name)}" style="width:36px;height:36px">${ico("fwd",16,2)}</button></div>`).join("")}</div>
+  ${ks.length?secHead("Kid view")+`<div class="chips">${ks.map(k=>`<button class="chip" data-act="kid-go" data-id="${esc(k.id)}">${face(k,28)}Open ${esc(k.name)}'s view</button>`).join("")}</div><p class="small" style="margin:8px 0 0">A big, simple screen with their routines and chores. Hand them the phone or leave it on a tablet.</p>`:""}
+  ${secHead("Switch tribe")}
+  <div class="col" style="gap:8px">
+    ${known.map(x=>`<button class="choice" data-act="switch-tribe" data-code="${esc(x.code)}"><span class="lic" style="background:var(--sage-soft);color:var(--sage-ink)">${ico("home",22)}</span><span class="col grow"><b style="font-weight:600">${esc(x.name)}</b><span class="small">Code ${esc(x.code)}</span></span>${ico("fwd",18,2)}</button>`).join("")}
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="onboard" data-mode="join">Join another tribe</button><button class="btn ghost" data-act="onboard" data-mode="create">Start a new tribe</button></div>
+    <button class="small" data-act="leave-tribe" style="text-align:left;margin-top:8px;text-decoration:underline;text-underline-offset:3px">Leave this tribe</button>
+  </div>
+  ${secHead("Appearance")}<div class="chips" style="margin-top:0">${[["auto","Match my device"],["light","Light"],["dark","Dark"]].map(([k,l])=>`<button class="chip plain ${(store.get("ht-theme")||"auto")===k?"on":""}" data-act="theme" data-t="${k}">${l}</button>`).join("")}</div>
+  ${secHead("Language")}<div class="chips" style="margin-top:0">${[["en","English"],["es","Español"]].map(([l,n])=>`<button class="chip ${((window.HTi18n&&HTi18n.lang)||"en")===l?"on":""}" data-act="lang" data-l="${l}" data-no-tr>${n}</button>`).join("")}</div>
+  ${accessCard()}
+  ${planCard()}
+  ${installCard()}
+  ${remindersCard()}
+  ${supportCard()}
+  ${SESSION?`${secHead("Your account")}<div class="paper col" style="padding:16px;gap:10px"><span style="font-weight:500;overflow-wrap:anywhere">${esc(SESSION.user.email||"")}</span><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="auth-change-pw">Change password</button><button class="btn ghost" data-act="sign-out">Log out</button></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px"><button class="btn ghost" data-act="export-data">${ico("download",17)} Download our data</button>${isParent()?`<button class="small" data-act="close-family" style="color:var(--rose-ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Delete this family</button>`:""}<button class="small" data-act="delete-account" style="color:var(--rose-ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Delete my account</button></div></div>`:""}`;
+}
+
+const VIEWFN = { today, calendar, chores, lists, menu, baby, fridge: today, routines, health, school, sitter, home, docs, trips, trip, contacts, kid, family };
+
+/* ---------- sheets ---------- */
+function openSheet(html, night=false, onOpen){
+  closeSheet();
+  const s = document.createElement("div"); s.className = "scrim"; s.id = "scrim";
+  s.innerHTML = `<div class="sheet ${night?"night":""}" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
+  document.body.appendChild(s);
+  s.addEventListener("click", e => { if(e.target === s) closeSheet(); });
+  const f = s.querySelector("[autofocus]"); if(f) setTimeout(()=>f.focus(), 60);
+  if(onOpen) onOpen(s);
+}
+function closeSheet(){ const s = $("#scrim"); if(s) s.remove(); if(htCtl){ htCtl.abort(); htCtl = null; } }
+document.addEventListener("keydown", e => { if(e.key === "Escape" && $("#scrim")) closeSheet(); });
+function toast(t){ const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(()=>el.hidden = true, 2400); }
+const memberOptions = (sel, extra="") => extra + sorted(S.members).map(m=>`<option value="${esc(m.id)}" ${m.id===sel?"selected":""}>${esc(m.name)}</option>`).join("");
+async function copyText(t, ok){
+  try { await navigator.clipboard.writeText(t); toast(ok || "Copied"); }
+  catch(e){ openSheet(`<h2 class="serif" style="font-size:24px;margin:0 0 10px">Copy this</h2><textarea id="copybox" readonly rows="10" style="width:100%;border:1.5px solid var(--line);border-radius:14px;padding:12px;font-size:14px;background:var(--surface)">${esc(t)}</textarea><p class="small">Press and hold to select it all, then copy.</p>`, false, s => { const ta = s.querySelector("#copybox"); ta.focus(); ta.select(); }); }
+}
+
+function eventSheet(id, day){
+  const e = S.events.find(x=>x.id===id); if(!e) return;
+  day = day || e.date;
+  const c = e.member==="all" ? "sage" : okColor(mem(e.member)?.color), cf = conflictFor(e, day), d = fromYmd(day);
+  openSheet(`<div class="ticket">
+    <div class="top" style="background:var(--m-${c})">
+      <div class="between"><span class="eyebrow" style="color:rgba(255,255,255,.8)">${esc(DOW_LONG[dowIdx(d)])}, ${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}${e.repeat?" · "+repLabel(e.repeat):""}${e.endDate?" – "+fmtDay(e.endDate):""}</span>${whoFace(e.member,40)}</div>
+      <div class="serif" style="font-size:32px;line-height:1.05;margin-top:10px;letter-spacing:-.5px;overflow-wrap:anywhere">${esc(e.title)}</div>
+      <div class="row" style="gap:26px;margin-top:18px;flex-wrap:wrap">
+        ${e.allDay?`<div class="col"><span style="font-size:12px;opacity:.8">When</span><span class="serif" style="font-size:24px">${e.endDate?"Through "+fmtDay(e.endDate):"All day"}</span></div>`:`<div class="col"><span style="font-size:12px;opacity:.8">Starts</span><span class="serif tabular" style="font-size:24px">${fmtT(e.start)}</span></div>
+        <div class="col"><span style="font-size:12px;opacity:.8">Ends</span><span class="serif tabular" style="font-size:24px">${fmtT(e.end)}</span></div>`}
+        <div class="col"><span style="font-size:12px;opacity:.8">Who</span><span class="serif" style="font-size:24px">${esc(memName(e.member))}</span></div>
+      </div>
+    </div>
+    <div class="perf"></div>
+    <div class="col" style="padding:18px 20px 20px;gap:14px">
+      ${e.place?`<div class="row">${ico("pin",20)}<span>${esc(e.place)}</span></div>`:""}
+      <label class="field"><span class="row" style="gap:8px">${ico("car",18)}<span class="small">Who's driving</span></span>
+        <select id="ev-driver" data-act-change="driver" data-id="${esc(e.id)}" data-day="${esc(day)}"><option value="">Nobody needed</option>${memberOptions(e.driver)}</select></label>
+      ${cf?`<p class="hand" style="font-size:20px;color:var(--rose-ink);margin:0">Heads up: ${esc(memName(e.driver))} has ${esc(cf.title)} at ${fmtT(cf.start)}.</p>`:""}
+      ${e.note?`<p style="margin:0;color:var(--muted);line-height:1.5">${esc(e.note)}</p>`:""}
+    </div>
+  </div>
+  <div class="row" style="gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn danger" data-act="event-del" data-id="${esc(e.id)}">${ico("trash",18)} ${e.repeat?"Delete series":"Delete"}</button>${e.repeat?`<button class="btn ghost" data-act="event-skip" data-id="${esc(e.id)}" data-day="${esc(day)}">Skip this day</button>`:""}<button class="btn ghost" data-act="event-edit" data-id="${esc(e.id)}">${ico("edit",18)} Edit</button><button class="btn dark grow" data-act="close">Done</button></div>`);
+}
+function eventNewSheet(day, id){
+  const e = id ? S.events.find(x => x.id === id) : null;
+  const v = e || { member: meId(), date: day || todayKey(), start: 960, end: 1020, repeat: "" };
+  openSheet(`<form data-form="event" data-id="${esc(e ? e.id : "")}" class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">${e ? "Edit plan" : "New plan"}</h2>
+    <div class="field"><label for="ev-title">What</label><input id="ev-title" name="title" required maxlength="60" placeholder="Soccer practice" value="${esc(v.title||"")}" ${e?"":"autofocus"}></div>
+    <div class="grid2"><div class="field"><label for="ev-who">Who</label><select id="ev-who" name="member">${memberOptions(v.member,`<option value="all" ${v.member==="all"?"selected":""}>Everyone</option>`)}</select></div>
+      <div class="field"><label for="ev-date">Day</label><input id="ev-date" name="date" type="date" value="${esc(v.date)}" required></div></div>
+    <label class="row" style="gap:10px;font-size:15px"><input type="checkbox" name="allDay" id="ev-allday" ${v.allDay?"checked":""} style="width:20px;height:20px;accent-color:var(--sage)"> All day or several days</label>
+    <div class="grid2" id="ev-times" ${v.allDay?"hidden":""}><div class="field"><label for="ev-start">Starts</label><input id="ev-start" name="start" type="time" value="${toHHMM(v.start||960)}"></div>
+      <div class="field"><label for="ev-end">Ends</label><input id="ev-end" name="end" type="time" value="${toHHMM(v.end||1020)}"></div></div>
+    <div class="field" id="ev-enddate" ${v.allDay?"":"hidden"}><label for="ev-ed">Last day (optional)</label><input id="ev-ed" name="endDate" type="date" value="${esc(v.endDate||"")}"></div>
+    <div class="grid2"><div class="field"><label for="ev-drv">Driving</label><select id="ev-drv" name="driver"><option value="">Nobody</option>${memberOptions(v.driver||"")}</select></div>
+      <div class="field"><label for="ev-rep">Repeats</label><select id="ev-rep" name="repeat">${REPEATS.map(([k,l])=>`<option value="${k}" ${k===(v.repeat||"")?"selected":""}>${l}</option>`).join("")}</select></div></div>
+    <div class="field" id="ev-untilf" ${v.repeat?"":"hidden"}><label for="ev-until">Stop repeating after (optional)</label><input id="ev-until" name="until" type="date" value="${esc(v.until||"")}"></div>
+    <div class="field"><label for="ev-place">Where</label><input id="ev-place" name="place" maxlength="60" placeholder="Optional" value="${esc(v.place||"")}"></div>
+    <div class="field"><label for="ev-note">Notes</label><input id="ev-note" name="note" maxlength="140" placeholder="Bring the insurance card" value="${esc(v.note||"")}"></div>
+    <button class="btn primary">${e ? "Save changes" : "Add to calendar"}</button></form>`);
+}
+function choreSheet(id){
+  const c = id ? S.chores.find(x=>x.id===id) : null, days = c?.days || [0,1,2,3,4,5,6];
+  openSheet(`<form data-form="chore" data-id="${esc(c?.id||"")}" class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">${c?"Edit chore":"New chore"}</h2>
+    <div class="field"><label for="ch-title">Chore</label><input id="ch-title" name="title" required maxlength="40" value="${esc(c?.title||"")}" placeholder="Feed the dog" autofocus></div>
+    <div class="field"><label for="ch-who">Whose job</label><select id="ch-who" name="member">${memberOptions(c?.member||UI.choreMember)}</select></div>
+    <div class="field"><label>Which days</label><div class="daypick">${DOW.map((d,i)=>`<button type="button" class="${days.includes(i)?"on":""}" data-day-toggle="${i}" aria-pressed="${days.includes(i)}">${d[0]}</button>`).join("")}</div></div>
+    <div class="row" style="gap:10px">${c?`<button type="button" class="btn danger" data-act="chore-del" data-id="${esc(c.id)}">${ico("trash",18)} Delete</button>`:""}<button class="btn primary grow">${c?"Save":"Add chore"}</button></div></form>`);
+}
+function memberSheet(id){
+  const m = id ? mem(id) : null, style = m?.style || "short", color = m?.color || COLORS[S.members.length % COLORS.length];
+  const skin = m?.skin || SKINS[(S.members.length+1)%SKINS.length], hair = m?.hair || HAIRS[(S.members.length+1)%HAIRS.length];
+  openSheet(`<form data-form="member" data-id="${esc(m?.id||"")}" class="col" style="gap:14px">
+    <div class="row"><span id="mem-preview">${face({name:"",style,color,skin,hair},56)}</span><h2 class="serif" style="font-size:28px;margin:0">${m?"Edit "+esc(m.name):"Add to the tribe"}</h2></div>
+    <div class="field"><label for="mem-name">Name</label><input id="mem-name" name="name" required maxlength="20" value="${esc(m?.name||"")}" autofocus></div>
+    <div class="field"><label>Look</label><div class="chips">${[["short","Short hair"],["long","Long hair"],["kid","Kid"],["baby","Baby"]].map(([v,l])=>`<button type="button" class="chip plain ${v===style?"on":""}" data-pick="style" data-v="${v}">${l}</button>`).join("")}</div></div>
+    <div class="field"><label>Color</label><div class="swatches">${COLORS.map(c=>`<button type="button" class="sw ${c===color?"on":""}" data-pick="color" data-v="${c}" style="background:var(--m-${c})" aria-label="${c}"></button>`).join("")}</div></div>
+    <div class="field"><label>Skin</label><div class="swatches">${SKINS.map(c=>`<button type="button" class="sw ${c===skin?"on":""}" data-pick="skin" data-v="${c}" style="background:${c}" aria-label="Skin tone"></button>`).join("")}</div></div>
+    <div class="field"><label>Hair</label><div class="swatches">${HAIRS.map(c=>`<button type="button" class="sw ${c===hair?"on":""}" data-pick="hair" data-v="${c}" style="background:${c}" aria-label="Hair color"></button>`).join("")}</div></div>
+    <input type="hidden" name="style" value="${style}"><input type="hidden" name="color" value="${color}"><input type="hidden" name="skin" value="${skin}"><input type="hidden" name="hair" value="${hair}">
+    <div class="row" style="gap:10px">${m?`<button type="button" class="btn danger" data-act="member-del" data-id="${esc(m.id)}">${ico("trash",18)} Remove</button>`:""}<button class="btn primary grow">${m?"Save":"Add"}</button></div></form>`);
+}
+function whoSheet(){
+  openSheet(`<div class="col" style="gap:10px"><h2 class="serif" style="font-size:28px;margin:0">Which one is you?</h2><span class="small" style="font-size:14px">So the things you add show your face. You can change it later in Family &amp; settings.</span>
+    ${sorted(S.members).filter(m=>m.style!=="baby").map(m=>`<button class="choice" data-act="setme" data-id="${esc(m.id)}" data-close="1">${face(m,44)}<b class="grow" style="font-weight:600">${esc(m.name)}</b>${ico("fwd",18,2)}</button>`).join("")}
+    <button class="btn ghost" data-act="member-new">I'm not listed yet</button></div>`);
+}
+const HUB = [
+  ["chores","check","rose","Chores"],["routines","sun","sand","Routines"],["menu","pot","sand","Dinner menu"],
+  ["health","heart","blue","Health"],["baby","bottle","olive","Baby log"],["school","book","sage","School"],
+  ["sitter","shield","rose","Sitter sheet"],["home","dollar","olive","Home &amp; bills"],["docs","file","blue","Documents"],
+  ["trips","plane","sage","Trips"],["contacts","phone","sand","Contacts"],["fridge","note","rose","Fridge"],
+  ["kid","smile","blue","Kid view"],["calendar","cal","sage","Calendar"],["family","gear","olive","Family &amp; settings"]
+];
+function moreSheet(){
+  openSheet(`<h2 class="serif" style="font-size:28px;margin:0 0 14px">Everything</h2><div class="hub">${HUB.map(([v,ic,tone,l])=>`<button class="hubtile" ${v==="kid"?'data-act="kid-pick"':`data-go="${v}"`}><span class="ic" style="background:var(--m-${tone}-bg);color:var(--m-${tone})">${ico(ic,22)}</span>${l}</button>`).join("")}</div>`);
+}
+function kidPick(){
+  const ks = sorted(S.members).filter(m=>m.style==="kid");
+  if(ks.length === 1){ closeSheet(); UI.kid = ks[0].id; go("kid"); return; }
+  openSheet(`<div class="col" style="gap:10px"><h2 class="serif" style="font-size:28px;margin:0">Whose view?</h2>${ks.map(k=>`<button class="choice" data-act="kid-go" data-id="${esc(k.id)}">${face(k,44)}<b class="grow" style="font-weight:600">${esc(k.name)}</b>${ico("fwd",18,2)}</button>`).join("") || `<div class="empty">Add a family member with the kid look first.</div>`}</div>`);
+}
+function lunchSheet(){
+  const wk = ymd(monday(new Date())), l = S.school.find(x=>x.id==="lunch-"+wk), days = (l && l.days) || {};
+  openSheet(`<form data-form="lunch" data-week="${wk}" class="col" style="gap:12px"><h2 class="serif" style="font-size:28px;margin:0">Lunch this week</h2>${[0,1,2,3,4].map(i=>`<div class="field"><label for="ln-${i}">${DOW_LONG[i]}</label><input id="ln-${i}" name="d${i}" maxlength="50" value="${esc(days[i]||"")}" placeholder="${["Pizza","Chicken tacos","Mac and cheese","Turkey sandwich","Pancakes"][i]}"></div>`).join("")}<button class="btn primary">Save</button></form>`);
+}
+function sitterInfoSheet(){
+  const i = S.sitter || {};
+  openSheet(`<form data-form="sitter-info" class="col" style="gap:12px"><h2 class="serif" style="font-size:28px;margin:0">House info</h2>
+    <div class="field"><label for="si-a">Address</label><input id="si-a" name="address" maxlength="120" value="${esc(i.address||"")}"></div>
+    <div class="field"><label for="si-w">Wi-Fi</label><input id="si-w" name="wifi" maxlength="120" value="${esc(i.wifi||"")}" placeholder="Network name and where the password is"></div>
+    <div class="field"><label for="si-r">House rules</label><textarea id="si-r" name="rules" rows="3" maxlength="400">${esc(i.rules||"")}</textarea></div>
+    <div class="field"><label for="si-n">Anything else</label><textarea id="si-n" name="notes" rows="3" maxlength="400" placeholder="Pets, spare key, where the first aid kit is">${esc(i.notes||"")}</textarea></div>
+    <button class="btn primary">Save</button></form>`);
+}
+
+/* ---------- generic editors ---------- */
+const ENT = {
+  bill:{ col:"home", title:"Bill", fixed:{kind:"bill"}, fields:[
+    {name:"name",label:"Bill",required:1,ph:"Electric"},
+    {name:"amount",label:"Amount ($)",type:"number",step:"0.01",min:0},
+    {name:"dueDay",label:"Due day of the month",type:"number",min:1,max:31,required:1,value:1},
+    {name:"autopay",label:"Paid automatically",type:"checkbox"}]},
+  upkeep:{ col:"home", title:"Home task", fixed:{kind:"upkeep"}, fields:[
+    {name:"name",label:"Task",required:1,ph:"Change the furnace filter"},
+    {name:"every",label:"Every how many months",type:"number",min:1,max:60,value:3},
+    {name:"last",label:"Last done",type:"date"}]},
+  sub:{ col:"home", title:"Subscription", fixed:{kind:"sub"}, fields:[
+    {name:"name",label:"Subscription",required:1,ph:"Streaming service"},
+    {name:"amount",label:"Price ($)",type:"number",step:"0.01",min:0},
+    {name:"cycle",label:"Billed",type:"select",options:[["monthly","Every month"],["yearly","Every year"]]},
+    {name:"renews",label:"Next renewal",type:"date"}]},
+  doc:{ col:"docs", title:"Document", fields:[
+    {name:"title",label:"Document",required:1,ph:"Passport"},
+    {name:"kind",label:"Type",type:"select",options:DKIND},
+    {name:"member",label:"Whose",type:"select",options:"members+all"},
+    {name:"expires",label:"Expires",type:"date"},
+    {name:"where",label:"Where it's kept",ph:"Fireproof box, hall closet"},
+    {name:"note",label:"Notes",type:"textarea"},
+    {name:"file",label:"Photo or PDF",type:"file"}]},
+  contact:{ col:"contacts", title:"Contact", fields:[
+    {name:"name",label:"Name",required:1,ph:"Dr. Rivera"},
+    {name:"role",label:"Type",type:"select",options:ROLES},
+    {name:"phone",label:"Phone",type:"tel",ph:"(570) 555-0100"},
+    {name:"email",label:"Email",type:"email"},
+    {name:"member",label:"For",type:"select",options:"members+all"},
+    {name:"note",label:"Notes",ph:"2nd grade teacher, Room 14"}]},
+  record:{ col:"health", title:"Health record", fields:[
+    {name:"member",label:"Who",type:"select",options:"members"},
+    {name:"kind",label:"Type",type:"select",options:Object.keys(RKIND).map(k=>[k,RKIND[k][2]])},
+    {name:"title",label:"What",required:1,ph:"Flu shot, 9-month checkup, peanuts"},
+    {name:"date",label:"Date",type:"date"},
+    {name:"next",label:"Next due",type:"date"},
+    {name:"note",label:"Notes",type:"textarea"}]},
+  med:{ col:"meds", title:"Medicine", fields:[
+    {name:"member",label:"Who",type:"select",options:"members"},
+    {name:"name",label:"Medicine",required:1,ph:"Amoxicillin"},
+    {name:"dose",label:"Dose",ph:"5 ml"},
+    {name:"times",label:"Times (comma separated)",required:1,ph:"8am, 8pm", get:r=>(r.times||[]).map(t=>fmtT(fromHHMM(t))).join(", ")},
+    {name:"start",label:"Starting",type:"date"},
+    {name:"until",label:"Stop after",type:"date"},
+    {name:"note",label:"Notes",ph:"With food"}],
+    toData(d){ const ts = String(d.times||"").split(/[,;]+/).map(parseClock).filter(Boolean); if(!ts.length) return { error:"Add at least one time, like 8am or 20:00." }; d.times = [...new Set(ts)].sort(); if(!d.start) d.start = todayKey(); return d; } },
+  slip:{ col:"school", title:"Form or slip", fixed:{kind:"slip"}, fields:[
+    {name:"member",label:"For",type:"select",options:"members+all"},
+    {name:"title",label:"Form",required:1,ph:"Field trip permission"},
+    {name:"due",label:"Due",type:"date"},
+    {name:"done",label:"Signed and returned",type:"checkbox"}]},
+  routine:{ col:"routines", title:"Routine", fields:[
+    {name:"member",label:"For",type:"select",options:"members"},
+    {name:"name",label:"Routine",required:1,ph:"Bedtime"},
+    {name:"time",label:"Starts at",type:"time"},
+    {name:"steps",label:"Steps, one per line",type:"textarea",required:1,ph:"Bath\nPajamas\nBrush teeth\nTwo books", get:r=>(r.steps||[]).map(s=>s.text).join("\n")}],
+    toData(d, rec){ const old = rec.steps||[]; const lines = String(d.steps||"").split("\n").map(s=>s.trim()).filter(Boolean).slice(0,20); if(!lines.length) return { error:"Add at least one step." }; d.steps = lines.map(t => { const o = old.find(s=>s.text===t); return { id: o ? o.id : uid(), text: t.slice(0,60) }; }); return d; } },
+  countdown:{ col:"countdowns", title:"Countdown", fields:[
+    {name:"title",label:"Counting down to",required:1,ph:"Beach trip, Leo's birthday, last day of school"},
+    {name:"date",label:"Date",type:"date",required:1},
+    {name:"member",label:"Whose big day",type:"select",options:"members+all"},
+    {name:"tone",label:"Card color",type:"select",options:[["sage","Sage"],["blue","Blue"],["rose","Rose"],["olive","Olive"],["sand","Sand"]]},
+    {name:"yearly",label:"Repeats every year (birthdays, holidays)",type:"checkbox"}]},
+  trip:{ col:"trips", title:"Trip", fields:[
+    {name:"name",label:"Trip",required:1,ph:"Beach weekend"},
+    {name:"where",label:"Where",ph:"Ocean City"},
+    {name:"start",label:"Leaving",type:"date"},
+    {name:"end",label:"Coming home",type:"date"},
+    {name:"petcare",label:"Pet and plant care",type:"textarea",ph:"Neighbor feeds the dog at 8am and 6pm"}],
+    toData(d, rec){ if(d.start && d.end && d.end < d.start) d.end = d.start; if(!rec.id){ d.packing = []; d.plan = []; } return d; } }
+};
+function fieldHtml(f, rec){
+  const id = "f-"+f.name, val = f.get ? f.get(rec) : (rec[f.name] ?? f.value ?? "");
+  if(f.type === "checkbox") return `<label class="row" style="gap:10px;font-weight:500" for="${id}"><input type="checkbox" id="${id}" name="${f.name}" ${val?"checked":""} style="width:22px;height:22px;accent-color:var(--sage)">${esc(f.label)}</label>`;
+  if(f.type === "file"){
+    if(!assets && !rec.fileId) return "";
+    const prev = rec.fileId ? (/^image\//.test(rec.fileType||"") ? `<img class="file-prev" src="${esc(fileUrl(rec.fileId))}" alt="${esc(rec.title||"Document photo")}">` : `<a href="${esc(fileUrl(rec.fileId))}" target="_blank" rel="noopener" style="color:var(--sage-ink);font-weight:600">Open ${esc(rec.fileName||"file")}</a>`) : "";
+    return `<div class="field"><label for="${id}">${esc(f.label)}</label>${prev}${assets?`<input type="file" id="${id}" name="${f.name}" accept="image/*,application/pdf">`:""}</div>`;
+  }
+  let input;
+  if(f.type === "select"){
+    const opts = f.options === "members" ? memberOptions(val || UI.who || meId())
+      : f.options === "members+all" ? memberOptions(val || "all", `<option value="all" ${!val||val==="all"?"selected":""}>Everyone</option>`)
+      : f.options.map(([v,l])=>`<option value="${esc(v)}" ${String(val)===v?"selected":""}>${esc(l)}</option>`).join("");
+    input = `<select id="${id}" name="${f.name}">${opts}</select>`;
+  } else if(f.type === "textarea") input = `<textarea id="${id}" name="${f.name}" rows="4" maxlength="600" placeholder="${esc(f.ph||"")}" ${f.required?"required":""}>${esc(val)}</textarea>`;
+  else input = `<input id="${id}" name="${f.name}" type="${f.type||"text"}" value="${esc(val)}" ${f.required?"required":""} ${f.min!=null?`min="${f.min}"`:""} ${f.max!=null?`max="${f.max}"`:""} ${f.step?`step="${f.step}"`:""} maxlength="120" placeholder="${esc(f.ph||"")}">`;
+  return `<div class="field"><label for="${id}">${esc(f.label)}</label>${input}</div>`;
+}
+function openEditor(kind, id, preset){
+  const E = ENT[kind]; if(!E) return;
+  const rec = id ? (S[E.col].find(x=>x.id===id) || {}) : Object.assign({}, preset||{});
+  openSheet(`<form data-form="ent" data-kind="${kind}" data-id="${esc(id||"")}" class="col" style="gap:14px" novalidate>
+    <h2 class="serif" style="font-size:28px;margin:0">${id?"Edit":"New"} ${esc(E.title.toLowerCase())}</h2>
+    ${E.fields.map(f=>fieldHtml(f,rec)).join("")}
+    <p class="form-err small" id="ent-err" role="alert"></p>
+    <div class="row" style="gap:10px">${id?`<button type="button" class="btn danger" data-act="ent-del" data-kind="${kind}" data-id="${esc(id)}">${ico("trash",18)} Delete</button>`:""}<button class="btn primary grow">${id?"Save":"Add"}</button></div></form>`);
+}
+
+/* ---------- Hey Tribe ---------- */
+let htCtl = null, htPending = null;
+function htSheet(){
+  htPending = null;
+  const ex = ["Dentist for Leo next Tuesday at 3, Maria drives","Add milk and diapers to the list","Swim lessons every Saturday at 10","Leo: feed the dog every day"];
+  openSheet(`<div class="col" style="gap:16px">
+    <div class="between"><div class="row" style="gap:8px">${mark(28,"var(--night-ink)","var(--night-b)")}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div><button class="small" style="color:rgba(255,255,255,.75)" data-act="close">Close</button></div>
+    <form data-form="ht" class="col" style="gap:12px"><label for="ht-text" class="small" style="color:rgba(255,255,255,.75)">Type it the way you'd say it. Plans, list items, chores or notes.</label>
+      <textarea id="ht-text" name="text" class="ht-input" maxlength="400" placeholder="Swim lessons for Leo Saturday at 10…" autofocus></textarea>
+      <div class="chips">${ex.map(t=>`<button type="button" class="ht-chip" data-ex="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+      <button class="btn" style="background:var(--night-ink);color:var(--night-a)">Understand this</button></form>
+    <div id="ht-out" aria-live="polite"></div></div>`, true);
+}
+function findMember(word){ const w = String(word||"").toLowerCase(); return S.members.find(m => m.name.toLowerCase() === w) || S.members.find(m=>w && m.name.toLowerCase().startsWith(w)); }
+function parseDay(t){
+  const s = t.toLowerCase(), now = new Date();
+  if(/\btomorrow\b/.test(s)) return { date: ymd(addDays(now,1)), m: s.match(/\btomorrow\b/)[0] };
+  if(/\btonight\b|\btoday\b/.test(s)) return { date: ymd(now), m: s.match(/\btonight\b|\btoday\b/)[0] };
+  const dm = s.match(/\b(?:(next|this|every)\s+)?(mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)[a-z]*\b/);
+  if(dm){ const idx = ["mon","tue","wed","thu","fri","sat","sun"].findIndex(p=>dm[2].startsWith(p)); let diff = (idx - dowIdx(now) + 7) % 7; if(diff===0 && dm[1]!=="every") diff = 7; return { date: ymd(addDays(now,diff)), m: dm[0], repeat: dm[1]==="every" }; }
+  return null;
+}
+function parseTime(t){
+  const m = t.match(/\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?(?=\b|\s|,|$)/i);
+  if(!m) return null; let h = +m[1], mm = +(m[2]||0); if(h>23||mm>59) return null;
+  const ap = (m[3]||"").toLowerCase(); if(ap.startsWith("p") && h<12) h += 12; else if(ap.startsWith("a") && h===12) h = 0; else if(!ap && h>=1 && h<=6) h += 12;
+  if(!m[2] && !m[3] && !/\bat\s/i.test(m[0])) return null;
+  return { min: h*60+mm, m: m[0] };
+}
+function localParse(text){
+  const actions = []; let rest = " " + text.trim() + " ";
+  const lm = rest.match(/\b(?:and\s+)?(?:oh,?\s*(?:and\s*)?)?(?:add|put|get|buy)\s+(.+?)\s+(?:to|on)\s+(?:the\s+)?(?:(\w+)\s+)?list\b/i);
+  if(lm){ const ln = lm[2] && listNames().find(n=>n.toLowerCase()===lm[2].toLowerCase()) || "Groceries";
+    lm[1].split(/,|\band\b|&/i).map(s=>s.trim()).filter(Boolean).forEach(x=>actions.push({type:"item",text:x.replace(/^(some|a|an|more)\s+/i,""),list:ln}));
+    rest = rest.replace(lm[0], " "); }
+  const cm = rest.match(/^\s*(\w+)\s*:\s*(.+?)(?:\s+every\s+day|\s+daily)?\s*$/i);
+  if(cm && findMember(cm[1]) && !parseTime(cm[2]) && !parseDay(cm[2])){ actions.push({type:"chore",title:cm[2].trim(),member:findMember(cm[1]).id,days:[0,1,2,3,4,5,6]}); rest = ""; }
+  rest = rest.replace(/^[\s,.;]+|[\s,.;]+$/g,"").replace(/^(oh,?\s*)?(and\s+)?/i,"");
+  if(rest){
+    const day = parseDay(rest), time = parseTime(rest);
+    if(day || time){
+      let drv = null; const dr = rest.match(/\b(\w+)\s+(?:drives|is driving|will drive|takes (?:him|her|them)|can drive)\b/i); if(dr && findMember(dr[1])) drv = findMember(dr[1]).id;
+      let who = "all"; const fm = rest.match(/\bfor\s+(\w+)/i); if(fm && findMember(fm[1])) who = findMember(fm[1]).id; else { const any = S.members.find(m => new RegExp("\\b"+m.name.replace(/[^\w]/g,"")+"\\b","i").test(rest) && m.id!==drv); if(any) who = any.id; }
+      let title = rest.split(/\s+for\s+|\s+(?:at|on)\s+|,/i)[0]; if(day) title = title.replace(new RegExp(day.m.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i"),""); if(time) title = title.replace(time.m,"");
+      title = title.replace(/\b(next|this|every)\s*$/i,"").trim() || "Plan"; title = title.charAt(0).toUpperCase()+title.slice(1);
+      const start = time ? time.min : 9*60;
+      actions.push({type:"event",title,member:who,date:day?day.date:todayKey(),start,end:Math.min(start+60,1439),driver:drv,repeat:day&&day.repeat?"weekly":null});
+    } else actions.push({type:"note",text:rest.charAt(0).toUpperCase()+rest.slice(1)});
+  }
+  return actions;
+}
+function cleanActions(raw){
+  const out = []; const ids = new Set(S.members.map(m=>m.id));
+  (Array.isArray(raw)?raw:[]).slice(0,12).forEach(a => {
+    if(!a || typeof a !== "object") return;
+    if(a.type==="event" && a.title){ const start = typeof a.start==="number"?a.start:fromHHMM(a.start), end = typeof a.end==="number"?a.end:(a.end?fromHHMM(a.end):start+60);
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(a.date) ? a.date : todayKey();
+      out.push({type:"event",title:String(a.title).slice(0,60),member:ids.has(a.member)?a.member:"all",date,start:Math.min(start,1439),end:Math.min(Math.max(end,start+15),1439),driver:ids.has(a.driver)?a.driver:null,repeat:a.repeat==="weekly"?"weekly":null}); }
+    else if(a.type==="item" && a.text) out.push({type:"item",text:String(a.text).slice(0,80),list:listNames().includes(a.list)?a.list:"Groceries"});
+    else if(a.type==="chore" && a.title) out.push({type:"chore",title:String(a.title).slice(0,40),member:ids.has(a.member)?a.member:meId(),days:Array.isArray(a.days)&&a.days.length?a.days.filter(d=>d>=0&&d<=6):[0,1,2,3,4,5,6]});
+    else if(a.type==="note" && a.text) out.push({type:"note",text:String(a.text).slice(0,140)});
+  });
+  return out;
+}
+function highlight(text, acts){
+  const marks = [];
+  const add = (phrase, cls) => { if(!phrase) return; const i = text.toLowerCase().indexOf(String(phrase).toLowerCase()); if(i>=0 && !marks.some(m=>i<m.e && i+phrase.length>m.s)) marks.push({s:i,e:i+phrase.length,c:cls}); };
+  S.members.forEach(m => add(m.name,"p"));
+  acts.filter(a=>a.type==="item").forEach(a=>add(a.text,"i"));
+  const d = parseDay(text); if(d) add(text.substr(text.toLowerCase().indexOf(d.m), d.m.length),"t");
+  const t = parseTime(text); if(t) add(t.m.trim(),"t");
+  marks.sort((a,b)=>a.s-b.s); let out = "", p = 0;
+  marks.forEach(m => { out += esc(text.slice(p,m.s)) + `<span class="mk ${m.c}">${esc(text.slice(m.s,m.e))}</span>`; p = m.e; });
+  return out + esc(text.slice(p));
+}
+function describe(a){
+  if(a.type==="event"){ const d = fromYmd(a.date); return { ic:"cal", who:a.member, head:a.title, sub:`${a.repeat==="weekly"?"Every "+DOW_LONG[dowIdx(d)]:(a.date===todayKey()?"Today":DOW[dowIdx(d)]+" "+MONTHS[d.getMonth()].slice(0,3)+" "+d.getDate())}, ${fmtT(a.start)} · ${memName(a.member)}${a.driver?" · "+memName(a.driver)+" drives":""}` }; }
+  if(a.type==="item") return { ic:"cart", head:`${a.list}: ${a.text}`, sub:"Shopping list" };
+  if(a.type==="chore") return { ic:"check", who:a.member, head:a.title, sub:`Chore for ${memName(a.member)}` };
+  return { ic:"note", head:a.text, sub:"Note on the fridge" };
+}
+async function htUnderstand(text){
+  const out = $("#ht-out"); if(!out) return;
+  if(limited()){
+    const u = S.usage || {};
+    if(u.month === monthKey(new Date()) && (u.ht||0) >= 10){
+      out.innerHTML = `<p style="opacity:.9;margin:6px 0">You've used this month's 10 free quick adds. Premium makes Hey Tribe unlimited.</p><button class="btn" style="background:var(--night-ink);color:var(--night-a);margin-top:8px" data-act="upgrade">Get Premium</button>`;
+      return;
+    }
+  }
+  out.innerHTML = `<p class="serif" style="font-size:20px;opacity:.75;margin:6px 0">Thinking…</p>`;
+  let acts = null;
+  if(sampler && TRIBE !== "SAMPLE"){
+    htCtl = new AbortController();
+    const d = new Date();
+    const ctx = { dow: DOW_LONG[dowIdx(d)], today: todayKey(), time: toHHMM(nowMin()), me: memName(meId()), members: S.members.map(m=>({ id:m.id, name:m.name })), lists: listNames() };
+    try { const r = await sampler.understand(text, ctx, htCtl.signal); acts = cleanActions(r && r.actions); }
+    catch(e){ if(e && e.name === "AbortError") return; if(e && e.code === "sampling_disabled") sampler = null; acts = null; }
+    htCtl = null;
+  }
+  if(!acts || !acts.length) acts = cleanActions(localParse(text));
+  htPending = acts;
+  if(!$("#ht-out")) return;
+  $("#ht-out").innerHTML = acts.length ? `
+    <div class="ht-quote">“${highlight(text, acts)}”</div>
+    <div class="col" style="gap:10px;margin-top:18px">${acts.map(a=>{ const x = describe(a); return `<div class="ht-card">${x.who?whoFace(x.who,34):`<span style="width:34px;height:34px;border-radius:50%;background:var(--sage);color:var(--on-sage);display:flex;align-items:center;justify-content:center;flex-shrink:0">${ico(x.ic,17)}</span>`}<span class="col grow"><span style="font-weight:500">${esc(x.head)}</span><span style="font-size:13px;opacity:.75">${esc(x.sub)}</span></span></div>`; }).join("")}</div>
+    <div class="row" style="gap:10px;margin-top:16px"><button class="btn grow" style="background:var(--night-ink);color:var(--night-a)" data-act="ht-commit">Add ${acts.length===1?"it":acts.length===2?"both":"all "+acts.length}</button><button class="btn" style="border:1.5px solid rgba(255,255,255,.35)" data-act="ht-reset">Start over</button></div>`
+    : `<p style="opacity:.85">I couldn't pick out a plan, list item or chore. Try naming a day and time, or “add … to the list”.</p>`;
+}
+async function htCommit(){
+  const acts = htPending || []; if(!db || !acts.length) return;
+  const by = meId(), at = Date.now();
+  for(const a of acts){
+    if(a.type==="event") await W.add("events", {title:a.title,member:a.member,date:a.date,start:a.start,end:a.end,driver:a.driver||null,repeat:a.repeat||null,by});
+    else if(a.type==="item") await W.add("items", {text:a.text,list:a.list,section:sectionFor(a.text),by,checked:false,at});
+    else if(a.type==="chore") await W.add("chores", {title:a.title,member:a.member,days:a.days,done:{}});
+    else if(a.type==="note") await W.add("notes", {text:a.text,by,tone:"white",at});
+  }
+  closeSheet(); toast(acts.length===1?"Added":"Added "+acts.length+" things");
+  if(TRIBE !== "SAMPLE"){ const mk = monthKey(new Date()), u = S.usage || {}; W.set("info/usage", { month: mk, ht: (u.month === mk ? (u.ht||0) : 0) + 1 }); }
+}
+
+/* ---------- writes ---------- */
+function writeErr(e){ toast(e && e.code==="quota_exceeded" ? "Storage is full. Delete old notes or items, then try again." : "Couldn't save that. Check your connection and try again."); }
+const W = {
+  async set(path, data){ try { await db.doc(P(path)).set(data); return true; } catch(e){ writeErr(e); return false; } },
+  async upd(path, data){ try { await db.doc(P(path)).update(data); return true; } catch(e){ writeErr(e); return false; } },
+  async add(col, data){ try { await db.collection(P(col)).add(data); return true; } catch(e){ writeErr(e); return false; } },
+  async del(path){ try { await db.doc(P(path)).delete(); return true; } catch(e){ writeErr(e); return false; } }
+};
+function babyWrite(fn){
+  const k = todayKey(), cur = (S.baby[k]?.entries || []).map(e=>({...e}));
+  const next = fn(cur); S.baby[k] = { entries: next }; render();
+  W.set("baby/"+k, { entries: next });
+}
+function tripWrite(id, field, fn){
+  const t = S.trips.find(x=>x.id===id); if(!t) return;
+  const next = fn((t[field]||[]).map(x=>({...x}))); t[field] = next; render(); W.upd("trips/"+id, { [field]: next });
+}
+
+/* ---------- clicks ---------- */
+document.addEventListener("click", async e => {
+  const ex = e.target.closest("[data-ex]"); if(ex){ const t = $("#ht-text"); if(t){ t.value = ex.dataset.ex; htUnderstand(t.value); } return; }
+  const pick = e.target.closest("[data-pick]");
+  if(pick){ const f = pick.closest("form"), k = pick.dataset.pick; f.querySelector(`input[name="${k}"]`).value = pick.dataset.v;
+    f.querySelectorAll(`[data-pick="${k}"]`).forEach(b=>b.classList.toggle("on", b===pick));
+    const prev = $("#mem-preview"); if(prev){ const v = n => f.querySelector(`input[name="${n}"]`)?.value; prev.innerHTML = face({name:"",style:v("style"),color:v("color"),skin:v("skin"),hair:v("hair")},56); } return; }
+  const dt = e.target.closest("[data-day-toggle]"); if(dt){ dt.classList.toggle("on"); dt.setAttribute("aria-pressed", dt.classList.contains("on")); return; }
+  const st = e.target.closest("[data-status]"); if(st){ const f = st.closest("form"); f.querySelector("#st-t").value = st.dataset.status; f.requestSubmit(); return; }
+  const g = e.target.closest("[data-go]"); if(g){ closeSheet(); if(g.dataset.trip){ UI.trip = g.dataset.trip; } go(g.dataset.go); return; }
+  const tc = e.target.closest("[data-tk-cat]"); if(tc){ const f = tc.closest("form"); f.querySelectorAll("[data-tk-cat]").forEach(x => x.classList.toggle("on", x === tc)); f.querySelector('input[name="category"]').value = tc.dataset.tkCat; return; }
+  const b = e.target.closest("[data-act]"); if(!b) return;
+  const id = b.dataset.id, act = b.dataset.act;
+  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal","tk-new","tk-open","pending-check","pending-cancel","export-data","delete-account","sitter-link","sitter-make","sitter-stop","cal-sub","cal-reset","rem-on","rem-off","rem-pref","rem-test","search","theme","setup-hide","ann-hide","install-app"].includes(act);
+  if(needsDb && !db) return;
+  switch(act){
+    case "close": closeSheet(); break;
+    case "install-app": { const ev = INSTALL_EVT; if(!ev) break; INSTALL_EVT = null; try { await ev.prompt(); await ev.userChoice; } catch(_){} render(); break; }
+    case "lang": if(window.HTi18n) HTi18n.set(b.dataset.l); break;
+    case "auth-mode": { UI.auth = b.dataset.mode; UI.authErr = ""; const em = $("#au-email"); if(em) UI.authEmail = em.value; render(); break; }
+    case "sign-out": closeSheet(); await sb.auth.signOut(); break;
+    case "auth-change-pw": closeSheet(); UI.auth = "reset"; UI.authErr = ""; S.status = "auth"; render(); break;
+    case "sample-exit": { const back = SESSION ? (knownTribes()[0]?.code) : null; if(back){ UI.view = "today"; connect(back); } else { db.reset(); TRIBE = null; UI.auth = "signup"; S.status = "auth"; render(); } break; }
+    case "more": moreSheet(); break;
+    case "copy": copyText(b.dataset.text, "Copied"); break;
+    /* tribes */
+    case "onboard": UI.onboard = b.dataset.mode || null; S.status = SESSION ? "welcome" : "auth"; if(!SESSION) UI.auth = "signup"; closeSheet(); window.scrollTo(0,0); render(); break;
+    case "back-tribe": UI.onboard = null; S.status = "ready"; render(); break;
+    case "try-sample": UI.onboard = null; UI.view = "today"; clearHash(); connect("SAMPLE"); break;
+    case "switch-tribe": UI.onboard = null; UI.view = "today"; closeSheet(); connect(b.dataset.code); break;
+    case "leave-tribe": openSheet(`<div class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Leave ${esc(S.tribe?.name||"this tribe")}?</h2><p style="margin:0;color:var(--muted)">Your family keeps everything. You can come back any time with the invite code <b class="sel">${esc(TRIBE)}</b>.</p><div class="row" style="gap:10px"><button class="btn ghost grow" data-act="close">Keep it</button><button class="btn dark grow" data-act="leave-yes">Remove</button></div></div>`); break;
+    case "leave-yes": closeSheet(); if(SESSION && TRIBE !== "SAMPLE") await sb.rpc("leave_tribe", { p_code: TRIBE }); forgetTribe(TRIBE); store.del("ht-tribe"); unsubs.forEach(u=>{ try{u();}catch(err){} }); unsubs = []; TRIBE = null; Object.assign(S, EMPTY()); UI.onboard = null; if(SESSION){ S.status = "loading"; render(); afterLogin(); } else { S.status = "welcome"; render(); } break;
+    case "copy-code": copyText(`Join our family on HeyTribe! Open ${APP_URL} and tap “Join with an invite code”. Our code is ${TRIBE}.`, "Invite copied"); break;
+    case "tribe-rename": openSheet(`<form data-form="tribe-name" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Rename your tribe</h2><div class="field"><label for="tn-n">Family name</label><input id="tn-n" name="name" maxlength="40" value="${esc(S.tribe?.name||"")}" required autofocus></div><button class="btn primary">Save</button></form>`); break;
+    /* hey tribe */
+    case "ht": htSheet(); break;
+    case "ht-commit": htCommit(); break;
+    case "ht-reset": { htPending = null; $("#ht-out").innerHTML = ""; const t = $("#ht-text"); if(t){ t.value = ""; t.focus(); } break; }
+    /* calendar */
+    case "event": eventSheet(id, b.dataset.day); break;
+    case "event-new": eventNewSheet(b.dataset.day); break;
+    case "event-edit": closeSheet(); eventNewSheet(null, id); break;
+    case "event-skip": { const ev = S.events.find(x => x.id === id); if(ev){ W.upd("events/"+id, { skip: { [b.dataset.day]: true } }); } closeSheet(); toast("Skipped that day"); break; }
+    case "event-del": W.del("events/"+id); closeSheet(); toast("Deleted"); break;
+    case "calday": UI.calDay = b.dataset.day; render(); break;
+    case "calweek": UI.calWeek += +b.dataset.dir; UI.calDay = ymd(addDays(monday(new Date()), UI.calWeek*7 + (UI.calWeek===0?dowIdx(new Date()):0))); render(); break;
+    /* chores */
+    case "chores-of": UI.choreMember = id; go("chores"); break;
+    case "chore-who": UI.choreMember = id; render(); break;
+    case "chore-new": choreSheet(); break;
+    case "chore-edit": choreSheet(id); break;
+    case "chore-del": W.del("chores/"+id); closeSheet(); toast("Chore removed"); break;
+    case "stamp": { const c = S.chores.find(x=>x.id===id); if(!c) break; const k = b.dataset.day, v = !(c.done && c.done[k]);
+      c.done = {...(c.done||{}), [k]: v}; render(); W.upd("chores/"+id, {done:{[k]:v}}); if(v) toast("Stamped ★"); break; }
+    case "reward": { const m = mem(UI.choreMember); if(!m) break; openSheet(`<form data-form="reward" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">${esc(m.name)}'s reward</h2>
+      <div class="field"><label for="rw-t">Saving up for</label><input id="rw-t" name="reward" maxlength="40" value="${esc(m.reward||"")}" placeholder="Movie night + popcorn" autofocus required></div>
+      <div class="field"><label for="rw-g">Stars needed this week</label><input id="rw-g" name="goal" type="number" min="1" max="99" value="${Number(m.goal)||20}"></div><button class="btn primary">Save</button></form>`); break; }
+    /* routines / generic person filter */
+    case "who": UI.who = id; render(); break;
+    case "rstep": { const r = S.routines.find(x=>x.id===id); if(!r) break; const k = todayKey(), s = b.dataset.step, v = !((r.done&&r.done[k]||{})[s]);
+      r.done = {...(r.done||{}), [k]: {...((r.done&&r.done[k])||{}), [s]: v}}; render(); W.upd("routines/"+id, {done:{[k]:{[s]:v}}}); break; }
+    /* lists */
+    case "list": UI.list = b.dataset.name; render(); break;
+    case "list-new": openSheet(`<form data-form="list" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">New list</h2><div class="field"><label for="ls-n">Name</label><input id="ls-n" name="name" maxlength="20" placeholder="Hardware store" required autofocus></div><button class="btn primary">Create list</button></form>`); break;
+    case "item": { const it = S.items.find(x=>x.id===id); if(!it) break; it.checked = !it.checked; render(); W.upd("items/"+id, {checked: it.checked}); break; }
+    case "clear-checked": S.items.filter(i=>i.checked && (i.list||"Groceries")===UI.list).forEach(i=>W.del("items/"+i.id)); toast("Cleared"); break;
+    /* menu */
+    case "mealweek": UI.mealWeek += +b.dataset.dir; render(); break;
+    case "meal": { const k = b.dataset.day, d = fromYmd(k), cur = S.meals[k] || {};
+      openSheet(`<form data-form="meal" data-day="${k}" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">${DOW_LONG[dowIdx(d)]} dinner</h2>
+        <div class="field"><label for="ml-d">What's cooking</label><input id="ml-d" name="dish" maxlength="40" value="${esc(cur.dish||"")}" placeholder="Tacos night" autofocus></div>
+        <div class="field"><label for="ml-i">Ingredients (comma separated)</label><textarea id="ml-i" name="ingredients" rows="2" maxlength="300" placeholder="Tortillas, ground beef, cilantro, limes">${esc(cur.ingredients||"")}</textarea></div>
+        <label class="row" style="gap:10px;font-weight:500" for="ml-add"><input type="checkbox" id="ml-add" name="addIng" style="width:22px;height:22px;accent-color:var(--sage)">Add the ingredients to Groceries</label>
+        <div class="row" style="gap:10px">${cur.dish?`<button type="button" class="btn danger" data-act="meal-clear" data-day="${k}">Clear</button>`:""}<button class="btn primary grow">Save</button></div></form>`); break; }
+    case "meal-clear": W.del("meals/"+b.dataset.day); closeSheet(); break;
+    /* baby */
+    case "baby-log": { const k = b.dataset.kind, now = nowMin(), by = meId();
+      babyWrite(arr => { if(k==="sleep"){ const open = arr.find(x=>x.kind==="sleep"&&x.end==null); if(open){ open.end = Math.max(now, open.at+1); return arr; } return arr.concat([{id:uid(),kind:"sleep",at:now,end:null,by}]); } return arr.concat([{id:uid(),kind:k,at:now,by}]); });
+      toast(k==="feed"?"Feed logged":k==="diaper"?"Diaper logged":"Sleep updated"); break; }
+    case "baby-del": babyWrite(arr => arr.filter(x=>x.id!==id)); break;
+    /* health */
+    case "med-give": { const m = S.meds.find(x=>x.id===id); if(!m) break; const k = todayKey(), t = b.dataset.t, given = m.log && m.log[k] && m.log[k][t];
+      const val = given ? null : { by: meId(), at: nowMin() };
+      m.log = {...(m.log||{}), [k]: {...((m.log&&m.log[k])||{}), [t]: val}}; render(); W.upd("meds/"+id, {log:{[k]:{[t]:val}}}); if(val) toast("Logged as given"); break; }
+    /* school */
+    case "slip-toggle": { const x = S.school.find(s=>s.id===id); if(!x) break; x.done = !x.done; render(); W.upd("school/"+id, {done:x.done}); if(x.done) toast("Marked signed"); break; }
+    case "lunch-edit": lunchSheet(); break;
+    /* sitter */
+    case "sitter-edit": sitterInfoSheet(); break;
+    case "copy-care": copyText(careText(), "Care sheet copied"); break;
+    /* home */
+    case "bill-paid": { const x = S.home.find(s=>s.id===id); if(!x) break; const st = billState(x), v = !st.paid; x.paid = {...(x.paid||{}), [st.mk]: v}; render(); W.upd("home/"+id, {paid:{[st.mk]:v}}); if(v) toast("Marked paid"); break; }
+    case "upkeep-done": { const x = S.home.find(s=>s.id===id); if(!x) break; x.last = todayKey(); render(); W.upd("home/"+id, {last:x.last}); toast("Nice. Next reminder set"); break; }
+    /* trips */
+    case "trip-open": UI.trip = id; go("trip"); break;
+    case "pack-toggle": tripWrite(UI.trip, "packing", arr => arr.map(x => x.id===id ? {...x, packed:!x.packed} : x)); break;
+    case "pack-del": tripWrite(UI.trip, "packing", arr => arr.filter(x => x.id!==id)); break;
+    case "plan-del": tripWrite(UI.trip, "plan", arr => arr.filter(x => x.id!==id)); break;
+    case "pack-basics": { const base = ["Toothbrushes","Phone chargers","Pajamas","Medicines","Snacks for the road","Change of clothes","Swimsuits","Jackets"]; if(babyMember()) base.push("Diapers and wipes","Travel crib"); tripWrite(UI.trip, "packing", arr => arr.concat(base.filter(t=>!arr.some(x=>x.text===t)).map(t=>({id:uid(),text:t,packed:false})))); break; }
+    /* generic */
+    case "ent-new": { if(b.dataset.kind === "countdown" && !gate(S.countdowns.length < 3, "Free tribes can count down to 3 big days at a time. Premium makes it unlimited, with yearly repeats.")) break; const pre = {}; if(b.dataset.who) pre.member = b.dataset.who; if(b.dataset.role) pre.role = b.dataset.role; openEditor(b.dataset.kind, null, pre); break; }
+    case "ent-edit": openEditor(b.dataset.kind, id); break;
+    case "ent-del": { const E = ENT[b.dataset.kind]; if(!E) break; W.del(E.col+"/"+id); closeSheet(); if(b.dataset.kind==="trip" && UI.view==="trip") go("trips"); toast("Deleted"); break; }
+    /* fridge */
+    case "note": { const n = S.notes.find(x=>x.id===id); if(!n) break; openSheet(`<form data-form="note" data-id="${esc(n.id)}" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Note</h2><div class="field"><label for="nt-t">Note</label><textarea id="nt-t" name="text" rows="3" maxlength="140" required>${esc(n.text)}</textarea></div>
+      <div class="field"><label>Paper</label><div class="swatches">${TONES.map(t=>`<button type="button" class="sw ${t===(n.tone||"white")?"on":""}" data-pick="tone" data-v="${t}" style="background:var(--note-${t});border-color:var(--line)" aria-label="${t}"></button>`).join("")}</div></div><input type="hidden" name="tone" value="${esc(n.tone||"white")}">
+      <div class="row" style="gap:10px"><button type="button" class="btn danger" data-act="note-del" data-id="${esc(n.id)}">${ico("trash",18)} Take down</button><button class="btn primary grow">Save</button></div></form>`); break; }
+    case "layout": layoutSheet(); break;
+    case "lay-done": closeSheet(); break;
+    case "lay-reset": saveLayout({ order: HSECS.map(x=>x[0]), hidden: [], panels: [], brief: true }); toast("Back to the default layout"); break;
+    case "lay-brief": { const L = layoutOf(); L.brief = !L.brief; saveLayout(L); break; }
+    case "lay-sec": { const L = layoutOf(), k = b.dataset.k; L.hidden = L.hidden.includes(k) ? L.hidden.filter(x=>x!==k) : [...L.hidden, k]; saveLayout(L); break; }
+    case "lay-panel": { const L = layoutOf(), k = b.dataset.k; L.panels = L.panels.includes(k) ? L.panels.filter(x=>x!==k) : [...L.panels, k]; saveLayout(L); break; }
+    case "lay-move": { const L = layoutOf(), k = b.dataset.k, i = L.order.indexOf(k), j = i + (+b.dataset.dir); if(i<0 || j<0 || j>=L.order.length) break; [L.order[i], L.order[j]] = [L.order[j], L.order[i]]; saveLayout(L); break; }
+    case "attn-all": UI.allAttn = true; render(); break;
+    case "note-new": if(!gate(S.notes.length < 10, "Free tribes can keep 10 notes on the fridge. Premium makes it unlimited.")) break; openSheet(`<form data-form="note" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Stick a note up</h2><div class="field"><label for="nt-t">Note</label><textarea id="nt-t" name="text" rows="3" maxlength="140" placeholder="Spirit week: wear green Friday" required autofocus></textarea></div>
+      <div class="field"><label>Paper</label><div class="swatches">${TONES.map((t,i)=>`<button type="button" class="sw ${i===0?"on":""}" data-pick="tone" data-v="${t}" style="background:var(--note-${t});border-color:var(--line)" aria-label="${t}"></button>`).join("")}</div></div><input type="hidden" name="tone" value="white"><button class="btn primary">Stick it up</button></form>`); break;
+    case "note-del": W.del("notes/"+id); closeSheet(); toast("Taken down"); break;
+    case "vote": { if(!S.poll) break; const me = meId(), i = +b.dataset.i; const opts = S.poll.options.map((o,j)=>({label:o.label, votes:(o.votes||[]).filter(v=>v!==me).concat(j===i && !(o.votes||[]).includes(me) ? [me] : [])}));
+      S.poll = {...S.poll, options:opts}; render(); W.set("poll/current", {question:S.poll.question, options:opts}); break; }
+    case "poll-edit": openSheet(`<form data-form="poll" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">${S.poll?"Edit poll":"New poll"}</h2><div class="field"><label for="pl-q">Question</label><input id="pl-q" name="q" maxlength="60" value="${esc(S.poll?.question||"")}" placeholder="Friday dinner?" required autofocus></div>
+      <div class="field"><label for="pl-o">Choices, one per line</label><textarea id="pl-o" name="o" rows="4" maxlength="200" placeholder="Tacos&#10;Pizza" required>${esc((S.poll?.options||[]).map(o=>o.label).join("\n"))}</textarea></div>
+      <span class="small">Changing the choices resets the votes.</span>${S.poll?`<div class="row" style="gap:10px"><button type="button" class="btn danger" data-act="poll-del">Remove poll</button><button class="btn primary grow">Save</button></div>`:`<button class="btn primary">Start poll</button>`}</form>`); break;
+    case "poll-del": W.del("poll/current"); closeSheet(); break;
+    case "status": { const m = mem(id); if(!m) break; openSheet(`<form data-form="status" data-id="${esc(m.id)}" class="col" style="gap:14px"><div class="row">${face(m,44)}<h2 class="serif" style="font-size:28px;margin:0">Where's ${esc(m.name)}?</h2></div>
+      <div class="chips">${["home","work","school","out","on the way"].map(s=>`<button type="button" class="chip plain" data-status="${s}">${s}</button>`).join("")}</div>
+      <div class="field"><label for="st-t">Or type it</label><input id="st-t" name="status" maxlength="20" value="${esc(m.status||"")}"></div><button class="btn primary">Update</button></form>`); break; }
+    /* people */
+    case "setme": setMe(TRIBE, id); if(b.dataset.close) closeSheet(); render(); toast("Got it, "+memName(id)); break;
+    case "member-new": if(!gate(S.members.length < 6, "Free tribes have room for 6 people. Premium makes room for everyone.")) break; memberSheet(); break;
+    case "upgrade": billingGo("checkout", b); break;
+    case "tk-new": ticketNewSheet(); break;
+    case "pending-check": { const l = await loadMemberships(); if(l && l.length){ UI.view = "today"; connect(l[0].code); } else toast("Still waiting for a parent to approve you"); break; }
+    case "pending-cancel": { for(const c of PENDING) await sb.from("memberships").delete().match({ tribe_code: c, user_id: SESSION.user.id }); PENDING = []; UI.onboard = null; S.status = "welcome"; render(); break; }
+    case "login-approve": manageLogin(b.dataset.u, "approve", b.dataset.role); break;
+    case "login-remove": manageLogin(b.dataset.u, "remove"); break;
+    case "login-role": manageLogin(b.dataset.u, "role", b.dataset.role); break;
+    case "login-menu": { const l = LOGINS.find(x => x.user_id === b.dataset.u); if(!l) break; openSheet(`<div class="col" style="gap:14px"><h2 class="serif" style="font-size:26px;margin:0;overflow-wrap:anywhere">${esc(l.email)}</h2><p style="margin:0;color:var(--muted)">${l.role==="parent"?"Parents can approve new people, manage access and delete the family.":"Family members can see and change everything in the family, but can't manage who has access."}</p><div class="col" style="gap:8px">${l.role==="parent"?`<button class="btn ghost" data-act="login-role" data-u="${esc(l.user_id)}" data-role="family">Make them a family member</button>`:`<button class="btn ghost" data-act="login-role" data-u="${esc(l.user_id)}" data-role="parent">Make them a parent</button>`}<button class="btn danger" data-act="login-remove" data-u="${esc(l.user_id)}">${ico("trash",17)} Remove from the family</button></div><p class="small" style="margin:0">Removing someone takes away their access right away. Think about changing your invite code too: you can share a new one by starting fresh with a parent.</p></div>`); break; }
+    case "export-data": exportData(); break;
+    case "search": searchSheet(); break;
+    case "theme": store.set("ht-theme", b.dataset.t); applyTheme(); render(); break;
+    case "setup-hide": store.set("ht-setup-hide-" + TRIBE, "1"); render(); break;
+    case "ann-hide": { let g = []; try { g = JSON.parse(store.get("ht-ann-hide") || "[]"); } catch(e){} g.push(+b.dataset.id); store.set("ht-ann-hide", JSON.stringify(g.slice(-50))); ANN = ANN.filter(a => a.id !== +b.dataset.id); render(); break; }
+    case "custody": custodySheet(); break;
+    case "custody-off": W.del("info/custody"); closeSheet(); toast("Co-parenting schedule turned off"); break;
+    case "rem-on": remindersOn(); break;
+    case "rem-off": remindersOff(); break;
+    case "rem-pref": { if(!REM.row) break; const pr = { plans:true, meds:true, bills:true, school:true, countdowns:true, ...(REM.row.prefs||{}) }; pr[b.dataset.k] = !pr[b.dataset.k]; REM.row.prefs = pr; render(); await sb.from("push_subscriptions").update({ prefs: pr, member_id: meId() }).eq("endpoint", REM.sub.endpoint); break; }
+    case "rem-test": { const tok = (await sb.auth.getSession()).data.session?.access_token; const r = await fetch("/api/push-test", { method:"POST", headers:{ "content-type":"application/json", authorization:"Bearer " + tok }, body: JSON.stringify({ endpoint: REM.sub.endpoint }) }).catch(() => null); toast(r && r.ok ? "Test sent. It should pop up in a moment." : "Couldn't send a test right now."); break; }
+    case "sitter-link": sitterLinkSheet(); break;
+    case "sitter-make": { const r = await sb.rpc("make_sitter_link", { p_code: TRIBE, p_days: +b.dataset.days }); if(r.error){ toast("Couldn't make a link. Try again."); break; } await copyText(location.origin + "/sitter/?t=" + r.data.token, "Link copied. Send it to your sitter."); sitterLinkSheet(); break; }
+    case "sitter-stop": await sb.rpc("stop_sitter_link", { p_code: TRIBE }); toast("Sitter link turned off"); sitterLinkSheet(); break;
+    case "cal-sub": calSubSheet(false); break;
+    case "cal-reset": calSubSheet(true); toast("New link made. The old one stopped working."); break;
+    case "close-family": openSheet(`<form data-form="close-family" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Delete ${esc(S.tribe?.name || "this family")}?</h2><p style="margin:0;color:var(--muted);line-height:1.5">Everyone loses access right away, and everything in the family is erased within 30 days. This can't be undone. Download your data first if you want a copy.</p><div class="field"><label for="cf-name">Type the family name to confirm</label><input id="cf-name" name="name" autocomplete="off" required></div><p class="form-err small" id="cf-err" role="alert"></p><button class="btn danger">Delete the family</button></form>`); break;
+    case "delete-account": openSheet(`<form data-form="delete-account" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Delete your account?</h2><p style="margin:0;color:var(--muted);line-height:1.5">You'll be logged out and lose access to your families. Families where you're the only member are deleted too. Your login and data are erased within 30 days.</p><div class="field"><label for="da-word">Type DELETE to confirm</label><input id="da-word" name="word" autocomplete="off" autocapitalize="characters" required></div><p class="form-err small" id="da-err" role="alert"></p><button class="btn danger">Delete my account</button></form>`); break;
+    case "tk-open": ticketSheet(id); break;
+    case "billing-portal": billingGo("portal", b); break;
+    case "member-edit": memberSheet(id); break;
+    case "member-del": { const m = mem(id); if(!m) break; openSheet(`<div class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Remove ${esc(m.name)}?</h2><p style="margin:0;color:var(--muted)">Their plans and chores stay, but show as “Someone”.</p><div class="row" style="gap:10px"><button class="btn ghost grow" data-act="close">Keep</button><button class="btn dark grow" data-act="member-del-yes" data-id="${esc(m.id)}">Remove</button></div></div>`); break; }
+    case "member-del-yes": W.del("members/"+id); closeSheet(); break;
+    /* kid */
+    case "kid-pick": kidPick(); break;
+    case "kid-go": closeSheet(); UI.kid = id; go("kid"); break;
+    case "kid-exit": go("today"); break;
+  }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if(t.id === "ev-allday"){ const f = t.closest("form"); f.querySelector("#ev-times").hidden = t.checked; f.querySelector("#ev-enddate").hidden = !t.checked; return; }
+  if(t.id === "ev-rep"){ t.closest("form").querySelector("#ev-untilf").hidden = !t.value; return; }
+  if(t.dataset.actChange === "driver"){ const ev = S.events.find(x=>x.id===t.dataset.id); if(ev){ ev.driver = t.value || null; W.upd("events/"+ev.id, {driver: t.value || null}); eventSheet(ev.id, t.dataset.day); render(); } }
+});
+
+/* ---------- forms ---------- */
+document.addEventListener("submit", async e => {
+  const f = e.target.closest("form[data-form]"); if(!f) return; e.preventDefault();
+  const v = Object.fromEntries(new FormData(f).entries()), kind = f.dataset.form;
+  if(kind === "ht"){ if(String(v.text||"").trim()) htUnderstand(v.text.trim()); return; }
+  if(kind === "custody"){
+    if(v.a === v.b){ toast("Pick two different parents."); return; }
+    W.set("info/custody", { a: v.a, b: v.b, pattern: v.pattern, start: v.start, handoff: v.handoff || "" }); closeSheet(); toast("Schedule saved"); return;
+  }
+  if(kind === "close-family"){
+    if(String(v.name||"").trim().toLowerCase() !== String(S.tribe?.name||"").trim().toLowerCase()){ $("#cf-err").textContent = "That doesn't match the family name."; return; }
+    const r = await sb.rpc("close_tribe", { p_code: TRIBE });
+    if(r.error){ $("#cf-err").textContent = "Couldn't delete the family. Only parents can do this."; return; }
+    closeSheet(); forgetTribe(TRIBE); store.del("ht-tribe"); unsubs.forEach(u=>{ try{u();}catch(err){} }); unsubs = []; TRIBE = null; Object.assign(S, EMPTY()); UI.onboard = null; S.status = "loading"; render(); toast("The family was deleted"); afterLogin(); return;
+  }
+  if(kind === "delete-account"){
+    if(String(v.word||"").trim().toUpperCase() !== "DELETE"){ $("#da-err").textContent = "Type DELETE in capital letters."; return; }
+    const r = await sb.rpc("request_account_deletion");
+    if(r.error){ $("#da-err").textContent = "Couldn't delete your account. Check your connection and try again."; return; }
+    closeSheet(); await sb.auth.signOut(); toast("Your account is being deleted"); return;
+  }
+  if(kind === "ticket"){
+    const err = $("#tk-err"), btn = $("#tk-go"); if(!String(v.body||"").trim()){ err.textContent = "Write a short message first."; return; }
+    btn.disabled = true; btn.textContent = "Sending…";
+    const ctx = { view: UI.view, lang: (window.HTi18n && HTi18n.lang) || "en", plan: PLAN ? PLAN.status : null, device: innerWidth < 700 ? "phone" : innerWidth < 1024 ? "tablet" : "desktop", ua: navigator.userAgent.slice(0, 160), page: location.pathname };
+    const r = await sb.rpc("create_ticket", { p_subject: v.subject || "", p_body: v.body, p_category: v.category || "question", p_tribe: TRIBE && TRIBE !== "SAMPLE" ? TRIBE : null, p_context: ctx });
+    if(r.error){ btn.disabled = false; btn.textContent = "Send"; err.textContent = /too many/.test(r.error.message||"") ? "You've sent a lot of requests today. We'll get to them soon." : "Couldn't send that. Check your connection and try again."; return; }
+    closeSheet(); toast("Sent! Request #" + r.data.number + ". We'll reply here."); await loadTickets(); render(); return;
+  }
+  if(kind === "ticket-reply"){
+    const btn = f.querySelector("button"); if(!String(v.body||"").trim()) return;
+    btn.disabled = true;
+    const r = await sb.rpc("ticket_reply", { p_ticket: f.dataset.id, p_body: v.body });
+    if(r.error){ btn.disabled = false; toast("Couldn't send that. Try again."); return; }
+    await loadTickets(); ticketSheet(f.dataset.id); toast("Reply sent"); return;
+  }
+  if(!db) return;
+  const by = meId();
+  switch(kind){
+    case "auth-signin": case "auth-signup": case "auth-forgot": case "auth-reset": {
+      const btn = $("#au-go"), err = $("#au-err"), label = btn.textContent; UI.authEmail = (v.email||"").trim(); if(kind === "auth-signin" && UI.authEmail.toLowerCase() === "admin") UI.authEmail = "admin@kopimore.com";
+      btn.disabled = true; btn.textContent = "One moment…"; err.textContent = "";
+      const fail = msg => { btn.disabled = false; btn.textContent = label; err.textContent = msg; };
+      const friendly = e => /invalid login/i.test(e?.message||"") ? "That email and password don't match. Try again or reset your password."
+        : /already registered|already exists/i.test(e?.message||"") ? "There's already an account with that email. Log in instead."
+        : /rate limit|too many/i.test(e?.message||"") ? "Lots of sign-ups right now. Wait a few minutes and try again."
+        : /email not confirmed/i.test(e?.message||"") ? "Confirm your email first. Check your inbox for the link."
+        : /password/i.test(e?.message||"") ? (e.message||"Choose a stronger password.")
+        : "Something went wrong. Check your connection and try again.";
+      try {
+        if(kind === "auth-signin"){ const r = await sb.auth.signInWithPassword({ email: UI.authEmail, password: v.password }); if(r.error) return fail(friendly(r.error)); }
+        else if(kind === "auth-signup"){
+          const r = await sb.auth.signUp({ email: UI.authEmail, password: v.password, options: { emailRedirectTo: APP_URL + (UI.onboard ? "#"+UI.onboard : "") } });
+          if(r.error) return fail(friendly(r.error));
+          if(!r.data.session){ UI.auth = "check"; UI.authMsg = `We sent a link to ${UI.authEmail}. Open it to confirm your email, then you're in.`; render(); }
+        }
+        else if(kind === "auth-forgot"){
+          const r = await sb.auth.resetPasswordForEmail(UI.authEmail, { redirectTo: APP_URL });
+          if(r.error) return fail(friendly(r.error));
+          UI.auth = "check"; UI.authMsg = `If there's an account for ${UI.authEmail}, a reset link is on its way.`; render();
+        }
+        else if(kind === "auth-reset"){
+          const r = await sb.auth.updateUser({ password: v.password });
+          if(r.error) return fail(friendly(r.error));
+          toast("Password saved"); UI.auth = "signin"; await afterLogin();
+        }
+      } catch(e){ fail(friendly(e)); }
+      break; }
+    case "create-tribe": {
+      const name = String(v.tribe||"").trim(), you = String(v.you||"").trim(), btn = $("#tb-go"), err = $("#tb-err");
+      if(!name || !you){ err.textContent = "Add your family name and your first name."; return; }
+      btn.disabled = true; btn.textContent = "Creating…";
+      try {
+        const r = await sb.rpc("create_tribe", { p_name: name, p_you: you });
+        if(r.error) throw r.error;
+        const code = r.data.code;
+        store.set("ht-me-"+code, r.data.member_id); rememberTribe(code, name);
+        try { const src = JSON.parse(store.get("ht-src") || "null"); sb.rpc("set_signup_source", { p_code: code, p_src: (src && src.src) || "direct", p_campaign: (src && src.campaign) || null }).then(()=>{}, ()=>{}); } catch(e){}
+        UI.onboard = null; UI.view = "family"; clearHash(); connect(code);
+        toast("Your tribe is ready. Invite code "+code);
+      } catch(x){ btn.disabled = false; btn.textContent = "Create our tribe"; err.textContent = "Couldn't create the tribe. Check your connection and try again."; }
+      break; }
+    case "join-tribe": {
+      const code = String(v.code||"").toUpperCase().replace(/[^A-Z0-9]/g,""), btn = $("#jn-go"), err = $("#jn-err");
+      if(code.length < 4){ err.textContent = "Type the code from your family, like K7Q2PX."; return; }
+      btn.disabled = true; btn.textContent = "Looking…";
+      try {
+        const r = await sb.rpc("join_tribe", { p_code: code });
+        if(r.error) throw r.error;
+        if(!r.data){ btn.disabled = false; btn.textContent = "Join"; err.textContent = "We couldn't find a tribe with that code. Check the letters and try again."; return; }
+        const mine = await loadMemberships(); UI.onboard = null; clearHash();
+        if(mine && mine.some(t => t.code === code)){ UI.view = "today"; UI.askWho = !store.get("ht-me-"+code); connect(code); }
+        else { TRIBE = null; S.status = "pending"; render(); }
+      } catch(x){ btn.disabled = false; btn.textContent = "Join"; err.textContent = "Couldn't check that code. Check your connection and try again."; }
+      break; }
+    case "tribe-name": { const n = String(v.name||"").trim(); if(!n) return; try { await db.doc("tribes/"+TRIBE).update({ name:n }); } catch(x){ writeErr(x); } closeSheet(); break; }
+    case "item": { const text = (v.text||"").trim(); if(!text) return; f.reset(); const tmp = {id:"tmp"+uid(),text,list:UI.list,section:sectionFor(text),by,checked:false,at:Date.now()}; S.items.push(tmp); render(); const {id,...rest} = tmp; W.add("items", rest); break; }
+    case "event": {
+      const allDay = !!f.querySelector('[name="allDay"]')?.checked;
+      const start = allDay ? 0 : fromHHMM(v.start || "16:00"), end = allDay ? 1439 : Math.max(fromHHMM(v.end || "17:00"), start+15);
+      const repeat = REPEATS.some(([k]) => k && k === v.repeat) ? v.repeat : null;
+      const endDate = allDay && v.endDate && v.endDate > v.date ? v.endDate : null;
+      const data = {title:v.title.trim(), member:v.member, date:v.date, start, end:Math.min(end,1439), allDay, endDate, driver:v.driver||null, repeat, until: repeat && v.until ? v.until : null, place:(v.place||"").trim(), note:(v.note||"").trim()};
+      if(f.dataset.id){ const old = S.events.find(x => x.id === f.dataset.id); W.set("events/"+f.dataset.id, {...(old||{}), ...data, id: undefined}); toast("Saved"); }
+      else { W.add("events", {...data, by}); toast("Added to the calendar"); }
+      UI.calDay = v.date; closeSheet(); break; }
+    case "chore": { const days = [...f.querySelectorAll("[data-day-toggle].on")].map(x=>+x.dataset.dayToggle); if(!days.length){ toast("Pick at least one day"); return; }
+      if(f.dataset.id) W.upd("chores/"+f.dataset.id, {title:v.title.trim(), member:v.member, days}); else W.add("chores", {title:v.title.trim(), member:v.member, days, done:{}});
+      UI.choreMember = v.member; closeSheet(); render(); break; }
+    case "reward": W.upd("members/"+UI.choreMember, {reward:v.reward.trim(), goal:Math.max(1,Math.min(99,+v.goal||20))}); closeSheet(); break;
+    case "list": { const n = v.name.trim(); if(n){ UI.list = n; closeSheet(); render(); toast(`“${n}” is ready. Add the first item.`); } break; }
+    case "meal": {
+      const dish = (v.dish||"").trim(), ing = (v.ingredients||"").trim(), k = f.dataset.day;
+      if(dish || ing) W.set("meals/"+k, {dish, ingredients:ing}); else W.del("meals/"+k);
+      if(v.addIng && ing){ const parts = ing.split(/[,\n]+/).map(s=>s.trim()).filter(Boolean).slice(0,30); const have = new Set(S.items.filter(i=>!i.checked&&(i.list||"Groceries")==="Groceries").map(i=>i.text.toLowerCase()));
+        const add = parts.filter(p=>!have.has(p.toLowerCase())); for(const p of add) await W.add("items", {text:p,list:"Groceries",section:sectionFor(p),by,checked:false,at:Date.now()}); toast(add.length?`Added ${add.length} to Groceries`:"Already on the list"); }
+      closeSheet(); break; }
+    case "note": { const data = {text:v.text.trim(), tone:TONES.includes(v.tone)?v.tone:"white"}; if(f.dataset.id) W.upd("notes/"+f.dataset.id, data); else W.add("notes", {...data, by, at:Date.now()}); closeSheet(); break; }
+    case "poll": { const labels = v.o.split("\n").map(s=>s.trim()).filter(Boolean).slice(0,6); if(labels.length<2){ toast("Add at least two choices"); return; }
+      const same = S.poll && labels.join("|")===S.poll.options.map(o=>o.label).join("|");
+      W.set("poll/current", {question:v.q.trim(), options: same ? S.poll.options : labels.map(label=>({label,votes:[]}))}); closeSheet(); break; }
+    case "status": W.upd("members/"+f.dataset.id, {status:(v.status||"").trim()}); closeSheet(); break;
+    case "lunch": { const days = {}; [0,1,2,3,4].forEach(i => { const t = (v["d"+i]||"").trim(); if(t) days[i] = t; }); W.set("school/lunch-"+f.dataset.week, {kind:"lunch", week:f.dataset.week, days}); closeSheet(); break; }
+    case "sitter-info": W.set("info/sitter", {address:(v.address||"").trim(), wifi:(v.wifi||"").trim(), rules:(v.rules||"").trim(), notes:(v.notes||"").trim()}); closeSheet(); toast("Saved"); break;
+    case "member": { const data = {name:v.name.trim(), style:v.style, color:okColor(v.color), skin:okHex(v.skin,SKINS[1]), hair:okHex(v.hair,HAIRS[1])};
+      if(f.dataset.id) W.upd("members/"+f.dataset.id, data);
+      else { const ref = db.collection(P("members")).doc(); try { await ref.set({...data, order:S.members.length, status:"home"}); if(!mem(store.get(meKey())) && data.style!=="kid" && data.style!=="baby") setMe(TRIBE, ref.id); } catch(err){ writeErr(err); } }
+      closeSheet(); toast(f.dataset.id?"Saved":"Welcome, "+data.name); break; }
+    case "pack": { const t = (v.text||"").trim(); if(!t) return; f.reset(); tripWrite(UI.trip, "packing", arr => arr.concat([{id:uid(), text:t.slice(0,60), packed:false}])); break; }
+    case "plan": { const t = (v.text||"").trim(); if(!t) return; tripWrite(UI.trip, "plan", arr => arr.concat([{id:uid(), day:v.day||"", text:t.slice(0,80)}])); break; }
+    case "ent": {
+      const E = ENT[f.dataset.kind], id = f.dataset.id, err = $("#ent-err"); if(!E) return;
+      const rec = id ? (S[E.col].find(x=>x.id===id) || {}) : {};
+      let data = {...(E.fixed||{})};
+      for(const fl of E.fields){
+        if(fl.type === "file") continue;
+        let val = v[fl.name];
+        if(fl.type === "checkbox") val = !!f.querySelector(`[name="${fl.name}"]`)?.checked;
+        else if(fl.type === "number") val = (val===""||val==null) ? null : Number(val);
+        else val = String(val ?? "").trim();
+        if(fl.required && (val===""||val==null)){ err.textContent = `Add ${fl.label.toLowerCase().replace(/\s*\(.*\)/,"")}.`; return; }
+        data[fl.name] = val;
+      }
+      if(f.dataset.kind === "bill") data.dueDay = Math.min(31, Math.max(1, Math.round(data.dueDay||1)));
+      if(f.dataset.kind === "upkeep") data.every = Math.min(60, Math.max(1, Math.round(data.every||3)));
+      if(E.toData){ data = E.toData(data, rec); if(data && data.error){ err.textContent = data.error; return; } }
+      if(f.dataset.kind === "routine" && limited()){
+        if(!id && S.routines.filter(r => r.member === data.member).length >= 2){ closeSheet(); upsell("Free tribes get two routines per person. Premium makes it unlimited."); return; }
+        if((data.steps||[]).length > 8){ err.textContent = "Free routines have up to 8 steps. Premium allows 20."; return; }
+      }
+      const fileEl = f.querySelector('input[type="file"]');
+      if(fileEl && fileEl.files && fileEl.files[0] && assets){
+        err.textContent = "Uploading…";
+        try { const r = await assets.upload(fileEl.files[0]); data.fileId = r.id; data.fileType = r.contentType || fileEl.files[0].type; data.fileName = fileEl.files[0].name.slice(0,80); }
+        catch(x){ err.textContent = "Couldn't upload that file. Try a photo or PDF under 20 MB."; return; }
+      }
+      const ok = id ? await W.upd(E.col+"/"+id, data) : await W.add(E.col, {...data, by, at:Date.now()});
+      if(ok){ closeSheet(); toast(id?"Saved":"Added"); }
+      break; }
+  }
+});
+window.addEventListener("hashchange", () => {
+  const h = location.hash.slice(1);
+  if(h === "create" || h === "join"){ UI.onboard = h; if(SESSION){ S.status = "welcome"; } else { UI.auth = "signup"; S.status = "auth"; } render(); }
+  else if(h === "sample"){ if(db){ clearHash(); connect("SAMPLE"); } }
+  else if(VIEWS.includes(h) && S.status === "ready") go(h);
+});
+setInterval(() => { if(!$("#scrim") && S.status==="ready" && ["today","calendar","baby","health","kid"].includes(UI.view)) render(); }, 60000);
+
+/* ---------- connect ---------- */
+const COLS = ["members","events","chores","items","meals","notes","baby","routines","meds","health","contacts","school","home","docs","trips","countdowns"];
+function apply(c, docs){
+  switch(c){
+    case "members": S.members = docs.filter(m=>m.name); break;
+    case "events": S.events = docs.filter(e=>e.title && e.date).map(e=>({...e, start:+e.start||0, end:+e.end||(+e.start||0)+60})); break;
+    case "meals": S.meals = Object.fromEntries(docs.map(m=>[m.id,m])); break;
+    case "baby": S.baby = Object.fromEntries(docs.map(b=>[b.id,b])); break;
+    case "chores": case "routines": S[c] = docs.filter(x=>x.title||x.name); break;
+    case "items": case "notes": S[c] = docs.filter(x=>x.text); break;
+    default: S[c] = docs;
+  }
+}
+function connect(code){
+  unsubs.forEach(u=>{ try{ u(); }catch(e){} }); unsubs = [];
+  TRIBE = code; store.set("ht-tribe", code); rememberTribe(code); PLAN = null; LOGINS = []; OFFLINE = false; loadPlan(code); loadTickets(); loadLogins(code); loadReminders(); loadAnnouncements();
+  Object.assign(S, EMPTY()); S.status = "loading"; UI.who = null; UI.choreMember = null; render();
+  const got = new Set(), need = COLS.length + 3;
+  const done = k => {
+    got.add(k);
+    if(got.size >= need && S.status === "loading"){ S.status = "ready"; if(UI.askWho && S.members.length){ UI.askWho = false; setTimeout(whoSheet, 60); } }
+    if(S.status !== "welcome") render();
+  };
+  COLS.forEach(c => unsubs.push(db.collection(P(c)).onSnapshot(s => { apply(c, s.docs.map(d=>({id:d.id, ...d.data()}))); done(c); }, () => done(c))));
+  unsubs.push(db.doc(P("poll/current")).onSnapshot(s => { const d = s.exists ? s.data() : null; S.poll = d && Array.isArray(d.options) && d.options.length ? d : null; done("poll"); }, () => done("poll")));
+  unsubs.push(db.doc(P("info/sitter")).onSnapshot(s => { S.sitter = s.exists ? s.data() : {}; done("sitter"); }, () => done("sitter")));
+  unsubs.push(db.doc(P("info/custody")).onSnapshot(s => { S.custody = s.exists ? s.data() : null; if(S.status === "ready") render(); }, () => {}));
+  unsubs.push(db.doc(P("info/usage")).onSnapshot(s => { S.usage = s.exists ? s.data() : {}; }, () => {}));
+  unsubs.push(db.doc("tribes/"+code).onSnapshot(s => { S.tribe = s.exists ? {id:code, ...s.data()} : {id:code, name:"Your tribe"}; rememberTribe(code, S.tribe.name); done("tribe"); }, () => done("tribe")));
+  setTimeout(() => { if(S.status === "loading" && TRIBE === code){ S.status = "ready"; render(); } }, 6000);
+}
+
+/* ---------- boot ---------- */
+async function afterLogin(){
+  const h = (location.hash||"").slice(1);
+  const del = await sb.rpc("my_deletion_pending");
+  if(del && del.data === true){ await sb.auth.signOut(); UI.auth = "signin"; UI.authErr = "This account is being deleted. Write to hello@heytribe.app if that's a mistake."; S.status = "auth"; render(); return; }
+  const list = await loadMemberships();
+  if(list === null){ S.status = "offline"; render(); return; }
+  if(!list.length && PENDING.length && h !== "create" && h !== "join"){ TRIBE = null; S.status = "pending"; render(); return; }
+  if(h === "create" || h === "join"){ clearHash(); UI.onboard = h; S.status = "welcome"; render(); return; }
+  if(h === "sample"){ clearHash(); connect("SAMPLE"); return; }
+  const saved = store.get("ht-tribe");
+  const pick = list.find(t => t.code === saved) || list[0];
+  if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
+  else { TRIBE = null; S.status = "welcome"; render(); }
+}
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261011', document.body);
+if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
+addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
+render();
+(async () => {
+  if(!window.supabase || !CFG.supabaseUrl || !CFG.supabaseAnonKey){ S.status = "offline"; render(); return; }
+  sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } });
+  db = makeDb(sb); assets = assetsApi; sampler = aiApi;
+  const bq = /[?&]billing=(success|cancel)/.exec(location.search);
+  if(bq){ try { history.replaceState(null, "", location.pathname + location.hash); } catch(e){} if(bq[1] === "success"){ setTimeout(() => toast("Welcome to Premium. Thanks for supporting HeyTribe!"), 1200); [3000, 8000, 15000].forEach(t => setTimeout(() => TRIBE && loadPlan(TRIBE), t)); } }
+  const h0 = (location.hash||"").slice(1);
+  if(h0 === "login" || h0 === "signup"){ UI.auth = h0 === "login" ? "signin" : "signup"; clearHash(); }
+  let first = true;
+  sb.auth.onAuthStateChange((event, session) => {
+    const was = SESSION?.user?.id; SESSION = session;
+    if(event === "PASSWORD_RECOVERY"){ UI.auth = "reset"; S.status = "auth"; render(); return; }
+    if(event === "SIGNED_OUT"){ db.reset(); unsubs.forEach(u=>{ try{u();}catch(e){} }); unsubs = []; TRIBE = null; SUP.list = null; SUP.nagged = false; PLAN = null; Object.assign(S, EMPTY()); store.del("ht-tribe"); store.set("ht-tribes","[]"); try { Object.keys(localStorage).filter(k => /^ht-(me-|last-|view|snap-)/.test(k)).forEach(k => localStorage.removeItem(k)); } catch(e){} UI.view = "today"; UI.auth = "signin"; S.status = "auth"; render(); return; }
+    if(event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;
+    if(session && (first || session.user.id !== was)){ first = false; setTimeout(afterLogin, 0); return; }
+    if(!session && first){ first = false;
+      const h = (location.hash||"").slice(1);
+      if(h === "sample"){ clearHash(); connect("SAMPLE"); return; }
+      if(h === "create" || h === "join"){ UI.onboard = h; clearHash(); UI.auth = "signup"; }
+      S.status = "auth"; render();
+    }
+  });
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible" && TRIBE && TRIBE !== "SAMPLE"){ db.refresh(); loadPlan(TRIBE); loadTickets(); loadLogins(TRIBE); } });
+})();
+})();
