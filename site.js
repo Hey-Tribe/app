@@ -1,7 +1,7 @@
 /* Spanish: translate first (when chosen), then start the page scripts */
 function __htBoot(){
 /* Spanish: show the app screens in Spanish */
-if(window.HTi18n && HTi18n.lang === "es"){ Array.prototype.forEach.call(document.querySelectorAll("img"), function(im){ ["src","data-src"].forEach(function(at){ var v = im.getAttribute(at); if(v && /assets\/f\/[a-z-]+\.webp$/.test(v)) im.setAttribute(at, v.replace(/assets\/f\/([a-z-]+\.webp)$/, "assets/f/es/$1")); }); }); }
+if(window.HTi18n && HTi18n.lang === "es"){ Array.prototype.forEach.call(document.querySelectorAll("img"), function(im){ ["src","data-src","srcset","data-srcset"].forEach(function(at){ var v = im.getAttribute(at); if(v && v.indexOf("assets/f/") >= 0 && v.indexOf("assets/f/es/") < 0) im.setAttribute(at, v.replace(/assets\/f\//g, "assets/f/es/")); }); }); }
 (function(){
 "use strict";
 var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -265,11 +265,11 @@ $$("[data-year]").forEach(function(el){ el.textContent = new Date().getFullYear(
     });
     var c = ph[cur];
     if(cap){ cap.classList.add("fade"); setTimeout(function(){ cap.querySelector("b").textContent = c.getAttribute("data-name"); cap.querySelector("span").textContent = c.getAttribute("data-sub"); cap.classList.remove("fade"); }, 350); }
-    for(var k = -2; k <= 3; k++){ var im = ph[(cur + k + n) % n].querySelector("img"); if(im && im.getAttribute("data-src")){ im.src = im.getAttribute("data-src"); im.removeAttribute("data-src"); } }
+    for(var k = -2; k <= 3; k++){ var im = ph[(cur + k + n) % n].querySelector("img"); if(im && im.getAttribute("data-src")){ if(im.getAttribute("data-srcset")){ im.srcset = im.getAttribute("data-srcset"); im.removeAttribute("data-srcset"); } im.src = im.getAttribute("data-src"); im.removeAttribute("data-src"); } }
   }
   function step(){ if(hover || document.hidden) return; cur = (cur + 1) % n; place(); }
   place();
-  addEventListener("load", function(){ setTimeout(function(){ stage.querySelectorAll("img[data-src]").forEach(function(im){ im.src = im.getAttribute("data-src"); im.removeAttribute("data-src"); }); }, 2500); });
+  addEventListener("load", function(){ setTimeout(function(){ stage.querySelectorAll("img[data-src]").forEach(function(im){ if(im.getAttribute("data-srcset")){ im.srcset = im.getAttribute("data-srcset"); im.removeAttribute("data-srcset"); } im.src = im.getAttribute("data-src"); im.removeAttribute("data-src"); }); }, 2500); });
   if(reduce) return;
   timer = setInterval(step, 3600);
   stage.addEventListener("mouseenter", function(){ hover = true; });
