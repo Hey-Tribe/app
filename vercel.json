@@ -24,7 +24,7 @@
       ]
     },
     {
-      "source": "/(styles.css|guides.css|guide-tools.js|site.js|t.js)",
+      "source": "/(styles.css|guides.css|guide-tools.js|guides-hub.js|site.js|t.js)",
       "headers": [
         {
           "key": "Cache-Control",
