@@ -1,6 +1,6 @@
 /* Guides, tools, templates and printables. Uses the colors and fonts from styles.css. */
 .tbl-wrap{overflow-x:auto;margin:6px 0 26px;border:1px solid var(--line);border-radius:22px;background:#fff}
-.tbl{width:100%;border-collapse:collapse;font-size:16px;line-height:1.5;min-width:520px}
+.tbl{width:100%;border-collapse:collapse;font-size:16px;line-height:1.5;min-width:480px}
 .tbl th,.tbl td{padding:14px 18px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
 .tbl thead th{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--sage-soft)}
 .tbl tbody th{font-weight:600;width:26%}
@@ -130,3 +130,15 @@
 .g-signup input[type=email]{flex:1 1 240px;min-width:0;font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1.5px solid var(--line);border-radius:999px;padding:12px 18px}
 .g-signup input[type=email]:focus{outline:2px solid var(--sage);outline-offset:1px}
 .g-signup .form-msg{flex-basis:100%;margin:0;font-size:20px}
+
+/* phones */
+@media (max-width:620px){
+  .g-posts .post-card{min-height:0}
+  .g-signup{padding:22px 20px}
+  .g-signup input[type=email]{flex-basis:100%;padding:14px 18px}
+  .g-signup .btn{width:100%;justify-content:center;padding:14px 20px}
+  .related{padding:22px 20px}
+  .g-item a{padding:16px 18px}
+  .chips .chip{padding:11px 16px}
+  .link.sm,.post .back .link,.tpl-actions .link{display:inline-block;padding:12px 6px}
+}
