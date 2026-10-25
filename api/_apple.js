@@ -29,7 +29,8 @@ export function verifyJws(jws, root = APPLE_ROOT_G3, now = new Date()) {
 }
 
 export const BUNDLE_ID = () => process.env.APPLE_BUNDLE_ID || "app.heytribe.ios";
-export const PRODUCT_ID = () => process.env.APPLE_PRODUCT_ID || "app.heytribe.premium.monthly";
+export const PRODUCT_IDS = () => [process.env.APPLE_PRODUCT_ID || "app.heytribe.premium.monthly", process.env.APPLE_PRODUCT_ID_YEARLY || "app.heytribe.premium.yearly"];
+export const isPremiumProduct = id => PRODUCT_IDS().includes(id);
 
 // what a signed transaction means for the family's plan
 export function txStatus(tx, now = Date.now()) {

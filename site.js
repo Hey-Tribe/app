@@ -279,4 +279,4 @@ $$("[data-year]").forEach(function(el){ el.textContent = new Date().getFullYear(
 /* language switch in the header */
 (function(){ var L = (window.HTi18n && HTi18n.lang) || 'en'; document.querySelectorAll('[data-lang-toggle]').forEach(function(b){ b.textContent = L === 'es' ? 'EN' : 'ES'; b.setAttribute('aria-label', L === 'es' ? 'View in English' : 'Ver en español'); b.addEventListener('click', function(){ HTi18n.set(L === 'es' ? 'en' : 'es'); }); }); })();
 }
-if(window.HTi18n){ HTi18n.start('/i18n/es-site.json?v=20261014').then(__htBoot, __htBoot); } else { __htBoot(); }
+if(window.HTi18n){ HTi18n.start('/i18n/es-site.json?v=20261025').then(__htBoot, __htBoot); } else { __htBoot(); }

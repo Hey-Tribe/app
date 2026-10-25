@@ -1,7 +1,7 @@
 // Premium bought in the iPhone app. After a purchase or "Restore purchases", the app posts the signed
 // transaction from StoreKit here: POST { jws, code } with the signed-in user's token.
 // Needs: BILLING_SYNC_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY. Optional: APPLE_BUNDLE_ID, APPLE_PRODUCT_ID.
-import { verifyJws, txStatus, appleSync, BUNDLE_ID, PRODUCT_ID } from "./_apple.js";
+import { verifyJws, txStatus, appleSync, BUNDLE_ID, isPremiumProduct } from "./_apple.js";
 
 export default async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
 
   let tx;
   try { tx = verifyJws(jws); } catch (e) { return res.status(400).json({ error: "We couldn't confirm that purchase with Apple." }); }
-  if (tx.bundleId !== BUNDLE_ID() || tx.productId !== PRODUCT_ID() || !tx.originalTransactionId) return res.status(400).json({ error: "That isn't a HeyTribe Premium purchase." });
+  if (tx.bundleId !== BUNDLE_ID() || !isPremiumProduct(tx.productId) || !tx.originalTransactionId) return res.status(400).json({ error: "That isn't a HeyTribe Premium purchase." });
 
   const SB = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_ANON_KEY;
   const auth = { apikey: KEY, authorization: "Bearer " + token };

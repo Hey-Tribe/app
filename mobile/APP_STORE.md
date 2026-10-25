@@ -26,8 +26,9 @@ in `mobile/` changes (icon, plugins, permissions).
    - Platform iOS, name **HeyTribe**, primary language English (U.S.), bundle ID **app.heytribe.ios**, SKU `heytribe-ios`.
    - On developer.apple.com › Identifiers › app.heytribe.ios, turn on **Push Notifications** and **Associated Domains**.
 3. **Create the subscription** (the app › Monetization › Subscriptions):
-   - Group name "HeyTribe Premium". Product ID **app.heytribe.premium.monthly**, 1 month, $4.99.
-   - Optional: introductory offer, free for 1 week.
+   - Group name "HeyTribe Premium". Two products in the same group:
+     **app.heytribe.premium.yearly**, 1 year, $39.99 (put it first in the group), and **app.heytribe.premium.monthly**, 1 month, $4.99.
+   - Introductory offer on both: free for 2 weeks, new subscribers. This matches the 14-day trial on the web.
    - Display name "Premium", description "Every extra for your whole family".
    - Accept the Paid Apps agreement and add bank and tax details under Business, or purchases won't load.
 4. **App Store Server Notifications** (the app › App Information): set the production and sandbox URLs to
@@ -70,7 +71,7 @@ Invite your partner, grandparents or a sitter. Everyone sees the same thing as s
 
 Works in English and Spanish.
 
-Premium ($4.99 a month for the whole family) adds every extra. You can cancel anytime in your Apple ID settings.
+Premium ($4.99 a month or $39.99 a year for the whole family) adds every extra. You can cancel anytime in your Apple ID settings.
 
 Terms: https://www.heytribe.app/terms.html
 Privacy: https://www.heytribe.app/privacy.html

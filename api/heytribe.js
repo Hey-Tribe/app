@@ -22,6 +22,17 @@ export default async function handler(req, res) {
   if (!user) return res.status(401).json({ error: "Sign in first" });
 
   const { text, ctx = {} } = req.body || {};
+  // free families get 10 AI quick adds a month once Premium can be bought; Premium and trials are unlimited
+  const code = String(ctx.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+  if (!code || code === "SAMPLE") return res.status(400).json({ error: "Open your family first" });
+  const enforce = !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID) || process.env.PREMIUM_LIMITS === "1";
+  const take = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/ht_ai_take`, {
+    method: "POST",
+    headers: { apikey: process.env.SUPABASE_ANON_KEY, authorization: req.headers.authorization, "content-type": "application/json" },
+    body: JSON.stringify({ p_code: code, p_enforce: enforce })
+  }).catch(() => null);
+  if (!take || !take.ok) return res.status(403).json({ error: "You're not in that family" });
+  if ((await take.json()) !== true) return res.status(402).json({ error: "This month's free quick adds are used up" });
   const note = clip(text, 600).replace(/"""/g, "'");
   if (!note.trim()) return res.status(400).json({ error: "Empty note" });
   const members = (Array.isArray(ctx.members) ? ctx.members : []).slice(0, 20).map(m => `${clip(m.id, 60)}: ${clip(m.name, 30)}`).join(", ");

@@ -2,6 +2,7 @@
 // GET  /api/billing                                  -> { enabled } (true once Stripe keys are set in Vercel)
 // POST /api/billing { action: "checkout"|"portal", code } with the signed-in user's token
 // Needs: STRIPE_SECRET_KEY, STRIPE_PRICE_ID (the $4.99/month price), SUPABASE_URL, SUPABASE_ANON_KEY.
+// Optional: STRIPE_PRICE_ID_YEARLY (the $39.99/year price). When set, people can pick yearly: POST { ..., plan: "year" }.
 const SITE = process.env.SITE_URL || "https://www.heytribe.app";
 
 async function stripe(path, params) {
@@ -20,12 +21,13 @@ async function stripe(path, params) {
 export default async function handler(req, res) {
   const enabled = !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID);
   res.setHeader("cache-control", "no-store");
-  if (req.method === "GET") return res.status(200).json({ enabled });
+  const yearlyPrice = process.env.STRIPE_PRICE_ID_YEARLY || "";
+  if (req.method === "GET") return res.status(200).json({ enabled, yearly: enabled && !!yearlyPrice });
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   if (!enabled) return res.status(503).json({ error: "Premium checkout opens soon." });
 
   const token = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-  const { action, code: rawCode, lang } = req.body || {};
+  const { action, code: rawCode, lang, plan } = req.body || {};
   const code = String(rawCode || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
   if (!token || !code || code === "SAMPLE") return res.status(400).json({ error: "Sign in first." });
 
@@ -50,7 +52,7 @@ export default async function handler(req, res) {
     if (sub.status === "active" || sub.status === "comped") return res.status(409).json({ error: "Your tribe already has Premium." });
     const p = {
       mode: "subscription",
-      "line_items[0][price]": process.env.STRIPE_PRICE_ID,
+      "line_items[0][price]": plan === "year" && yearlyPrice ? yearlyPrice : process.env.STRIPE_PRICE_ID,
       "line_items[0][quantity]": 1,
       success_url: SITE + "/app/?billing=success",
       cancel_url: SITE + "/app/?billing=cancel",

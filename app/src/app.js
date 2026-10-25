@@ -184,8 +184,9 @@ let deskT = 0; addEventListener("resize", () => { clearTimeout(deskT); deskT = s
 
 /* iPhone app: the App Store build wraps this page. Native extras load only there. */
 const NATIVE = (() => { try { return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()); } catch(e){ return false; } })();
-const IAP_ID = "app.heytribe.premium.monthly";
-const NAT = { plugins: {}, core: null, product: null, apns: null };
+const IAP_IDS = { month: "app.heytribe.premium.monthly", year: "app.heytribe.premium.yearly" };
+const isPremiumId = id => Object.values(IAP_IDS).includes(id);
+const NAT = { plugins: {}, core: null, products: {}, apns: null };
 function natCore(){
   return NAT.core || (NAT.core = new Promise((ok, no) => {
     if(window.capacitorExports) return ok(window.capacitorExports);
@@ -216,10 +217,10 @@ async function natInit(){
   } catch(e){}
   try {
     const IAP = await natPlug("NativePurchases");
-    const r = await IAP.getProducts({ productIdentifiers: [IAP_ID], productType: "subs" });
-    NAT.product = (r.products || []).find(p => p.identifier === IAP_ID) || null;
-    if(NAT.product){ BILLING = true; if(S.status === "ready") render(); }
-    IAP.addListener("transactionUpdated", t => { if(t && t.productIdentifier === IAP_ID && t.jwsRepresentation) appleSend(t.jwsRepresentation, true); });
+    const r = await IAP.getProducts({ productIdentifiers: Object.values(IAP_IDS), productType: "subs" });
+    for(const [k, id] of Object.entries(IAP_IDS)){ const p = (r.products || []).find(x => x.identifier === id); if(p) NAT.products[k] = p; }
+    if(NAT.products.month || NAT.products.year){ BILLING = true; if(S.status === "ready") render(); }
+    IAP.addListener("transactionUpdated", t => { if(t && isPremiumId(t.productIdentifier) && t.jwsRepresentation) appleSend(t.jwsRepresentation, true); });
   } catch(e){}
 }
 /* pages outside the app open in an in-app Safari sheet instead of replacing the app */
@@ -243,35 +244,46 @@ async function appleSend(jws, quiet){
   return false;
 }
 async function appleBuy(btn){
-  if(!NAT.product){ toast("Premium isn't available in the App Store yet."); return; }
+  const plan = btn && btn.dataset.plan === "year" && NAT.products.year ? "year" : "month";
+  if(!NAT.products[plan]){ toast("Premium isn't available in the App Store yet."); return; }
   if(!SESSION || !TRIBE || TRIBE === "SAMPLE") return;
-  if(btn){ btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = "Opening…"; }
+  if(btn){ btn.disabled = true; btn.dataset.label = btn.innerHTML; btn.textContent = "Opening…"; }
   try {
     const IAP = await natPlug("NativePurchases");
-    const t = await IAP.purchaseProduct({ productIdentifier: IAP_ID, productType: "subs", appAccountToken: SESSION.user.id, quantity: 1 });
+    const t = await IAP.purchaseProduct({ productIdentifier: IAP_IDS[plan], productType: "subs", appAccountToken: SESSION.user.id, quantity: 1 });
     if(t && t.jwsRepresentation && await appleSend(t.jwsRepresentation)){ closeSheet(); toast("Welcome to Premium. Thank you!"); }
   } catch(e){
     const m = String(e && (e.message || e.code) || "");
     if(!/cancel/i.test(m)) toast("The purchase didn't go through. You haven't been charged.");
   }
-  if(btn && btn.isConnected){ btn.disabled = false; btn.textContent = btn.dataset.label; }
+  if(btn && btn.isConnected){ btn.disabled = false; btn.innerHTML = btn.dataset.label; }
   render();
 }
 async function appleRestore(btn){
-  if(btn){ btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = "Checking…"; }
+  if(btn){ btn.disabled = true; btn.dataset.label = btn.innerHTML; btn.textContent = "Checking…"; }
   let found = false;
   try {
     const IAP = await natPlug("NativePurchases");
     try { await IAP.restorePurchases(); } catch(e){}
     const r = await IAP.getPurchases({ productType: "subs" });
-    for(const t of (r.purchases || []).filter(p => p.productIdentifier === IAP_ID && p.jwsRepresentation)){ if(await appleSend(t.jwsRepresentation, true)) found = true; }
+    for(const t of (r.purchases || []).filter(p => isPremiumId(p.productIdentifier) && p.jwsRepresentation)){ if(await appleSend(t.jwsRepresentation, true)) found = true; }
   } catch(e){}
   toast(found ? "Premium restored" : "No Premium purchase found for this Apple ID");
-  if(btn && btn.isConnected){ btn.disabled = false; btn.textContent = btn.dataset.label; }
+  if(btn && btn.isConnected){ btn.disabled = false; btn.innerHTML = btn.dataset.label; }
   render();
 }
 async function appleManage(){ try { const IAP = await natPlug("NativePurchases"); await IAP.manageSubscriptions(); } catch(e){ natOpen("https://apps.apple.com/account/subscriptions"); } }
-const priceLabel = () => NATIVE && NAT.product && NAT.product.priceString ? NAT.product.priceString + "/mo" : "$4.99/mo";
+/* Premium is $4.99 a month or $39.99 a year (App Store prices come from Apple, in the person's currency) */
+let YEARLY_WEB = false;
+const yearlyOn = () => NATIVE ? !!NAT.products.year : YEARLY_WEB;
+function planPrice(k){ const p = NATIVE && NAT.products[k]; return p && p.priceString ? p.priceString : (k === "year" ? "$39.99" : "$4.99"); }
+function yearSave(){ const m = NATIVE ? NAT.products.month && +NAT.products.month.price : 4.99, y = NATIVE ? NAT.products.year && +NAT.products.year.price : 39.99; return m && y ? Math.round((1 - y / (m * 12)) * 100) : 0; }
+function planButtons(grow){
+  const g = grow ? " grow" : "", sv = yearSave();
+  const m = `<button class="btn ${yearlyOn() ? "ghost" : "primary"}${g}" data-act="upgrade" data-plan="month">Monthly · ${planPrice("month")}</button>`;
+  return yearlyOn() ? `<button class="btn primary${g}" data-act="upgrade" data-plan="year">Yearly · ${planPrice("year")}${sv > 0 ? ` <span class="save-tag">save ${sv}%</span>` : ""}</button>${m}` : m;
+}
+const priceSentence = () => `Premium is ${planPrice("month")} a month${yearlyOn() ? ` or ${planPrice("year")} a year` : ""} for the whole tribe. Cancel anytime.`;
 /* reminders on the iPhone app go through Apple push, not web push */
 async function natPushToken(ask){
   const P = await natPlug("PushNotifications");
@@ -290,7 +302,7 @@ async function natPushToken(ask){
 let PLAN = null, BILLING = false;
 const premium = () => TRIBE === "SAMPLE" || !PLAN || ["active","comped","past_due"].includes(PLAN.status) || (PLAN.status === "trialing" && new Date(PLAN.trial_ends_at) > new Date());
 const limited = () => BILLING && !premium();
-if(NATIVE) natInit(); else fetch("/api/billing").then(r => r.ok ? r.json() : {}).then(j => { BILLING = !!j.enabled; if(S.status === "ready") render(); }).catch(() => {});
+if(NATIVE) natInit(); else fetch("/api/billing").then(r => r.ok ? r.json() : {}).then(j => { BILLING = !!j.enabled; YEARLY_WEB = !!j.yearly; if(S.status === "ready") render(); }).catch(() => {});
 async function loadPlan(code){
   if(!sb || !SESSION || !code || code === "SAMPLE"){ PLAN = null; return; }
   const r = await sb.from("subscriptions").select("status, trial_ends_at, current_period_end, stripe_customer_id, stripe_subscription_id").eq("tribe_code", code).maybeSingle();
@@ -304,12 +316,25 @@ function upsell(why){
     <span class="tag" style="align-self:flex-start">Premium</span>
     <h2 class="serif" style="font-size:28px;margin:0">That's a Premium extra</h2>
     <p style="margin:0;color:var(--muted)">${esc(why)}</p>
-    <p style="margin:0">Premium is ${NATIVE ? priceLabel().replace("/mo", " a month") : "$4.99 a month"} for the whole tribe. Cancel anytime.</p>
-    <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn primary grow" data-act="upgrade">Get Premium</button><button class="btn ghost" data-act="close">Not now</button></div>${NATIVE ? appleTerms() : ""}</div>`);
+    <p style="margin:0">${priceSentence()}</p>
+    <div class="col" style="gap:10px">${BILLING ? planButtons() : `<span class="small">Premium checkout opens soon.</span>`}<button class="btn ghost" data-act="close" style="border:0">Not now</button></div>${NATIVE ? appleTerms() : ""}</div>`);
 }
 function gate(ok, why){ if(ok || !limited()) return true; upsell(why); return false; }
+/* what a free tribe can add (existing records always stay; this only stops new ones) */
+const FREE_ADD = {
+  countdown: () => [S.countdowns.length < 3, "Free tribes can count down to 3 big days at a time. Premium makes it unlimited, with yearly repeats."],
+  bill: () => [S.home.filter(h => h.kind === "bill").length < 5, "Free tribes can track 5 bills. Premium makes it unlimited."],
+  upkeep: () => [false, "Home upkeep reminders are a Premium extra."],
+  sub: () => [false, "Tracking subscriptions is a Premium extra."],
+  doc: () => [S.docs.length < 10, "Free tribes can keep 10 documents. Premium makes it unlimited, with a photo or PDF of each."],
+  contact: () => [S.contacts.length < 15, "Free tribes can keep 15 contacts. Premium makes it unlimited."],
+  trip: () => [!S.trips.some(t => (t.end || t.start || "9999") >= ymd(new Date())), "Free tribes can plan one upcoming trip at a time. Premium makes it unlimited."]
+};
+/* a second family (like the grandparents' house) is a Premium extra */
+function gateTribes(){ const mine = knownTribes().filter(t => t.code !== "SAMPLE"); return !mine.length || !TRIBE || TRIBE === "SAMPLE" ? true : gate(false, "Being in more than one family is a Premium extra. It's handy for the grandparents' house or a co-parent's home."); }
+function gateAdd(kind){ const f = FREE_ADD[kind]; if(!f) return true; const [ok, why] = f(); return gate(ok, why); }
 const appleSub = () => !!(PLAN && String(PLAN.stripe_subscription_id || "").startsWith("apple:"));
-function appleTerms(){ return `<p class="small" style="margin:0;line-height:1.5">Monthly subscription for your whole family. Payment is charged to your Apple ID. It renews each month unless you cancel at least 24 hours before the end of the period. Manage or cancel anytime in your Apple ID settings. <a href="/terms.html" target="_blank" style="color:inherit;text-decoration:underline">Terms</a> · <a href="/privacy.html" target="_blank" style="color:inherit;text-decoration:underline">Privacy</a></p><div class="row"><button class="btn ghost" data-act="iap-restore">Restore purchases</button></div>`; }
+function appleTerms(){ return `<p class="small" style="margin:0;line-height:1.5">Monthly or yearly subscription for your whole family. Payment is charged to your Apple ID. It renews for the same period unless you cancel at least 24 hours before it ends. Manage or cancel anytime in your Apple ID settings. <a href="/terms.html" target="_blank" style="color:inherit;text-decoration:underline">Terms</a> · <a href="/privacy.html" target="_blank" style="color:inherit;text-decoration:underline">Privacy</a></p><div class="row"><button class="btn ghost" data-act="iap-restore">Restore purchases</button></div>`; }
 async function billingGo(action, btn){
   if(NATIVE){
     if(action === "checkout") return appleBuy(btn);
@@ -319,26 +344,26 @@ async function billingGo(action, btn){
   if(!BILLING){ toast("Premium checkout opens soon."); return; }
   const tok = (await sb.auth.getSession()).data.session?.access_token;
   if(!tok || !TRIBE || TRIBE === "SAMPLE") return;
-  if(btn){ btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = "Opening…"; }
+  if(btn){ btn.disabled = true; btn.dataset.label = btn.innerHTML; btn.textContent = "Opening…"; }
   try {
-    const r = await fetch("/api/billing", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + tok }, body: JSON.stringify({ action, code: TRIBE, lang: (window.HTi18n && HTi18n.lang) || "en" }) });
+    const r = await fetch("/api/billing", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + tok }, body: JSON.stringify({ action, plan: btn && btn.dataset.plan === "year" ? "year" : "month", code: TRIBE, lang: (window.HTi18n && HTi18n.lang) || "en" }) });
     const j = await r.json().catch(() => ({}));
-    if(r.ok && j.url){ closeSheet(); location.href = j.url; if(btn) setTimeout(() => { btn.disabled = false; btn.textContent = btn.dataset.label; }, 4000); return; }
+    if(r.ok && j.url){ closeSheet(); location.href = j.url; if(btn) setTimeout(() => { btn.disabled = false; btn.innerHTML = btn.dataset.label; }, 4000); return; }
     toast(j.error || "Couldn't open checkout. Try again in a minute.");
   } catch(e){ toast("Couldn't open checkout. Check your connection."); }
-  if(btn){ btn.disabled = false; btn.textContent = btn.dataset.label; }
+  if(btn){ btn.disabled = false; btn.innerHTML = btn.dataset.label; }
 }
 function planCard(){
   if(!SESSION || !TRIBE || TRIBE === "SAMPLE" || !PLAN) return "";
   const st = PLAN.status, d = trialDays();
   let head, sub, btn = "";
-  const up = label => BILLING ? `<button class="btn primary" data-act="upgrade">${NATIVE ? label.replace("$4.99/mo", priceLabel()) : label}</button>${NATIVE ? appleTerms() : ""}` : `<span class="small">Premium checkout opens soon.</span>`;
+  const up = () => BILLING ? `${planButtons()}${NATIVE ? appleTerms() : ""}` : `<span class="small">Premium checkout opens soon.</span>`;
   const manage = label => NATIVE ? (appleSub() ? `<button class="btn ghost" data-act="billing-portal">Manage subscription</button>` : (PLAN.stripe_customer_id ? `<span class="small">Billing is managed on heytribe.app.</span>` : "")) : BILLING && PLAN.stripe_customer_id ? `<button class="btn ghost" data-act="billing-portal">${label}</button>` : "";
   if(st === "comped"){ head = "Premium"; sub = "On the house. Enjoy every extra."; }
   else if(st === "active"){ head = "Premium"; sub = PLAN.current_period_end ? "Renews " + fmtDay(ymd(new Date(PLAN.current_period_end))) : "Thanks for being Premium."; btn = manage("Manage billing"); }
   else if(st === "past_due"){ head = "Premium"; sub = "Your last payment didn't go through. Update your card to keep Premium."; btn = manage("Update card"); }
-  else if(st === "trialing" && d > 0){ head = "Premium trial"; sub = d === 1 ? "1 day left" : d + " days left"; btn = up("Keep Premium · $4.99/mo"); }
-  else { head = "Free plan"; sub = "Every feature, in an everyday version."; btn = up("Get Premium · $4.99/mo"); }
+  else if(st === "trialing" && d > 0){ head = "Premium trial"; sub = d === 1 ? "1 day left" : d + " days left"; btn = up(); sub += ". Pick a plan to keep Premium."; }
+  else { head = "Free plan"; sub = "Every feature, in an everyday version."; btn = up(); }
   return `${secHead("Your plan")}<div class="paper col" style="padding:16px;gap:10px"><div class="between" style="gap:10px;flex-wrap:wrap"><span class="col"><b style="font-weight:600;font-size:17px">${head}</b><span class="small">${sub}</span></span>${head==="Free plan"?"":`<span class="tag">${ico("star",13,2.2)} Premium</span>`}</div>${btn?`<div class="row" style="gap:8px;flex-wrap:wrap">${btn}</div>`:""}</div>`;
 }
 
@@ -1094,13 +1119,13 @@ function today(){
   </div>
   ${setupCard()}
   ${annCard()}
-  ${layoutOf().brief ? `<div class="brief" style="margin-top:18px">
+  ${layoutOf().brief && !limited() ? `<div class="brief" style="margin-top:18px">
     <div class="hi">${hi}, ${esc(me?.name||"there")} —</div>
     <div style="font-size:15px;line-height:1.5;margin-top:6px">${brief}</div>
     <button class="row" data-act="ht" style="gap:6px;margin-top:10px">${mark(16)}<span class="small" style="text-decoration:underline;text-underline-offset:3px">Tell Hey Tribe something</span></button>
   </div>` : ""}
   ${(()=>{ const L = layoutOf(), SEC = {
-    attention: () => hu.length ? sect("rose", "bell", "Needs attention", `<span class="small">${hu.length}</span>`, `<div class="attn">${hu.slice(0,UI.allAttn?99:4).map(h=>`<div class="attn-r"><span class="dot" style="background:var(--${h.tone})"></span><span class="grow">${esc(h.text)}</span></div>`).join("")}${hu.length>4&&!UI.allAttn?`<button class="attn-more" data-act="attn-all">Show ${hu.length-4} more</button>`:""}</div>`) : "",
+    attention: () => hu.length && !limited() ? sect("rose", "bell", "Needs attention", `<span class="small">${hu.length}</span>`, `<div class="attn">${hu.slice(0,UI.allAttn?99:4).map(h=>`<div class="attn-r"><span class="dot" style="background:var(--${h.tone})"></span><span class="grow">${esc(h.text)}</span></div>`).join("")}${hu.length>4&&!UI.allAttn?`<button class="attn-more" data-act="attn-all">Show ${hu.length-4} more</button>`:""}</div>`) : "",
     countdowns: () => sect("", "clock", "Counting down", sAct('data-act="ent-new" data-kind="countdown"', "Add"), countdownRow()),
     plans: () => sect("blue", "cal", "Today's plans", sAct(`data-act="event-new" data-day="${key}"`, "Add"), evs.length ? `<div class="timeline">${tl}</div>` : `<div class="empty"><span class="hand">a clear day</span>Add a plan, or tell Hey Tribe what's coming up.</div>`),
     fridge: () => sect("sage", "note", "On the fridge", sAct('data-act="note-new"', "Note"), fridgeBoard()),
@@ -1901,7 +1926,7 @@ async function htUnderstand(text){
   if(sampler && TRIBE !== "SAMPLE"){
     htCtl = new AbortController();
     const d = new Date();
-    const ctx = { dow: DOW_LONG[dowIdx(d)], today: todayKey(), time: toHHMM(nowMin()), me: memName(meId()), members: S.members.map(m=>({ id:m.id, name:m.name })), lists: listNames() };
+    const ctx = { code: TRIBE, dow: DOW_LONG[dowIdx(d)], today: todayKey(), time: toHHMM(nowMin()), me: memName(meId()), members: S.members.map(m=>({ id:m.id, name:m.name })), lists: listNames() };
     try { const r = await sampler.understand(text, ctx, htCtl.signal); acts = cleanActions(r && r.actions); }
     catch(e){ if(e && e.name === "AbortError") return; if(e && e.code === "sampling_disabled") sampler = null; acts = null; }
     htCtl = null;
@@ -2001,7 +2026,7 @@ document.addEventListener("click", async e => {
     case "chore-del": W.del("chores/"+id); closeSheet(); toast("Chore removed"); break;
     case "stamp": { const c = S.chores.find(x=>x.id===id); if(!c) break; const k = b.dataset.day, v = !(c.done && c.done[k]);
       c.done = {...(c.done||{}), [k]: v}; render(); W.upd("chores/"+id, {done:{[k]:v}}); if(v) toast("Stamped ★"); break; }
-    case "reward": { const m = mem(UI.choreMember); if(!m) break; openSheet(`<form data-form="reward" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">${esc(m.name)}'s reward</h2>
+    case "reward": { const m = mem(UI.choreMember); if(!m) break; if(!gate(false, "Reward jars with a goal for each kid are a Premium extra.")) break; openSheet(`<form data-form="reward" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">${esc(m.name)}'s reward</h2>
       <div class="field"><label for="rw-t">Saving up for</label><input id="rw-t" name="reward" maxlength="40" value="${esc(m.reward||"")}" placeholder="Movie night + popcorn" autofocus required></div>
       <div class="field"><label for="rw-g">Stars needed this week</label><input id="rw-g" name="goal" type="number" min="1" max="99" value="${Number(m.goal)||20}"></div><button class="btn primary">Save</button></form>`); break; }
     /* routines / generic person filter */
@@ -2010,16 +2035,16 @@ document.addEventListener("click", async e => {
       r.done = {...(r.done||{}), [k]: {...((r.done&&r.done[k])||{}), [s]: v}}; render(); W.upd("routines/"+id, {done:{[k]:{[s]:v}}}); break; }
     /* lists */
     case "list": UI.list = b.dataset.name; render(); break;
-    case "list-new": openSheet(`<form data-form="list" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">New list</h2><div class="field"><label for="ls-n">Name</label><input id="ls-n" name="name" maxlength="20" placeholder="Hardware store" required autofocus></div><button class="btn primary">Create list</button></form>`); break;
+    case "list-new": if(!gate(listNames().filter(n => !["Groceries","Costco","Pharmacy"].includes(n)).length < 1, "Free tribes get Groceries, Costco and Pharmacy plus one list of your own. Premium makes lists unlimited.")) break; openSheet(`<form data-form="list" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">New list</h2><div class="field"><label for="ls-n">Name</label><input id="ls-n" name="name" maxlength="20" placeholder="Hardware store" required autofocus></div><button class="btn primary">Create list</button></form>`); break;
     case "item": { const it = S.items.find(x=>x.id===id); if(!it) break; it.checked = !it.checked; render(); W.upd("items/"+id, {checked: it.checked}); break; }
     case "clear-checked": S.items.filter(i=>i.checked && (i.list||"Groceries")===UI.list).forEach(i=>W.del("items/"+i.id)); toast("Cleared"); break;
     /* menu */
-    case "mealweek": UI.mealWeek += +b.dataset.dir; render(); break;
+    case "mealweek": if(!gate(UI.mealWeek + +b.dataset.dir === 0, "Planning ahead and looking back at past weeks are Premium extras.")) break; UI.mealWeek += +b.dataset.dir; render(); break;
     case "meal": { const k = b.dataset.day, d = fromYmd(k), cur = S.meals[k] || {};
       openSheet(`<form data-form="meal" data-day="${k}" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">${DOW_LONG[dowIdx(d)]} dinner</h2>
         <div class="field"><label for="ml-d">What's cooking</label><input id="ml-d" name="dish" maxlength="40" value="${esc(cur.dish||"")}" placeholder="Tacos night" autofocus></div>
-        <div class="field"><label for="ml-i">Ingredients (comma separated)</label><textarea id="ml-i" name="ingredients" rows="2" maxlength="300" placeholder="Tortillas, ground beef, cilantro, limes">${esc(cur.ingredients||"")}</textarea></div>
-        <label class="row" style="gap:10px;font-weight:500" for="ml-add"><input type="checkbox" id="ml-add" name="addIng" style="width:22px;height:22px;accent-color:var(--sage)">Add the ingredients to Groceries</label>
+        ${limited() ? `<p class="small" style="margin:0">Ingredients for each dinner, sent to Groceries in one tap, come with Premium. <button type="button" class="small" data-act="upgrade" style="font-weight:600;text-decoration:underline;text-underline-offset:3px">Get Premium</button></p>` : `<div class="field"><label for="ml-i">Ingredients (comma separated)</label><textarea id="ml-i" name="ingredients" rows="2" maxlength="300" placeholder="Tortillas, ground beef, cilantro, limes">${esc(cur.ingredients||"")}</textarea></div>
+        <label class="row" style="gap:10px;font-weight:500" for="ml-add"><input type="checkbox" id="ml-add" name="addIng" style="width:22px;height:22px;accent-color:var(--sage)">Add the ingredients to Groceries</label>`}
         <div class="row" style="gap:10px">${cur.dish?`<button type="button" class="btn danger" data-act="meal-clear" data-day="${k}">Clear</button>`:""}<button class="btn primary grow">Save</button></div></form>`); break; }
     case "meal-clear": W.del("meals/"+b.dataset.day); closeSheet(); break;
     /* baby */
@@ -2036,7 +2061,7 @@ document.addEventListener("click", async e => {
     case "lunch-edit": lunchSheet(); break;
     /* sitter */
     case "sitter-edit": sitterInfoSheet(); break;
-    case "copy-care": copyText(careText(), "Care sheet copied"); break;
+    case "copy-care": if(!gate(false, "Copying the whole care sheet in one tap is a Premium extra. The sitter link still shares it for free.")) break; copyText(careText(), "Care sheet copied"); break;
     /* home */
     case "bill-paid": { const x = S.home.find(s=>s.id===id); if(!x) break; const st = billState(x), v = !st.paid; x.paid = {...(x.paid||{}), [st.mk]: v}; render(); W.upd("home/"+id, {paid:{[st.mk]:v}}); if(v) toast("Marked paid"); break; }
     case "upkeep-done": { const x = S.home.find(s=>s.id===id); if(!x) break; x.last = todayKey(); render(); W.upd("home/"+id, {last:x.last}); toast("Nice. Next reminder set"); break; }
@@ -2047,7 +2072,7 @@ document.addEventListener("click", async e => {
     case "plan-del": tripWrite(UI.trip, "plan", arr => arr.filter(x => x.id!==id)); break;
     case "pack-basics": { const base = ["Toothbrushes","Phone chargers","Pajamas","Medicines","Snacks for the road","Change of clothes","Swimsuits","Jackets"]; if(babyMember()) base.push("Diapers and wipes","Travel crib"); tripWrite(UI.trip, "packing", arr => arr.concat(base.filter(t=>!arr.some(x=>x.text===t)).map(t=>({id:uid(),text:t,packed:false})))); break; }
     /* generic */
-    case "ent-new": { if(b.dataset.kind === "countdown" && !gate(S.countdowns.length < 3, "Free tribes can count down to 3 big days at a time. Premium makes it unlimited, with yearly repeats.")) break; const pre = {}; if(b.dataset.who) pre.member = b.dataset.who; if(b.dataset.role) pre.role = b.dataset.role; openEditor(b.dataset.kind, null, pre); break; }
+    case "ent-new": { if(!gateAdd(b.dataset.kind)) break; const pre = {}; if(b.dataset.who) pre.member = b.dataset.who; if(b.dataset.role) pre.role = b.dataset.role; openEditor(b.dataset.kind, null, pre); break; }
     case "ent-edit": openEditor(b.dataset.kind, id); break;
     case "ent-del": { const E = ENT[b.dataset.kind]; if(!E) break; W.del(E.col+"/"+id); closeSheet(); if(b.dataset.kind==="trip" && UI.view==="trip") go("trips"); toast("Deleted"); break; }
     /* fridge */
@@ -2077,7 +2102,7 @@ document.addEventListener("click", async e => {
     /* people */
     case "setme": setMe(TRIBE, id); if(b.dataset.close) closeSheet(); render(); toast("Got it, "+memName(id)); break;
     case "member-new": if(!gate(S.members.length < 6, "Free tribes have room for 6 people. Premium makes room for everyone.")) break; memberSheet(); break;
-    case "upgrade": billingGo("checkout", b); break;
+    case "upgrade": if(!b.dataset.plan && BILLING){ upsell("Unlimited everything and every extra, for the whole family."); break; } billingGo("checkout", b); break;
     case "tk-new": ticketNewSheet(); break;
     case "pending-check": { const l = await loadMemberships(); if(l && l.length){ UI.view = "today"; connect(l[0].code); } else toast("Still waiting for a parent to approve you"); break; }
     case "pending-cancel": { for(const c of PENDING) await sb.from("memberships").delete().match({ tribe_code: c, user_id: SESSION.user.id }); PENDING = []; UI.onboard = null; S.status = "welcome"; render(); break; }
@@ -2193,6 +2218,7 @@ document.addEventListener("submit", async e => {
     case "create-tribe": {
       const name = String(v.tribe||"").trim(), you = String(v.you||"").trim(), btn = $("#tb-go"), err = $("#tb-err");
       if(!name || !you){ err.textContent = "Add your family name and your first name."; return; }
+      if(!gateTribes()) return;
       btn.disabled = true; btn.textContent = "Creating…";
       try {
         const r = await sb.rpc("create_tribe", { p_name: name, p_you: you });
@@ -2207,6 +2233,7 @@ document.addEventListener("submit", async e => {
     case "join-tribe": {
       const code = String(v.code||"").toUpperCase().replace(/[^A-Z0-9]/g,""), btn = $("#jn-go"), err = $("#jn-err");
       if(code.length < 4){ err.textContent = "Type the code from your family, like K7Q2PX."; return; }
+      if(!knownTribes().some(t => t.code === code) && !gateTribes()) return;
       btn.disabled = true; btn.textContent = "Looking…";
       try {
         const r = await sb.rpc("join_tribe", { p_code: code });
@@ -2234,7 +2261,7 @@ document.addEventListener("submit", async e => {
     case "reward": W.upd("members/"+UI.choreMember, {reward:v.reward.trim(), goal:Math.max(1,Math.min(99,+v.goal||20))}); closeSheet(); break;
     case "list": { const n = v.name.trim(); if(n){ UI.list = n; closeSheet(); render(); toast(`“${n}” is ready. Add the first item.`); } break; }
     case "meal": {
-      const dish = (v.dish||"").trim(), ing = (v.ingredients||"").trim(), k = f.dataset.day;
+      const k = f.dataset.day, dish = (v.dish||"").trim(), ing = String(v.ingredients ?? (S.meals[k]?.ingredients || "")).trim();
       if(dish || ing) W.set("meals/"+k, {dish, ingredients:ing}); else W.del("meals/"+k);
       if(v.addIng && ing){ const parts = ing.split(/[,\n]+/).map(s=>s.trim()).filter(Boolean).slice(0,30); const have = new Set(S.items.filter(i=>!i.checked&&(i.list||"Groceries")==="Groceries").map(i=>i.text.toLowerCase()));
         const add = parts.filter(p=>!have.has(p.toLowerCase())); for(const p of add) await W.add("items", {text:p,list:"Groceries",section:sectionFor(p),by,checked:false,at:Date.now()}); toast(add.length?`Added ${add.length} to Groceries`:"Already on the list"); }
@@ -2268,11 +2295,13 @@ document.addEventListener("submit", async e => {
       if(f.dataset.kind === "bill") data.dueDay = Math.min(31, Math.max(1, Math.round(data.dueDay||1)));
       if(f.dataset.kind === "upkeep") data.every = Math.min(60, Math.max(1, Math.round(data.every||3)));
       if(E.toData){ data = E.toData(data, rec); if(data && data.error){ err.textContent = data.error; return; } }
+      if(f.dataset.kind === "countdown" && data.yearly && !rec.yearly && limited()){ closeSheet(); upsell("Yearly repeats for birthdays and holidays are a Premium extra. You can still add the date as a one-time countdown."); return; }
       if(f.dataset.kind === "routine" && limited()){
         if(!id && S.routines.filter(r => r.member === data.member).length >= 2){ closeSheet(); upsell("Free tribes get two routines per person. Premium makes it unlimited."); return; }
         if((data.steps||[]).length > 8){ err.textContent = "Free routines have up to 8 steps. Premium allows 20."; return; }
       }
       const fileEl = f.querySelector('input[type="file"]');
+      if(fileEl && fileEl.files && fileEl.files[0] && limited()){ closeSheet(); upsell("A photo or PDF of each document is a Premium extra. Your document details are saved without it on Free."); if(!id) await W.add(E.col, {...data, by, at:Date.now()}); else await W.upd(E.col+"/"+id, data); return; }
       if(fileEl && fileEl.files && fileEl.files[0] && assets){
         err.textContent = "Uploading…";
         try { const r = await assets.upload(fileEl.files[0]); data.fileId = r.id; data.fileType = r.contentType || fileEl.files[0].type; data.fileName = fileEl.files[0].name.slice(0,80); }
@@ -2340,7 +2369,7 @@ async function afterLogin(){
   if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
-if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261025b', document.body);
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261025c', document.body);
 if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
 addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
 render();

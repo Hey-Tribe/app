@@ -42,7 +42,7 @@ export const T = {
       { url: "https://admin.heytribe.app/", label: "Open in admin" }, { foot: "Sent to HeyTribe admins." }),
     text: `${t.subject}\n${t.email || ""}\n\n${t.body || ""}\n\nhttps://admin.heytribe.app/` }),
   welcome: w => ({ subject: `${w.tribe} is ready on HeyTribe`, ...em(`Welcome to HeyTribe`,
-      P(`<b>${esc(w.tribe)}</b> is set up, and your 7 days of Premium have started. Here's your invite code for the people who help run your house:`) +
+      P(`<b>${esc(w.tribe)}</b> is set up, and your 14 days of Premium have started. Here's your invite code for the people who help run your house:`) +
       `<div style="margin:6px 0 18px;padding:16px;border-radius:16px;background:#E6EEE9;text-align:center;font-family:Georgia,serif;font-size:34px;letter-spacing:8px;color:#2F3B45">${esc(w.code)}</div>` +
       P("Three things to do first:") +
       `<ol style="margin:0 0 6px;padding-left:20px;line-height:1.7"><li>Add the people in your house, kids included.</li><li>Send your invite code to your partner or family. You approve them when they join.</li><li>Tell Hey Tribe what's coming up this week.</li></ol>`,
@@ -57,7 +57,7 @@ export const T = {
       { url: APP, label: "Open HeyTribe" }, { preheader: `You can now see ${a.tribe}'s plans.` }),
     text: `You're in. A parent approved you for ${a.tribe} on HeyTribe: ${APP}` }),
   trialEnding: t => ({ subject: `Your HeyTribe Premium trial ends ${fmtDay(t.ends)}`, ...em("Your free trial ends soon",
-      P(`${esc(t.tribe)}'s 7 days of Premium end on <b>${esc(fmtDay(t.ends))}</b>.`) +
+      P(`${esc(t.tribe)}'s 14 days of Premium end on <b>${esc(fmtDay(t.ends))}</b>.`) +
       P("Keep unlimited Hey Tribe notes, the morning briefing, the medicine log and more for $4.99 a month, for your whole family. Or do nothing and stay on Free. You keep everything you've added either way."),
       { url: APP + "#family", label: "Keep Premium" }, { preheader: "Keep Premium for $4.99 a month, or stay on Free." }),
     text: `${t.tribe}'s Premium trial ends on ${fmtDay(t.ends)}. Keep it for $4.99 a month in Family & settings, or stay on Free.` }),

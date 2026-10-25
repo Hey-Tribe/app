@@ -375,3 +375,4 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
 .btn.oauth:disabled{opacity:.6}
 .oauth-or{display:flex;align-items:center;gap:12px;margin:4px 0 -2px;color:var(--muted)}
 .oauth-or::before,.oauth-or::after{content:"";flex:1;height:1px;background:var(--line,rgba(0,0,0,.12))}
+.save-tag{font-size:12px;font-weight:700;background:rgba(255,255,255,.22);border-radius:999px;padding:2px 8px;margin-left:2px}

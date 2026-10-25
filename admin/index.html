@@ -353,9 +353,9 @@ async function people(m){
 async function billing(m){
   const [s, rows, on] = await Promise.all([rpc("admin_stats"), rpc("admin_tribes", { p_q:"", p_limit:200, p_offset:0 }), billingOn()]);
   const kpi = (l, v, d) => `<div class="card kpi"><div class="l">${l}</div><div class="v tab">${v}</div><div class="d">${d}</div></div>`;
-  m.innerHTML = `<div class="head"><div><h1>Billing</h1><p class="sub">Premium is ${money(PRICE)} a month per family after a 7-day trial.</p></div></div>
+  m.innerHTML = `<div class="head"><div><h1>Billing</h1><p class="sub">Premium is ${money(PRICE)} a month per family after a 14-day trial.</p></div></div>
     ${on ? `<div class="banner ok"><span>✓</span><div><b>Stripe is connected.</b> Families can upgrade from the app, and Free-plan limits apply once a trial ends. Payments, cancellations and failed cards update here on their own. <a href="https://dashboard.stripe.com" target="_blank" rel="noopener">Open Stripe</a></div></div>`
-      : `<div class="banner"><span>⚠</span><div><b>Stripe isn't connected yet.</b> Everything is built and waiting. New families get a 7-day trial, nobody is charged, and no limits apply until checkout is switched on. To switch it on, add the Stripe keys in Vercel (see Settings).</div></div>`}
+      : `<div class="banner"><span>⚠</span><div><b>Stripe isn't connected yet.</b> Everything is built and waiting. New families get a 14-day trial, nobody is charged, and no limits apply until checkout is switched on. To switch it on, add the Stripe keys in Vercel (see Settings).</div></div>`}
     <div class="grid kpis">
       ${kpi("MRR", money(s.active * PRICE), "from paying families")}
       ${kpi("Paying", s.active, `${s.past_due} past due`)}
