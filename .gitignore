@@ -3,3 +3,7 @@ node_modules/
 .env*
 .DS_Store
 *.bak*
+mobile/node_modules/
+mobile/ios/App/Pods/
+mobile/ios/DerivedData/
+mobile/ios/App/build/

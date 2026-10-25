@@ -1,0 +1,23 @@
+{
+  "name": "heytribe-mobile",
+  "private": true,
+  "description": "HeyTribe for iPhone: a native shell around www.heytribe.app/app with push, in-app purchase and links.",
+  "scripts": {
+    "sync": "cap sync ios",
+    "assets": "node scripts/make-assets.cjs"
+  },
+  "dependencies": {
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/push-notifications": "8.1.3",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capacitor/status-bar": "8.0.4",
+    "@capgo/native-purchases": "8.9.6"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

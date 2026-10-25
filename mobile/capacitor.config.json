@@ -1,0 +1,20 @@
+{
+  "appId": "app.heytribe.ios",
+  "appName": "HeyTribe",
+  "webDir": "www",
+  "server": {
+    "url": "https://www.heytribe.app/app/",
+    "errorPath": "offline.html",
+    "allowNavigation": ["www.heytribe.app", "heytribe.app"]
+  },
+  "ios": {
+    "contentInset": "never",
+    "scheme": "HeyTribe",
+    "backgroundColor": "#FBFCFA",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 600, "backgroundColor": "#FBFCFA", "showSpinner": false },
+    "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] }
+  }
+}

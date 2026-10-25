@@ -3,6 +3,7 @@
 // school forms the evening before they're due (6pm), and countdowns on the big day (8am). Each reminder is sent once.
 import webpush from "web-push";
 import { sendQueued } from "./_email.js";
+import { apnsReady, apnsClient } from "./_apns.js";
 
 const pad = n => String(n).padStart(2, "0");
 function localNow(tz) {
@@ -80,15 +81,24 @@ export default async function handler(req, res) {
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) return res.status(401).json({ error: "no" });
   let mail = {};
   try { mail = await sendQueued(rpc, process.env.CRON_SECRET); } catch (e) { mail = { error: e.message }; }
-  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return res.status(200).json({ ok: true, push: "not set up", ...mail });
-  webpush.setVapidDetails("mailto:hello@heytribe.app", process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+  const web = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY), ios = apnsReady();
+  if (!web && !ios) return res.status(200).json({ ok: true, push: "not set up", ...mail });
+  if (web) webpush.setVapidDetails("mailto:hello@heytribe.app", process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+  const apns = ios ? apnsClient() : null;
   const feed = await rpc("reminder_feed", { p_secret: process.env.CRON_SECRET });
   const sent = new Set(feed.sent || []), byTribe = {};
   (feed.docs || []).forEach(d => { (byTribe[d.tribe] = byTribe[d.tribe] || []).push(d); });
   const keys = [], dead = []; let count = 0;
   await Promise.all((feed.subs || []).map(async sub => {
+    const isApple = String(sub.endpoint).startsWith("apns:");
+    if (isApple ? !ios : !web) return;
     const due = dueFor(sub, byTribe[sub.tribe] || [], localNow(sub.tz)).filter(x => !sent.has(x.key));
     for (const n of due) {
+      if (isApple) {
+        const r = await apns.send({ token: sub.endpoint.slice(5), title: n.title, body: n.body, url: n.url, tag: n.key });
+        if (r.ok) { keys.push(n.key); count++; } else if (r.dead) { dead.push(sub.endpoint); break; }
+        continue;
+      }
       try {
         await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, JSON.stringify({ title: n.title, body: n.body, url: n.url, tag: n.key }), { TTL: 3600 });
         keys.push(n.key); count++;
@@ -97,6 +107,7 @@ export default async function handler(req, res) {
       }
     }
   }));
+  if (apns) apns.close();
   if (keys.length || dead.length) await rpc("reminder_done", { p_secret: process.env.CRON_SECRET, p_keys: keys, p_dead: dead });
   res.status(200).json({ ok: true, sent: count, subs: (feed.subs || []).length, ...mail });
 }

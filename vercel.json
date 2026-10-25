@@ -175,5 +175,11 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "destination": "/api/aasa"
+    }
   ]
 }

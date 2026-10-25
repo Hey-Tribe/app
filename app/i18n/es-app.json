@@ -933,5 +933,21 @@
 "This account is being deleted. Write to hello@heytribe.app if that's a mistake.": "Esta cuenta se está borrando. Escribe a hello@heytribe.app si es un error.",
 "Removing someone takes away their access right away. Think about changing your invite code too: you can share a new one by starting fresh with a parent.": "Quitar a alguien le quita el acceso de inmediato.",
 "Learn more": "Más información",
-"Dismiss": "Descartar"
+"Dismiss": "Descartar",
+"Restore purchases": "Restaurar compras",
+"Manage subscription": "Administrar suscripción",
+"Checking…": "Revisando…",
+"Billing is managed on heytribe.app.": "La facturación se administra en heytribe.app.",
+"Premium restored": "Premium restaurado",
+"No Premium purchase found for this Apple ID": "No encontramos una compra de Premium para este Apple ID",
+"Welcome to Premium. Thank you!": "Bienvenidos a Premium. ¡Gracias!",
+"The purchase didn't go through. You haven't been charged.": "La compra no se completó. No se te cobró nada.",
+"Premium isn't available in the App Store yet.": "Premium todavía no está disponible en el App Store.",
+"Couldn't confirm your purchase. Try Restore purchases in a minute.": "No pudimos confirmar tu compra. Prueba Restaurar compras en un minuto.",
+"You pay for Premium on heytribe.app. Manage it there on the web.": "Pagas Premium en heytribe.app. Adminístralo ahí, en la web.",
+"Reminders are on for this phone": "Los recordatorios están activados en este teléfono",
+"Notifications are off for HeyTribe. Turn them on in Settings › HeyTribe › Notifications.": "Las notificaciones de HeyTribe están desactivadas. Actívalas en Ajustes › HeyTribe › Notificaciones.",
+"Monthly subscription for your whole family. Payment is charged to your Apple ID. It renews each month unless you cancel at least 24 hours before the end of the period. Manage or cancel anytime in your Apple ID settings.": "Suscripción mensual para toda tu familia. El pago se carga a tu Apple ID. Se renueva cada mes a menos que la canceles al menos 24 horas antes de que termine el periodo. Adminístrala o cancélala cuando quieras en los ajustes de tu Apple ID.",
+"Terms": "Términos",
+"Privacy": "Privacidad"
 }

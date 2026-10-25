@@ -182,14 +182,118 @@ function deskLayout(app){
 }
 let deskT = 0; addEventListener("resize", () => { clearTimeout(deskT); deskT = setTimeout(() => { if(S.status === "ready" && innerWidth >= 1024 && !$("#scrim")) render(); }, 180); });
 
+/* iPhone app: the App Store build wraps this page. Native extras load only there. */
+const NATIVE = (() => { try { return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()); } catch(e){ return false; } })();
+const IAP_ID = "app.heytribe.premium.monthly";
+const NAT = { plugins: {}, core: null, product: null, apns: null };
+function natCore(){
+  return NAT.core || (NAT.core = new Promise((ok, no) => {
+    if(window.capacitorExports) return ok(window.capacitorExports);
+    const s = document.createElement("script"); s.src = "/app/vendor/capacitor.js";
+    s.onload = () => window.capacitorExports ? ok(window.capacitorExports) : no(new Error("no capacitor"));
+    s.onerror = () => { NAT.core = null; no(new Error("capacitor failed to load")); };
+    document.head.appendChild(s);
+  }));
+}
+/* plugin proxies answer every property, including "then", so wrap them before returning from an async function */
+async function natPlug(name){
+  if(!NAT.plugins[name]){ const c = await natCore(), raw = c.registerPlugin(name); NAT.plugins[name] = new Proxy({}, { get: (_, m) => m === "then" ? undefined : (...a) => raw[m](...a) }); }
+  return NAT.plugins[name];
+}
+async function natStatusBar(){ if(!NATIVE) return; try { const sb_ = await natPlug("StatusBar"); await sb_.setStyle({ style: document.documentElement.classList.contains("dark") ? "DARK" : "LIGHT" }); } catch(e){} }
+async function natInit(){
+  if(!NATIVE) return;
+  document.documentElement.classList.add("native");
+  natStatusBar();
+  try { new MutationObserver(natStatusBar).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] }); } catch(e){}
+  try {
+    const App = await natPlug("App");
+    App.addListener("appUrlOpen", ({ url }) => { try { const u = new URL(url); if(/(^|\.)heytribe\.app$/.test(u.hostname)){ if(u.pathname.startsWith("/app")) { if(u.search) location.href = u.href; else location.hash = u.hash || "#today"; } else natOpen(u.href); } } catch(e){} });
+  } catch(e){}
+  try {
+    const P = await natPlug("PushNotifications");
+    P.addListener("pushNotificationActionPerformed", a => { const u = a && a.notification && a.notification.data && a.notification.data.url; if(u && u.startsWith("/app/")) location.hash = u.split("#")[1] ? "#" + u.split("#")[1] : "#today"; });
+  } catch(e){}
+  try {
+    const IAP = await natPlug("NativePurchases");
+    const r = await IAP.getProducts({ productIdentifiers: [IAP_ID], productType: "subs" });
+    NAT.product = (r.products || []).find(p => p.identifier === IAP_ID) || null;
+    if(NAT.product){ BILLING = true; if(S.status === "ready") render(); }
+    IAP.addListener("transactionUpdated", t => { if(t && t.productIdentifier === IAP_ID && t.jwsRepresentation) appleSend(t.jwsRepresentation, true); });
+  } catch(e){}
+}
+/* pages outside the app open in an in-app Safari sheet instead of replacing the app */
+async function natOpen(url){ try { const B = await natPlug("Browser"); await B.open({ url, presentationStyle: "popover" }); } catch(e){ location.href = url; } }
+if(NATIVE) document.addEventListener("click", e => {
+  const a = e.target.closest && e.target.closest("a[href]"); if(!a) return;
+  let u; try { u = new URL(a.getAttribute("href"), location.href); } catch(_){ return; }
+  if(!/^https?:$/.test(u.protocol)) return;
+  const inApp = u.origin === location.origin && u.pathname.startsWith("/app");
+  if(inApp && a.target !== "_blank") return;
+  if(a.hasAttribute("download")) return;
+  e.preventDefault(); e.stopPropagation(); natOpen(u.href);
+}, true);
+async function appleSend(jws, quiet){
+  const tok = (await sb.auth.getSession()).data.session?.access_token;
+  if(!tok || !TRIBE || TRIBE === "SAMPLE") return false;
+  const r = await fetch("/api/apple-verify", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + tok }, body: JSON.stringify({ jws, code: TRIBE }) }).catch(() => null);
+  const j = r ? await r.json().catch(() => ({})) : {};
+  if(r && r.ok){ await loadPlan(TRIBE); return j.active !== false; }
+  if(!quiet) toast(j.error || "Couldn't confirm your purchase. Try Restore purchases in a minute.");
+  return false;
+}
+async function appleBuy(btn){
+  if(!NAT.product){ toast("Premium isn't available in the App Store yet."); return; }
+  if(!SESSION || !TRIBE || TRIBE === "SAMPLE") return;
+  if(btn){ btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = "Opening…"; }
+  try {
+    const IAP = await natPlug("NativePurchases");
+    const t = await IAP.purchaseProduct({ productIdentifier: IAP_ID, productType: "subs", appAccountToken: SESSION.user.id, quantity: 1 });
+    if(t && t.jwsRepresentation && await appleSend(t.jwsRepresentation)){ closeSheet(); toast("Welcome to Premium. Thank you!"); }
+  } catch(e){
+    const m = String(e && (e.message || e.code) || "");
+    if(!/cancel/i.test(m)) toast("The purchase didn't go through. You haven't been charged.");
+  }
+  if(btn && btn.isConnected){ btn.disabled = false; btn.textContent = btn.dataset.label; }
+  render();
+}
+async function appleRestore(btn){
+  if(btn){ btn.disabled = true; btn.dataset.label = btn.textContent; btn.textContent = "Checking…"; }
+  let found = false;
+  try {
+    const IAP = await natPlug("NativePurchases");
+    try { await IAP.restorePurchases(); } catch(e){}
+    const r = await IAP.getPurchases({ productType: "subs" });
+    for(const t of (r.purchases || []).filter(p => p.productIdentifier === IAP_ID && p.jwsRepresentation)){ if(await appleSend(t.jwsRepresentation, true)) found = true; }
+  } catch(e){}
+  toast(found ? "Premium restored" : "No Premium purchase found for this Apple ID");
+  if(btn && btn.isConnected){ btn.disabled = false; btn.textContent = btn.dataset.label; }
+  render();
+}
+async function appleManage(){ try { const IAP = await natPlug("NativePurchases"); await IAP.manageSubscriptions(); } catch(e){ natOpen("https://apps.apple.com/account/subscriptions"); } }
+const priceLabel = () => NATIVE && NAT.product && NAT.product.priceString ? NAT.product.priceString + "/mo" : "$4.99/mo";
+/* reminders on the iPhone app go through Apple push, not web push */
+async function natPushToken(ask){
+  const P = await natPlug("PushNotifications");
+  let st = await P.checkPermissions();
+  if(st.receive !== "granted"){ if(!ask) return null; st = await P.requestPermissions(); }
+  if(st.receive !== "granted") return null;
+  return new Promise(ok => {
+    let done = false; const fin = v => { if(!done){ done = true; ok(v); } };
+    P.addListener("registration", t => { NAT.apns = t.value; store.set("ht-apns", t.value); fin(t.value); });
+    P.addListener("registrationError", () => fin(null));
+    P.register().catch(() => fin(null));
+    setTimeout(() => fin(store.get("ht-apns")), 8000);
+  });
+}
 /* plan and billing: limits only apply once checkout is switched on, so nobody is limited before they can upgrade */
 let PLAN = null, BILLING = false;
 const premium = () => TRIBE === "SAMPLE" || !PLAN || ["active","comped","past_due"].includes(PLAN.status) || (PLAN.status === "trialing" && new Date(PLAN.trial_ends_at) > new Date());
 const limited = () => BILLING && !premium();
-fetch("/api/billing").then(r => r.ok ? r.json() : {}).then(j => { BILLING = !!j.enabled; if(S.status === "ready") render(); }).catch(() => {});
+if(NATIVE) natInit(); else fetch("/api/billing").then(r => r.ok ? r.json() : {}).then(j => { BILLING = !!j.enabled; if(S.status === "ready") render(); }).catch(() => {});
 async function loadPlan(code){
   if(!sb || !SESSION || !code || code === "SAMPLE"){ PLAN = null; return; }
-  const r = await sb.from("subscriptions").select("status, trial_ends_at, current_period_end, stripe_customer_id").eq("tribe_code", code).maybeSingle();
+  const r = await sb.from("subscriptions").select("status, trial_ends_at, current_period_end, stripe_customer_id, stripe_subscription_id").eq("tribe_code", code).maybeSingle();
   if(TRIBE !== code) return;
   PLAN = r.error ? null : r.data;
   if(S.status === "ready") render();
@@ -200,11 +304,18 @@ function upsell(why){
     <span class="tag" style="align-self:flex-start">Premium</span>
     <h2 class="serif" style="font-size:28px;margin:0">That's a Premium extra</h2>
     <p style="margin:0;color:var(--muted)">${esc(why)}</p>
-    <p style="margin:0">Premium is $4.99 a month for the whole tribe. Cancel anytime.</p>
-    <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn primary grow" data-act="upgrade">Get Premium</button><button class="btn ghost" data-act="close">Not now</button></div></div>`);
+    <p style="margin:0">Premium is ${NATIVE ? priceLabel().replace("/mo", " a month") : "$4.99 a month"} for the whole tribe. Cancel anytime.</p>
+    <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn primary grow" data-act="upgrade">Get Premium</button><button class="btn ghost" data-act="close">Not now</button></div>${NATIVE ? appleTerms() : ""}</div>`);
 }
 function gate(ok, why){ if(ok || !limited()) return true; upsell(why); return false; }
+const appleSub = () => !!(PLAN && String(PLAN.stripe_subscription_id || "").startsWith("apple:"));
+function appleTerms(){ return `<p class="small" style="margin:0;line-height:1.5">Monthly subscription for your whole family. Payment is charged to your Apple ID. It renews each month unless you cancel at least 24 hours before the end of the period. Manage or cancel anytime in your Apple ID settings. <a href="/terms.html" target="_blank" style="color:inherit;text-decoration:underline">Terms</a> · <a href="/privacy.html" target="_blank" style="color:inherit;text-decoration:underline">Privacy</a></p><div class="row"><button class="btn ghost" data-act="iap-restore">Restore purchases</button></div>`; }
 async function billingGo(action, btn){
+  if(NATIVE){
+    if(action === "checkout") return appleBuy(btn);
+    if(appleSub()) return appleManage();
+    toast("You pay for Premium on heytribe.app. Manage it there on the web."); return;
+  }
   if(!BILLING){ toast("Premium checkout opens soon."); return; }
   const tok = (await sb.auth.getSession()).data.session?.access_token;
   if(!tok || !TRIBE || TRIBE === "SAMPLE") return;
@@ -221,8 +332,8 @@ function planCard(){
   if(!SESSION || !TRIBE || TRIBE === "SAMPLE" || !PLAN) return "";
   const st = PLAN.status, d = trialDays();
   let head, sub, btn = "";
-  const up = label => BILLING ? `<button class="btn primary" data-act="upgrade">${label}</button>` : `<span class="small">Premium checkout opens soon.</span>`;
-  const manage = label => BILLING && PLAN.stripe_customer_id ? `<button class="btn ghost" data-act="billing-portal">${label}</button>` : "";
+  const up = label => BILLING ? `<button class="btn primary" data-act="upgrade">${NATIVE ? label.replace("$4.99/mo", priceLabel()) : label}</button>${NATIVE ? appleTerms() : ""}` : `<span class="small">Premium checkout opens soon.</span>`;
+  const manage = label => NATIVE ? (appleSub() ? `<button class="btn ghost" data-act="billing-portal">Manage subscription</button>` : (PLAN.stripe_customer_id ? `<span class="small">Billing is managed on heytribe.app.</span>` : "")) : BILLING && PLAN.stripe_customer_id ? `<button class="btn ghost" data-act="billing-portal">${label}</button>` : "";
   if(st === "comped"){ head = "Premium"; sub = "On the house. Enjoy every extra."; }
   else if(st === "active"){ head = "Premium"; sub = PLAN.current_period_end ? "Renews " + fmtDay(ymd(new Date(PLAN.current_period_end))) : "Thanks for being Premium."; btn = manage("Manage billing"); }
   else if(st === "past_due"){ head = "Premium"; sub = "Your last payment didn't go through. Update your card to keep Premium."; btn = manage("Update card"); }
@@ -320,18 +431,27 @@ function custodySheet(){
 }
 
 /* reminders on this device (web push) */
-const REM = { ok: "serviceWorker" in navigator && "PushManager" in window && "Notification" in window, sub: null, row: null, loaded: false };
+const REM = { ok: NATIVE || ("serviceWorker" in navigator && "PushManager" in window && "Notification" in window), sub: null, ep: null, row: null, loaded: false };
 const REM_TYPES = [["plans","Plans"],["meds","Medicine"],["bills","Bills"],["school","School forms"],["countdowns","Big days"]];
 const b64u = s => { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from([...b].map(c => c.charCodeAt(0))); };
 async function loadReminders(){
   if(!REM.ok || !SESSION){ REM.loaded = true; return; }
-  try { const reg = await navigator.serviceWorker.ready; REM.sub = await reg.pushManager.getSubscription(); } catch(e){ REM.sub = null; }
+  if(NATIVE){ const t = store.get("ht-apns"); REM.ep = t ? "apns:" + t : null; }
+  else { try { const reg = await navigator.serviceWorker.ready; REM.sub = await reg.pushManager.getSubscription(); } catch(e){ REM.sub = null; } REM.ep = REM.sub ? REM.sub.endpoint : null; }
   REM.row = null;
-  if(REM.sub){ const r = await sb.from("push_subscriptions").select("id, prefs, tribe_code").eq("endpoint", REM.sub.endpoint).maybeSingle(); REM.row = r.data || null; }
+  if(REM.ep){ const r = await sb.from("push_subscriptions").select("id, prefs, tribe_code").eq("endpoint", REM.ep).maybeSingle(); REM.row = r.data || null; }
   REM.loaded = true; if(S.status === "ready" && UI.view === "family") render();
 }
 async function remindersOn(){
   if(!REM.ok){ toast("This browser can't show reminders."); return; }
+  if(NATIVE){
+    let t = null; try { t = await natPushToken(true); } catch(e){}
+    if(!t){ toast("Notifications are off for HeyTribe. Turn them on in Settings › HeyTribe › Notifications."); return; }
+    const row = { tribe_code: TRIBE, member_id: meId(), endpoint: "apns:" + t, p256dh: "apns", auth: "apns", tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York", dead: false };
+    const r = await sb.from("push_subscriptions").upsert(row, { onConflict: "endpoint" }).select("id, prefs, tribe_code").maybeSingle();
+    if(r.error){ toast("Couldn't turn on reminders. Try again."); return; }
+    REM.ep = row.endpoint; REM.row = r.data; toast("Reminders are on for this phone"); render(); return;
+  }
   const perm = await Notification.requestPermission();
   if(perm !== "granted"){ toast("Reminders are blocked. Allow notifications for HeyTribe in your settings."); return; }
   const reg = await navigator.serviceWorker.ready;
@@ -341,17 +461,19 @@ async function remindersOn(){
   const row = { tribe_code: TRIBE, member_id: meId(), endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York", dead: false };
   const r = await sb.from("push_subscriptions").upsert(row, { onConflict: "endpoint" }).select("id, prefs, tribe_code").maybeSingle();
   if(r.error){ toast("Couldn't turn on reminders. Try again."); return; }
-  REM.sub = sub; REM.row = r.data; toast("Reminders are on for this device"); render();
+  REM.sub = sub; REM.ep = sub.endpoint; REM.row = r.data; toast("Reminders are on for this device"); render();
 }
 async function remindersOff(){
-  if(REM.sub){ await sb.from("push_subscriptions").delete().eq("endpoint", REM.sub.endpoint); try { await REM.sub.unsubscribe(); } catch(e){} }
-  REM.sub = null; REM.row = null; toast("Reminders are off for this device"); render();
+  if(REM.ep) await sb.from("push_subscriptions").delete().eq("endpoint", REM.ep);
+  if(REM.sub){ try { await REM.sub.unsubscribe(); } catch(e){} }
+  REM.sub = null; REM.ep = null; REM.row = null; toast("Reminders are off for this device"); render();
 }
 /* install on phone / computer (PWA) */
 let INSTALL_EVT = null;
 addEventListener("beforeinstallprompt", e => { e.preventDefault(); INSTALL_EVT = e; try { if(SESSION) render(); } catch(_){} });
 addEventListener("appinstalled", () => { INSTALL_EVT = null; try { toast("HeyTribe is on your home screen"); render(); } catch(_){} });
 function installCard(){
+  if(NATIVE) return "";
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   if(standalone) return "";
   const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1), android = /Android/.test(ua);
@@ -1911,8 +2033,8 @@ document.addEventListener("click", async e => {
     case "custody-off": W.del("info/custody"); closeSheet(); toast("Co-parenting schedule turned off"); break;
     case "rem-on": remindersOn(); break;
     case "rem-off": remindersOff(); break;
-    case "rem-pref": { if(!REM.row) break; const pr = { plans:true, meds:true, bills:true, school:true, countdowns:true, ...(REM.row.prefs||{}) }; pr[b.dataset.k] = !pr[b.dataset.k]; REM.row.prefs = pr; render(); await sb.from("push_subscriptions").update({ prefs: pr, member_id: meId() }).eq("endpoint", REM.sub.endpoint); break; }
-    case "rem-test": { const tok = (await sb.auth.getSession()).data.session?.access_token; const r = await fetch("/api/push-test", { method:"POST", headers:{ "content-type":"application/json", authorization:"Bearer " + tok }, body: JSON.stringify({ endpoint: REM.sub.endpoint }) }).catch(() => null); toast(r && r.ok ? "Test sent. It should pop up in a moment." : "Couldn't send a test right now."); break; }
+    case "rem-pref": { if(!REM.row) break; const pr = { plans:true, meds:true, bills:true, school:true, countdowns:true, ...(REM.row.prefs||{}) }; pr[b.dataset.k] = !pr[b.dataset.k]; REM.row.prefs = pr; render(); await sb.from("push_subscriptions").update({ prefs: pr, member_id: meId() }).eq("endpoint", REM.ep); break; }
+    case "rem-test": { const tok = (await sb.auth.getSession()).data.session?.access_token; const r = await fetch("/api/push-test", { method:"POST", headers:{ "content-type":"application/json", authorization:"Bearer " + tok }, body: JSON.stringify({ endpoint: REM.ep }) }).catch(() => null); toast(r && r.ok ? "Test sent. It should pop up in a moment." : "Couldn't send a test right now."); break; }
     case "sitter-link": sitterLinkSheet(); break;
     case "sitter-make": { const r = await sb.rpc("make_sitter_link", { p_code: TRIBE, p_days: +b.dataset.days }); if(r.error){ toast("Couldn't make a link. Try again."); break; } await copyText(location.origin + "/sitter/?t=" + r.data.token, "Link copied. Send it to your sitter."); sitterLinkSheet(); break; }
     case "sitter-stop": await sb.rpc("stop_sitter_link", { p_code: TRIBE }); toast("Sitter link turned off"); sitterLinkSheet(); break;
@@ -1922,6 +2044,7 @@ document.addEventListener("click", async e => {
     case "delete-account": openSheet(`<form data-form="delete-account" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Delete your account?</h2><p style="margin:0;color:var(--muted);line-height:1.5">You'll be logged out and lose access to your families. Families where you're the only member are deleted too. Your login and data are erased within 30 days.</p><div class="field"><label for="da-word">Type DELETE to confirm</label><input id="da-word" name="word" autocomplete="off" autocapitalize="characters" required></div><p class="form-err small" id="da-err" role="alert"></p><button class="btn danger">Delete my account</button></form>`); break;
     case "tk-open": ticketSheet(id); break;
     case "billing-portal": billingGo("portal", b); break;
+    case "iap-restore": appleRestore(b); break;
     case "member-edit": memberSheet(id); break;
     case "member-del": { const m = mem(id); if(!m) break; openSheet(`<div class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Remove ${esc(m.name)}?</h2><p style="margin:0;color:var(--muted)">Their plans and chores stay, but show as “Someone”.</p><div class="row" style="gap:10px"><button class="btn ghost grow" data-act="close">Keep</button><button class="btn dark grow" data-act="member-del-yes" data-id="${esc(m.id)}">Remove</button></div></div>`); break; }
     case "member-del-yes": W.del("members/"+id); closeSheet(); break;
@@ -2154,7 +2277,7 @@ async function afterLogin(){
   if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
-if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261011', document.body);
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261025', document.body);
 if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
 addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
 render();
