@@ -949,5 +949,11 @@
 "Notifications are off for HeyTribe. Turn them on in Settings › HeyTribe › Notifications.": "Las notificaciones de HeyTribe están desactivadas. Actívalas en Ajustes › HeyTribe › Notificaciones.",
 "Monthly subscription for your whole family. Payment is charged to your Apple ID. It renews each month unless you cancel at least 24 hours before the end of the period. Manage or cancel anytime in your Apple ID settings.": "Suscripción mensual para toda tu familia. El pago se carga a tu Apple ID. Se renueva cada mes a menos que la canceles al menos 24 horas antes de que termine el periodo. Adminístrala o cancélala cuando quieras en los ajustes de tu Apple ID.",
 "Terms": "Términos",
-"Privacy": "Privacidad"
+"Privacy": "Privacidad",
+"Continue with Apple": "Continuar con Apple",
+"Continue with Google": "Continuar con Google",
+"or use your email": "o usa tu correo",
+"Couldn't sign in with Apple. Try again, or use your email.": "No pudimos iniciar sesión con Apple. Inténtalo de nuevo o usa tu correo.",
+"Couldn't sign in with Google. Try again, or use your email.": "No pudimos iniciar sesión con Google. Inténtalo de nuevo o usa tu correo.",
+"That sign-in didn't finish. Try again, or use your email.": "Ese inicio de sesión no se completó. Inténtalo de nuevo o usa tu correo."
 }

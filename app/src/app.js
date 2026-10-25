@@ -200,12 +200,12 @@ async function natPlug(name){
   if(!NAT.plugins[name]){ const c = await natCore(), raw = c.registerPlugin(name); NAT.plugins[name] = new Proxy({}, { get: (_, m) => m === "then" ? undefined : (...a) => raw[m](...a) }); }
   return NAT.plugins[name];
 }
-async function natStatusBar(){ if(!NATIVE) return; try { const sb_ = await natPlug("StatusBar"); await sb_.setStyle({ style: document.documentElement.classList.contains("dark") ? "DARK" : "LIGHT" }); } catch(e){} }
+async function natStatusBar(){ if(!NATIVE) return; try { const sb_ = await natPlug("StatusBar"); await sb_.setStyle({ style: document.documentElement.dataset.theme === "dark" ? "DARK" : "LIGHT" }); } catch(e){} }
 async function natInit(){
   if(!NATIVE) return;
   document.documentElement.classList.add("native");
   natStatusBar();
-  try { new MutationObserver(natStatusBar).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] }); } catch(e){}
+  try { new MutationObserver(natStatusBar).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] }); } catch(e){}
   try {
     const App = await natPlug("App");
     App.addListener("appUrlOpen", ({ url }) => { try { const u = new URL(url); if(/(^|\.)heytribe\.app$/.test(u.hostname)){ if(u.pathname.startsWith("/app")) { if(u.search) location.href = u.href; else location.hash = u.hash || "#today"; } else natOpen(u.href); } } catch(e){} });
@@ -828,6 +828,66 @@ function pickWho(pool, def){ pool = pool || S.members; if(!UI.who || !pool.some(
 
 function loading(){ return `<div class="col" style="gap:18px;padding-top:40px;align-items:center;text-align:center">${mark(56)}<div class="serif" style="font-size:26px">Gathering your tribe…</div><div class="small">Syncing plans, chores and lists.</div></div>`; }
 function offline(){ return `<div class="col" style="gap:16px;padding-top:40px">${mark(44)}<h1 class="title">Can't reach HeyTribe</h1><p class="small" style="font-size:15px;line-height:1.5">Check your connection and try again. Anything you already see is safe.</p><button class="btn primary" onclick="location.reload()">Try again</button></div>`; }
+/* Sign in with Apple or Google. The buttons appear on their own once a provider is switched on in Supabase. */
+const OAUTH = { google: false, apple: false };
+const NATIVE_REDIRECT = "app.heytribe.ios://auth";
+async function loadProviders(){
+  try {
+    const r = await fetch(CFG.supabaseUrl + "/auth/v1/settings", { headers: { apikey: CFG.supabaseAnonKey } });
+    const j = r.ok ? await r.json() : {};
+    OAUTH.google = !!(j.external && j.external.google); OAUTH.apple = !!(j.external && j.external.apple);
+  } catch(e){}
+  if(S.status === "auth" && (OAUTH.google || OAUTH.apple)) render();
+}
+const APPLE_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.37 12.6c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.47.83-.72 0-1.82-.81-2.99-.79-1.54.02-2.96.9-3.75 2.27-1.6 2.78-.41 6.89 1.15 9.14.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.78.74 2.99.72 1.24-.02 2.02-1.12 2.77-2.23.88-1.28 1.24-2.52 1.26-2.59-.03-.01-2.41-.93-2.43-3.65ZM14.09 5.84c.63-.77 1.06-1.83.94-2.89-.91.04-2.02.61-2.67 1.37-.58.67-1.1 1.76-.96 2.79 1.02.08 2.06-.52 2.69-1.27Z"/></svg>`;
+const GOOGLE_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.45a5.52 5.52 0 0 1-2.4 3.62v3h3.88c2.27-2.09 3.57-5.17 3.57-8.81Z"/><path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.94-2.91l-3.88-3.01c-1.07.72-2.45 1.15-4.06 1.15-3.13 0-5.78-2.11-6.72-4.95H1.27v3.11A12 12 0 0 0 12 24Z"/><path fill="#FBBC05" d="M5.28 14.28a7.2 7.2 0 0 1 0-4.56V6.61H1.27a12 12 0 0 0 0 10.78l4.01-3.11Z"/><path fill="#EA4335" d="M12 4.77c1.76 0 3.34.61 4.59 1.8l3.44-3.44A11.5 11.5 0 0 0 12 0 12 12 0 0 0 1.27 6.61l4.01 3.11C6.22 6.88 8.87 4.77 12 4.77Z"/></svg>`;
+function socialButtons(){
+  if(!OAUTH.apple && !OAUTH.google) return "";
+  const b = (p, label, svg, cls) => `<button type="button" class="btn oauth ${cls}" data-act="oauth" data-p="${p}">${svg}<span>${label}</span></button>`;
+  return `<div class="col" style="gap:10px">${OAUTH.apple ? b("apple", "Continue with Apple", APPLE_SVG, "oauth-apple") : ""}${OAUTH.google ? b("google", "Continue with Google", GOOGLE_SVG, "oauth-google") : ""}
+    <div class="oauth-or small"><span>or use your email</span></div></div>`;
+}
+async function sha256hex(s){ const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(d)].map(x => x.toString(16).padStart(2, "0")).join(""); }
+async function oauthGo(p, btn){
+  if(p !== "apple" && p !== "google") return;
+  UI.authErr = ""; const er = $("#au-err"); if(er) er.textContent = "";
+  store.set("ht-onboard", UI.onboard || "");
+  const label = btn && btn.querySelector("span"), was = label && label.textContent;
+  if(btn){ btn.disabled = true; if(label) label.textContent = "Opening…"; }
+  try {
+    if(NATIVE && p === "apple"){
+      const raw = (crypto.randomUUID ? crypto.randomUUID() + crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/-/g, "");
+      const A = await natPlug("HTAuth");
+      const r = await A.apple({ nonce: await sha256hex(raw) });
+      const out = await sb.auth.signInWithIdToken({ provider: "apple", token: r.identityToken, nonce: raw });
+      if(out.error) throw out.error;
+      // Apple only shares the name the first time, so keep it on the login for the "Your first name" step
+      if(r.givenName) sb.auth.updateUser({ data: { given_name: r.givenName, full_name: [r.givenName, r.familyName].filter(Boolean).join(" ") } }).catch(() => {});
+    } else if(NATIVE){
+      const o = await sb.auth.signInWithOAuth({ provider: p, options: { redirectTo: NATIVE_REDIRECT, skipBrowserRedirect: true, queryParams: { prompt: "select_account" } } });
+      if(o.error || !o.data || !o.data.url) throw o.error || new Error("no url");
+      const A = await natPlug("HTAuth");
+      const r = await A.webAuth({ url: o.data.url, scheme: NATIVE_REDIRECT.split(":")[0] });
+      const u = new URL(r.url), code = u.searchParams.get("code") || new URLSearchParams(u.hash.slice(1)).get("code");
+      if(!code) throw new Error(u.searchParams.get("error_description") || "no code");
+      const x = await sb.auth.exchangeCodeForSession(code);
+      if(x.error) throw x.error;
+    } else {
+      const o = await sb.auth.signInWithOAuth({ provider: p, options: { redirectTo: APP_URL, queryParams: p === "google" ? { prompt: "select_account" } : undefined } });
+      if(o.error) throw o.error;
+      return; // the browser is leaving for Apple or Google
+    }
+  } catch(e){
+    const m = String(e && (e.code || e.message) || "");
+    if(!/cancel/i.test(m)){ UI.authErr = `Couldn't sign in with ${p === "apple" ? "Apple" : "Google"}. Try again, or use your email.`; const el = $("#au-err"); if(el) el.textContent = UI.authErr; }
+  }
+  if(btn && btn.isConnected){ btn.disabled = false; if(label) label.textContent = was; }
+}
+function firstNameGuess(){
+  const md = (SESSION && SESSION.user && SESSION.user.user_metadata) || {};
+  const n = md.given_name || md.first_name || String(md.full_name || md.name || "").split(" ")[0] || "";
+  return n.slice(0, 20);
+}
 function authScreen(){
   const m = UI.auth || "signin";
   const logo = `<div class="row" style="gap:8px">${mark(26)}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div>`;
@@ -838,7 +898,7 @@ function authScreen(){
   let body;
   if(m === "signup") body = `<form data-form="auth-signup" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Make your <em>account</em></h1>
       <p class="small" style="font-size:15px;margin:0">One login per person. Then start your tribe or join your family's with their code.</p>
-      ${email(UI.authEmail)}${pw("au-pw","Password (8 or more characters)","new-password")}
+      ${socialButtons()}${email(UI.authEmail)}${pw("au-pw","Password (8 or more characters)","new-password")}
       <button class="btn primary" id="au-go">Create account</button>${err}
       <p class="small" style="margin:0">Already have one? ${link("signin","Log in")}</p></form>`;
   else if(m === "forgot") body = `<form data-form="auth-forgot" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Reset your <em>password</em></h1>
@@ -851,7 +911,7 @@ function authScreen(){
       <p style="font-size:16px;line-height:1.5;margin:0;color:var(--muted)">${esc(UI.authMsg||"We sent you a link. Open it on this device to finish.")}</p>
       <p class="small" style="margin:0">${link("signin","Back to log in")}</p></div>`;
   else body = `<form data-form="auth-signin" class="col" style="gap:14px"><h1 class="title" style="font-size:44px">Welcome <em>back.</em></h1>
-      ${email(UI.authEmail)}${pw("au-pw","Password","current-password")}
+      ${socialButtons()}${email(UI.authEmail)}${pw("au-pw","Password","current-password")}
       <button class="btn primary" id="au-go">Log in</button>${err}
       <div class="between" style="flex-wrap:wrap;gap:8px">${link("forgot","Forgot password?")}<span class="small">New here? ${link("signup","Make an account")}</span></div></form>`;
   const langSw = `<button class="small lang-sw" data-act="lang" data-l="${((window.HTi18n&&HTi18n.lang)||"en")==="es"?"en":"es"}" data-no-tr>${((window.HTi18n&&HTi18n.lang)||"en")==="es"?"English":"Español"}</button>`;
@@ -876,7 +936,7 @@ function welcome(){
   if(o === "create") body = `<form data-form="create-tribe" class="col" style="gap:14px">
       <h2 class="serif" style="font-size:30px;margin:0">Start your tribe</h2>
       <div class="field"><label for="tb-name">Family name</label><input id="tb-name" name="tribe" maxlength="40" placeholder="The Rivera family" required autofocus></div>
-      <div class="field"><label for="tb-you">Your first name</label><input id="tb-you" name="you" maxlength="20" placeholder="Alex" required></div>
+      <div class="field"><label for="tb-you">Your first name</label><input id="tb-you" name="you" maxlength="20" placeholder="Alex" value="${esc(firstNameGuess())}" required></div>
       <button class="btn primary" id="tb-go">Create our tribe</button>
       <p class="form-err small" id="tb-err" role="alert"></p>
       <button type="button" class="small" data-act="onboard" data-mode="" style="font-weight:600">Back</button></form>`;
@@ -1905,6 +1965,7 @@ document.addEventListener("click", async e => {
     case "close": closeSheet(); break;
     case "install-app": { const ev = INSTALL_EVT; if(!ev) break; INSTALL_EVT = null; try { await ev.prompt(); await ev.userChoice; } catch(_){} render(); break; }
     case "lang": if(window.HTi18n) HTi18n.set(b.dataset.l); break;
+    case "oauth": oauthGo(b.dataset.p, b); break;
     case "auth-mode": { UI.auth = b.dataset.mode; UI.authErr = ""; const em = $("#au-email"); if(em) UI.authEmail = em.value; render(); break; }
     case "sign-out": closeSheet(); await sb.auth.signOut(); break;
     case "auth-change-pw": closeSheet(); UI.auth = "reset"; UI.authErr = ""; S.status = "auth"; render(); break;
@@ -2271,13 +2332,15 @@ async function afterLogin(){
   if(list === null){ S.status = "offline"; render(); return; }
   if(!list.length && PENDING.length && h !== "create" && h !== "join"){ TRIBE = null; S.status = "pending"; render(); return; }
   if(h === "create" || h === "join"){ clearHash(); UI.onboard = h; S.status = "welcome"; render(); return; }
+  const ob = store.get("ht-onboard"); if(ob !== null) store.del("ht-onboard");
+  if(!list.length && (ob === "create" || ob === "join")){ TRIBE = null; UI.onboard = ob; S.status = "welcome"; render(); return; }
   if(h === "sample"){ clearHash(); connect("SAMPLE"); return; }
   const saved = store.get("ht-tribe");
   const pick = list.find(t => t.code === saved) || list[0];
   if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
-if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261025', document.body);
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261025b', document.body);
 if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
 addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
 render();
@@ -2287,6 +2350,9 @@ render();
   db = makeDb(sb); assets = assetsApi; sampler = aiApi;
   const bq = /[?&]billing=(success|cancel)/.exec(location.search);
   if(bq){ try { history.replaceState(null, "", location.pathname + location.hash); } catch(e){} if(bq[1] === "success"){ setTimeout(() => toast("Welcome to Premium. Thanks for supporting HeyTribe!"), 1200); [3000, 8000, 15000].forEach(t => setTimeout(() => TRIBE && loadPlan(TRIBE), t)); } }
+  loadProviders();
+  { const q = new URLSearchParams(location.search), hq = new URLSearchParams((location.hash||"").slice(1));
+    if(q.get("error_description") || hq.get("error_description")){ UI.auth = "signin"; UI.authErr = "That sign-in didn't finish. Try again, or use your email."; try { history.replaceState(null, "", location.pathname); } catch(e){} } }
   const h0 = (location.hash||"").slice(1);
   if(h0 === "login" || h0 === "signup"){ UI.auth = h0 === "login" ? "signin" : "signup"; clearHash(); }
   let first = true;

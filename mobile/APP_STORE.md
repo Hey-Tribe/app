@@ -8,6 +8,7 @@ in `mobile/` changes (icon, plugins, permissions).
 
 - iPhone app project (bundle ID `app.heytribe.ios`, iOS 15+, iPhone only, English and Spanish)
 - Icon and launch screen
+- Sign in with Apple (native sheet) and Google (secure sign-in window). Setup: `docs/SIGN_IN_SETUP.md`
 - Premium through Apple in-app purchase, with Restore purchases and Manage subscription
 - Server check of every Apple purchase (`/api/apple-verify`) and Apple's renewal and refund notices (`/api/apple-notifications`)
 - Reminders through Apple push (`api/_apns.js`), same schedule as web reminders
