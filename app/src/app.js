@@ -960,7 +960,7 @@ function firstNameGuess(){
 function authScreen(){
   const m = UI.auth || "signin";
   const logo = `<div class="row" style="gap:8px">${mark(26)}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div>`;
-  const email = (v="") => `<div class="field"><label for="au-email">Email</label><input id="au-email" name="email" type="${m==="signin"?"text":"email"}" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="username" required value="${esc(v)}" ${m!=="reset"?"autofocus":""}></div>`;
+  const email = (v="") => `<div class="field"><label for="au-email">Email</label><input id="au-email" name="email" type="${m==="signin"?"text":"email"}" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="username" required value="${esc(v)}" ${m!=="reset" && !NATIVE && matchMedia("(pointer:fine)").matches?"autofocus":""}></div>`;
   const pw = (id, label, ac) => `<div class="field"><label for="${id}">${label}</label><input id="${id}" name="${id==="au-pw2"?"password2":"password"}" type="password" minlength="8" autocomplete="${ac}" required></div>`;
   const err = `<p class="form-err small" id="au-err" role="alert">${esc(UI.authErr||"")}</p>`;
   const link = (mode, t) => `<button type="button" class="small" data-act="auth-mode" data-mode="${mode}" style="font-weight:600;color:var(--sage-ink)">${t}</button>`;

@@ -6,7 +6,7 @@ DEV="$(xcrun simctl list devices available -j | python3 -c '
 import json, sys
 d = json.load(sys.stdin)["devices"]
 phones = [(k, x) for k, v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")]
-phones.sort(key=lambda p: (p[0], p[1]["name"]))
+phones.sort(key=lambda p: (p[0], "Pro" in p[1]["name"] and "Max" not in p[1]["name"], p[1]["name"]))
 print(phones[-1][1]["udid"])')"
 echo "Simulator: $DEV"
 xcrun simctl boot "$DEV" || true
