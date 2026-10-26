@@ -17,7 +17,8 @@ for i in 1 2 3 4 5 6; do sleep 10; xcrun simctl io "$DEV" screenshot "$OUT/ios-1
 cp "$OUT/ios-1-open-6.png" "$OUT/ios-1-open.png"
 xcrun simctl spawn "$DEV" log show --last 3m --style compact --predicate 'process == "App" OR subsystem CONTAINS "WebKit"' > "$OUT/ios-log.txt" 2>/dev/null || true
 grep -iE "error|fail|capacitor|⚡️" "$OUT/ios-log.txt" | tail -60 || true
-xcrun simctl spawn "$DEV" launchctl list | grep -qi "heytribe" || { echo "The app is not running (crash?)"; exit 1; }
+# simulator apps run as ordinary processes on the Mac
+pgrep -f "App.app/App" >/dev/null || xcrun simctl spawn "$DEV" launchctl list | grep -qi "heytribe" || { echo "The app is not running (crash?)"; exit 1; }
 xcrun simctl ui "$DEV" appearance dark || true
 sleep 3
 xcrun simctl io "$DEV" screenshot "$OUT/ios-2-dark.png"

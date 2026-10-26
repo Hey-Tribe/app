@@ -32,7 +32,11 @@ XY="$(echo "$UI" | find_xy "sample family")"
 # the accessibility dump can fail on emulators; fall back to where the sample-family card sits on a 1080x2400 screen
 [ -z "$XY" ] && XY="540 1425"
 if [ -n "$XY" ]; then
-  adb shell input tap $XY; sleep 10
+  # tap until the sample family opens (the first tap can land while the page is still settling)
+  for try in 1 2 3; do
+    adb shell input tap $XY; sleep 10
+    dump | grep -qi "Sample family. Changes stay" && break
+  done
   adb exec-out screencap -p > "$OUT/android-2-sample.png"
   XY2="$(dump | find_xy "Plan")"; [ -z "$XY2" ] && XY2="337 2245"
   adb shell input tap $XY2; sleep 5; adb exec-out screencap -p > "$OUT/android-3-calendar.png"
