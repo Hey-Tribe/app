@@ -176,3 +176,38 @@ test("Android reminders go to Firebase with the right token and mark dead tokens
   assert.deepEqual(r, { ok: false, dead: true });
   delete process.env.FCM_SERVICE_ACCOUNT;
 });
+
+/* ---------- uptime alerts: only email for a real, fresh outage ---------- */
+const { default: uptimeAlert } = await import("../api/uptime-alert.js");
+test("uptime alert ignores calls without a fresh outage issue", async () => {
+  process.env.RESEND_API_KEY = "re_test";
+  const sentMail = [];
+  const old = new Date(Date.now() - 3600e3).toISOString();
+  await withFetch(async (url, opt) => {
+    url = String(url);
+    if (url.includes("api.github.com")) return new Response(JSON.stringify([{ number: 1, state: "open", created_at: old, html_url: "x" }]), { status: 200 });
+    if (url.includes("resend.com")) { sentMail.push(opt); return new Response("{}", { status: 200 }); }
+    return new Response("down", { status: 500 });
+  }, async () => {
+    const r = resMock(); await uptimeAlert({ method: "POST", body: { state: "down" } }, r);
+    assert.equal(r.body.emailed, false); assert.equal(sentMail.length, 0);
+  });
+  delete process.env.RESEND_API_KEY;
+});
+test("uptime alert emails when a fresh outage is confirmed from the server", async () => {
+  process.env.RESEND_API_KEY = "re_test";
+  const sentMail = [];
+  await withFetch(async (url, opt) => {
+    url = String(url);
+    if (url.includes("api.github.com")) return new Response(JSON.stringify([{ number: 2, state: "open", created_at: new Date().toISOString(), html_url: "https://github.com/x" }]), { status: 200 });
+    if (url.includes("resend.com")) { sentMail.push(JSON.parse(opt.body)); return new Response("{}", { status: 200 }); }
+    return new Response("down", { status: 500 });
+  }, async () => {
+    const r = resMock(); await uptimeAlert({ method: "POST", body: { state: "down" } }, r);
+    assert.equal(r.body.emailed, true); assert.equal(sentMail.length, 1);
+    assert.match(sentMail[0].subject, /^HeyTribe is down/);
+    const again = resMock(); await uptimeAlert({ method: "POST", body: { state: "down" } }, again);
+    assert.equal(again.body.emailed, false, "one email per outage");
+  });
+  delete process.env.RESEND_API_KEY;
+});

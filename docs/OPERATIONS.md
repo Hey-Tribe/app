@@ -41,7 +41,7 @@ Values live only in Vercel. Never commit them.
 | SUPABASE_URL, SUPABASE_ANON_KEY | Everything | Yes |
 | CRON_SECRET | Reminder job, email queue | Yes |
 | BILLING_SYNC_SECRET | Stripe and Apple purchase updates | Yes |
-| RESEND_API_KEY, EMAIL_FROM | Email | Yes |
+| RESEND_API_KEY, EMAIL_FROM | Email (support, welcome, reminders, billing, uptime alerts). Sign-up and password emails go through Supabase › Authentication › SMTP, which must use Resend too (see below) | Yes |
 | VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY | Web push reminders | Yes |
 | STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_PRICE_ID_YEARLY, STRIPE_WEBHOOK_SECRET | Card payments on the web | No |
 | ANTHROPIC_API_KEY (ANTHROPIC_MODEL optional) | Hey Tribe AI (falls back to the built-in parser) | No |
@@ -55,7 +55,13 @@ Values live only in Vercel. Never commit them.
 `GET /api/health` shows which of these are configured (true/false only).
 
 GitHub repository secrets for the TestFlight build: APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8.
-GitHub repository secret for uptime emails: RESEND_API_KEY (optional; without it, alerts are GitHub issues only).
+
+### Email setup checklist
+
+- Resend domain heytribe.app: DKIM and the `send` SPF and bounce records are in Vercel DNS. Resend also asks for a CNAME `rsend` → `send.forge.rmta.net`; until it's added the domain shows "Partially Failed".
+- Supabase sign-up, password reset and login-link emails: Supabase › Authentication › Emails › SMTP Settings › Enable custom SMTP. Host `smtp.resend.com`, port `465`, username `resend`, password a Resend API key with sending access to heytribe.app, sender `hello@heytribe.app`, name `HeyTribe`. Then raise Rate Limits › emails per hour to 100. Without this, Supabase's built-in sender only reaches the team's own addresses, about 2 an hour, so new families can't confirm their email or reset passwords.
+- Branded templates for those emails are in `supabase/templates/`. Paste them in Supabase › Authentication › Emails › Templates once custom SMTP is on.
+- Admin addresses for support alerts: table `admin_emails`. Replies from customers go to the first one (hello@heytribe.app has no inbox).
 
 ## 4. Deploying
 
@@ -90,7 +96,7 @@ Every Vercel deployment is tied to a commit. To find what's live: Vercel › Dep
 
 - **Uptime:** GitHub › Actions › "Uptime" (`.github/workflows/uptime.yml`, checks in `tools/uptime-check.mjs`) runs every 5 minutes. It checks the marketing site, the app, `/api/health` (server and database), help and contact pages, the sitter page, admin and both app-link files. Each check gets a second try before it counts as down.
   - When something is down it opens a GitHub issue labeled "outage" (GitHub emails people watching the repo) and closes it when everything is back.
-  - Email alerts: add the repository secret `RESEND_API_KEY` (same key as in Vercel). Alerts go to hello@heytribe.app, or to the repository variable `ALERT_EMAIL` if set.
+  - Email alerts: the workflow asks `/api/uptime-alert` to email the admins through Resend (the key already in Vercel). The server re-checks before emailing and only emails for a fresh outage issue. Recipients: Vercel env `ALERT_EMAIL` (comma-separated), default admin@kopimorehospitalitygroup.com and admin@kopimore.com. If Vercel itself is down, only the GitHub issue goes out, so keep GitHub notifications on for the repo.
   - Run `node tools/uptime-check.mjs` to check everything by hand.
   - GitHub pauses scheduled jobs in a repo with no commits for 60 days. If that happens, re-enable "Uptime" in Actions.
 - **Browser errors:** collected in `client_errors` and shown in the admin dashboard › Errors.
