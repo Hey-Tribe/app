@@ -5,6 +5,7 @@ by themselves as soon as each one is switched on in Supabase. Nothing needs to b
 
 - **Website:** the buttons send people to Apple or Google and back to www.heytribe.app/app.
 - **iPhone app:** Apple uses the built-in Sign in with Apple sheet (Face ID). Google opens Apple's secure sign-in window.
+- **Android app:** both open in a browser tab and come back to the app.
 - If someone already has a HeyTribe login with the same email, they land in the same account.
 - New people go straight to "Start your tribe" or "Join with a code", with their first name filled in.
 
@@ -12,7 +13,7 @@ by themselves as soon as each one is switched on in Supabase. Nothing needs to b
 
 Supabase › Authentication › URL Configuration:
 - Site URL: `https://www.heytribe.app/app/`
-- Redirect URLs: add `https://www.heytribe.app/app/`, `https://www.heytribe.app/app/**` and `app.heytribe.ios://auth`
+- Redirect URLs: add `https://www.heytribe.app/app/`, `https://www.heytribe.app/app/**`, `app.heytribe.ios://auth` and `app.heytribe.android://auth`
 
 ## 2. Google
 

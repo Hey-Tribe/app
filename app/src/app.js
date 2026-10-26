@@ -309,6 +309,7 @@ const yearlyOn = () => NATIVE ? !!NAT.products.year : YEARLY_WEB;
 function planPrice(k){ const p = NATIVE && NAT.products[k]; return p && p.priceString ? p.priceString : (k === "year" ? "$39.99" : "$4.99"); }
 function yearSave(){ const m = NATIVE ? NAT.products.month && +NAT.products.month.price : 4.99, y = NATIVE ? NAT.products.year && +NAT.products.year.price : 39.99; return m && y ? Math.round((1 - y / (m * 12)) * 100) : 0; }
 function planButtons(grow){
+  if(ANDROID_APP) return `<p class="small" style="margin:0;line-height:1.5">Premium can't be bought in the Android app yet. If someone in your family already has Premium, it works here too.</p>`;
   const g = grow ? " grow" : "", sv = yearSave();
   const m = `<button class="btn ${yearlyOn() ? "ghost" : "primary"}${g}" data-act="upgrade" data-plan="month">Monthly · ${planPrice("month")}</button>`;
   return yearlyOn() ? `<button class="btn primary${g}" data-act="upgrade" data-plan="year">Yearly · ${planPrice("year")}${sv > 0 ? ` <span class="save-tag">save ${sv}%</span>` : ""}</button>${m}` : m;
@@ -333,7 +334,8 @@ async function natPushToken(ask){
 let PLAN = null, BILLING = false;
 const premium = () => TRIBE === "SAMPLE" || !PLAN || ["active","comped","past_due"].includes(PLAN.status) || (PLAN.status === "trialing" && new Date(PLAN.trial_ends_at) > new Date());
 const limited = () => BILLING && !premium();
-if(NATIVE) natInit(); else fetch("/api/billing").then(r => r.ok ? r.json() : {}).then(j => { BILLING = !!j.enabled; YEARLY_WEB = !!j.yearly; if(S.status === "ready") render(); }).catch(() => {});
+// Android: free-plan limits follow the website (Premium can't be bought inside the Android app yet)
+if(NATIVE) natInit(); if(!IOS_APP) fetch("/api/billing").then(r => r.ok ? r.json() : {}).then(j => { BILLING = !!j.enabled; YEARLY_WEB = !!j.yearly; if(S.status === "ready") render(); }).catch(() => {});
 async function loadPlan(code){
   if(!sb || !SESSION || !code || code === "SAMPLE"){ PLAN = null; return; }
   const r = await sb.from("subscriptions").select("status, trial_ends_at, current_period_end, stripe_customer_id, stripe_subscription_id").eq("tribe_code", code).maybeSingle();
@@ -347,7 +349,7 @@ function upsell(why){
     <span class="tag" style="align-self:flex-start">Premium</span>
     <h2 class="serif" style="font-size:28px;margin:0">That's a Premium extra</h2>
     <p style="margin:0;color:var(--muted)">${esc(why)}</p>
-    <p style="margin:0">${priceSentence()}</p>
+    ${ANDROID_APP ? "" : `<p style="margin:0">${priceSentence()}</p>`}
     <div class="col" style="gap:10px">${BILLING ? planButtons() : `<span class="small">Premium checkout opens soon.</span>`}<button class="btn ghost" data-act="close" style="border:0">Not now</button></div>${NATIVE ? appleTerms() : ""}</div>`);
 }
 function gate(ok, why){ if(ok || !limited()) return true; upsell(why); return false; }
@@ -367,6 +369,7 @@ function gateAdd(kind){ const f = FREE_ADD[kind]; if(!f) return true; const [ok,
 const appleSub = () => !!(PLAN && String(PLAN.stripe_subscription_id || "").startsWith("apple:"));
 function appleTerms(){ return `<p class="small" style="margin:0;line-height:1.5">Monthly or yearly subscription for your whole family. Payment is charged to your Apple ID. It renews for the same period unless you cancel at least 24 hours before it ends. Manage or cancel anytime in your Apple ID settings. <a href="/terms.html" target="_blank" style="color:inherit;text-decoration:underline">Terms</a> · <a href="/privacy.html" target="_blank" style="color:inherit;text-decoration:underline">Privacy</a></p><div class="row"><button class="btn ghost" data-act="iap-restore">Restore purchases</button></div>`; }
 async function billingGo(action, btn){
+  if(ANDROID_APP){ toast("Premium can't be bought in the Android app yet."); return; }
   if(NATIVE){
     if(action === "checkout") return appleBuy(btn);
     if(appleSub()) return appleManage();
@@ -2432,7 +2435,7 @@ async function afterLogin(){
   if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
-if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261026', document.body);
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261026b', document.body);
 if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
 addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
 render();

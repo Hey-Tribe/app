@@ -15,7 +15,7 @@ How HeyTribe is built, deployed, monitored and recovered. Keep this next to the 
 | Scheduled job | Supabase pg_cron `heytribe-reminders`, every 5 min | Calls `/api/reminders` (reminders, emails, billing cleanup) |
 | Email | Resend, domain heytribe.app | Templates in `api/_email.js` and `supabase/templates/` |
 | iPhone app | `mobile/` (Capacitor 8) | Loads www.heytribe.app/app; native Apple sign-in, purchases, push |
-| Android app | Not built yet | See the audit report for the plan |
+| Android app | `mobile/android` (Capacitor 8) | Same web app; browser-tab sign-in, Firebase push. Guide: `mobile/PLAY_STORE.md` |
 
 Trust boundaries: the browser and phone are untrusted. Everything they can do is limited by Supabase row level security and server functions that check the login. Server-to-server calls (cron, Stripe, Apple) use shared secrets (`CRON_SECRET`, `BILLING_SYNC_SECRET`) stored in Vercel and in `private.app_secrets` in Supabase.
 
@@ -47,6 +47,8 @@ Values live only in Vercel. Never commit them.
 | ANTHROPIC_API_KEY (ANTHROPIC_MODEL optional) | Hey Tribe AI (falls back to the built-in parser) | No |
 | APNS_KEY_P8, APNS_KEY_ID, APNS_TEAM_ID (APNS_BUNDLE_ID, APNS_SANDBOX optional) | iPhone push | No |
 | APPLE_TEAM_ID (APPLE_BUNDLE_ID, APPLE_PRODUCT_ID, APPLE_PRODUCT_ID_YEARLY optional) | Universal links, Apple purchase checks | No |
+| FCM_SERVICE_ACCOUNT | Android push (also set `androidPush: true` in `app/config.js`) | No |
+| ANDROID_CERT_SHA256 (ANDROID_PACKAGE optional) | Android app links | No |
 | PREMIUM_LIMITS=1 (optional) | Enforce free limits on the server before Stripe is live | No |
 | SITE_URL (optional) | Stripe return links | No |
 
