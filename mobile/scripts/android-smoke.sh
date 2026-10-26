@@ -40,7 +40,9 @@ if [ -n "$XY" ]; then
   adb exec-out screencap -p > "$OUT/android-4-after-back.png"
 fi
 adb logcat -d -s AndroidRuntime:E Capacitor:* chromium:E Capacitor/Console:* > "$OUT/android-logcat.txt" 2>/dev/null || true
-if [ -z "$(adb shell pidof $PKG)" ]; then echo "The app is not running (crash?)"; tail -50 "$OUT/android-logcat.txt"; exit 1; fi
+adb logcat -d > "$OUT/android-logcat-full.txt" 2>/dev/null || true
+adb shell dumpsys activity exit-info "$PKG" > "$OUT/android-exit-info.txt" 2>/dev/null || true
+if [ -z "$(adb shell pidof $PKG)" ]; then echo "The app is not running (crash?)"; head -60 "$OUT/android-exit-info.txt"; grep -E "heytribe|AndroidRuntime|DEBUG|libc|chromium|WebView|ActivityManager.*(Killing|died|crash)" "$OUT/android-logcat-full.txt" | tail -80; exit 1; fi
 # only crashes in HeyTribe count (the test tool itself sometimes crashes on emulators)
 if grep -A3 "FATAL EXCEPTION" "$OUT/android-logcat.txt" | grep -q "Process: $PKG"; then echo "HeyTribe crashed"; grep -A25 "FATAL EXCEPTION" "$OUT/android-logcat.txt"; exit 1; fi
 [ "$OK" = 1 ] || echo "Note: couldn't read the screen's text (accessibility dump failed); check the screenshots"

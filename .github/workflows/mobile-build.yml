@@ -84,7 +84,9 @@ jobs:
         if: always()
         with:
           name: android-screenshots
-          path: out/*.png
+          path: |
+            out/*.png
+            out/*.txt
 
   ios:
     runs-on: macos-15
@@ -116,4 +118,6 @@ jobs:
         if: always()
         with:
           name: ios-screenshots
-          path: out/*.png
+          path: |
+            out/*.png
+            out/*.txt
