@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification icon: the HeyTribe speech bubble, white on transparent, eyes cut out -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="132" android:viewportHeight="132">
+    <group android:translateX="6" android:translateY="10">
+        <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+            android:pathData="M30,0H90A30,30 0 0,1 120,30V58A30,30 0 0,1 90,88H46L22,110V88A22,24 0 0,1 0,64V30A30,30 0 0,1 30,0Z M24,44a11,11 0 1,0 22,0a11,11 0 1,0 -22,0Z M52,44a11,11 0 1,0 22,0a11,11 0 1,0 -22,0Z M81,49a7,7 0 1,0 14,0a7,7 0 1,0 -14,0Z" />
+    </group>
+</vector>

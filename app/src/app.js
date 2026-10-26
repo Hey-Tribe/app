@@ -187,8 +187,11 @@ function deskLayout(app){
 }
 let deskT = 0; addEventListener("resize", () => { clearTimeout(deskT); deskT = setTimeout(() => { if(S.status === "ready" && innerWidth >= 1024 && !$("#scrim")) render(); }, 180); });
 
-/* iPhone app: the App Store build wraps this page. Native extras load only there. */
+/* iPhone and Android apps: the store builds wrap this page. Native extras load only there. */
 const NATIVE = (() => { try { return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()); } catch(e){ return false; } })();
+const PLATFORM = NATIVE ? (() => { try { return Capacitor.getPlatform(); } catch(e){ return "ios"; } })() : "web";
+const IOS_APP = PLATFORM === "ios", ANDROID_APP = PLATFORM === "android";
+const NATIVE_REDIRECT_SCHEME = ANDROID_APP ? "app.heytribe.android" : "app.heytribe.ios";
 const IAP_IDS = { month: "app.heytribe.premium.monthly", year: "app.heytribe.premium.yearly" };
 const isPremiumId = id => Object.values(IAP_IDS).includes(id);
 const NAT = { plugins: {}, core: null, products: {}, apns: null };
@@ -214,13 +217,24 @@ async function natInit(){
   try { new MutationObserver(natStatusBar).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] }); } catch(e){}
   try {
     const App = await natPlug("App");
-    App.addListener("appUrlOpen", ({ url }) => { try { const u = new URL(url); if(/(^|\.)heytribe\.app$/.test(u.hostname)){ if(u.pathname.startsWith("/app")) { if(u.search) location.href = u.href; else location.hash = u.hash || "#today"; } else natOpen(u.href); } } catch(e){} });
+    App.addListener("appUrlOpen", ({ url }) => { try { const u = new URL(url);
+      if(u.protocol === NATIVE_REDIRECT_SCHEME + ":"){ natAuthReturn(u); return; }
+      if(/(^|\.)heytribe\.app$/.test(u.hostname)){ if(u.pathname.startsWith("/app")) { if(u.search) location.href = u.href; else location.hash = u.hash || "#today"; } else natOpen(u.href); } } catch(e){} });
+  } catch(e){}
+  if(ANDROID_APP) try {
+    const App = await natPlug("App");
+    // Android back: close an open sheet, else go back a screen, else leave the app in the background
+    App.addListener("backButton", () => {
+      if($("#scrim")){ closeSheet(); return; }
+      if(S.status === "ready" && UI.view && UI.view !== "today"){ go("today"); return; }
+      App.minimizeApp();
+    });
   } catch(e){}
   try {
     const P = await natPlug("PushNotifications");
     P.addListener("pushNotificationActionPerformed", a => { const u = a && a.notification && a.notification.data && a.notification.data.url; if(u && u.startsWith("/app/")) location.hash = u.split("#")[1] ? "#" + u.split("#")[1] : "#today"; });
   } catch(e){}
-  try {
+  if(IOS_APP) try {
     const IAP = await natPlug("NativePurchases");
     const r = await IAP.getProducts({ productIdentifiers: Object.values(IAP_IDS), productType: "subs" });
     for(const [k, id] of Object.entries(IAP_IDS)){ const p = (r.products || []).find(x => x.identifier === id); if(p) NAT.products[k] = p; }
@@ -229,7 +243,18 @@ async function natInit(){
   } catch(e){}
 }
 /* pages outside the app open in an in-app Safari sheet instead of replacing the app */
-async function natOpen(url){ try { const B = await natPlug("Browser"); await B.open({ url, presentationStyle: "popover" }); } catch(e){ location.href = url; } }
+async function natOpen(url){ try { const B = await natPlug("Browser"); await B.open({ url, presentationStyle: "popover", toolbarColor: "#FBFCFA" }); } catch(e){ location.href = url; } }
+/* Android sign-in: Apple or Google opens in a browser tab and comes back to app.heytribe.android://auth?code=... */
+let NAT_AUTH = null;
+async function natAuthReturn(u){
+  const code = u.searchParams.get("code") || new URLSearchParams(u.hash.slice(1)).get("code");
+  try { const B = await natPlug("Browser"); B.close().catch(() => {}); } catch(e){}
+  const waiting = NAT_AUTH; NAT_AUTH = null;
+  if(!code){ if(waiting) waiting.no(new Error(u.searchParams.get("error_description") || "cancel")); return; }
+  const x = await sb.auth.exchangeCodeForSession(code);
+  if(waiting){ if(x.error) waiting.no(x.error); else waiting.ok(); }
+  else if(x.error){ UI.authErr = "That sign-in didn't finish. Try again, or use your email."; render(); }
+}
 if(NATIVE) document.addEventListener("click", e => {
   const a = e.target.closest && e.target.closest("a[href]"); if(!a) return;
   let u; try { u = new URL(a.getAttribute("href"), location.href); } catch(_){ return; }
@@ -292,6 +317,7 @@ const priceSentence = () => `Premium is ${planPrice("month")} a month${yearlyOn(
 /* reminders on the iPhone app go through Apple push, not web push */
 async function natPushToken(ask){
   const P = await natPlug("PushNotifications");
+  if(ANDROID_APP) try { await P.createChannel({ id: "reminders", name: "Reminders", description: "Plans, medicine, bills, school forms and big days", importance: 4, visibility: 1 }); } catch(e){}
   let st = await P.checkPermissions();
   if(st.receive !== "granted"){ if(!ask) return null; st = await P.requestPermissions(); }
   if(st.receive !== "granted") return null;
@@ -461,12 +487,14 @@ function custodySheet(){
 }
 
 /* reminders on this device (web push) */
-const REM = { ok: NATIVE || ("serviceWorker" in navigator && "PushManager" in window && "Notification" in window), sub: null, ep: null, row: null, loaded: false };
+/* phone reminders: Apple push on iPhone, Firebase on Android (once CFG.androidPush is on), web push in browsers */
+const PUSH_PREFIX = ANDROID_APP ? "fcm" : "apns";
+const REM = { ok: IOS_APP || (ANDROID_APP && !!CFG.androidPush) || (!NATIVE && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window), sub: null, ep: null, row: null, loaded: false };
 const REM_TYPES = [["plans","Plans"],["meds","Medicine"],["bills","Bills"],["school","School forms"],["countdowns","Big days"]];
 const b64u = s => { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from([...b].map(c => c.charCodeAt(0))); };
 async function loadReminders(){
   if(!REM.ok || !SESSION){ REM.loaded = true; return; }
-  if(NATIVE){ const t = store.get("ht-apns"); REM.ep = t ? "apns:" + t : null; }
+  if(NATIVE){ const t = store.get("ht-apns"); REM.ep = t ? PUSH_PREFIX + ":" + t : null; }
   else { try { const reg = await navigator.serviceWorker.ready; REM.sub = await reg.pushManager.getSubscription(); } catch(e){ REM.sub = null; } REM.ep = REM.sub ? REM.sub.endpoint : null; }
   REM.row = null;
   if(REM.ep){ const r = await sb.from("push_subscriptions").select("id, prefs, tribe_code").eq("endpoint", REM.ep).maybeSingle(); REM.row = r.data || null; }
@@ -477,7 +505,7 @@ async function remindersOn(){
   if(NATIVE){
     let t = null; try { t = await natPushToken(true); } catch(e){}
     if(!t){ toast("Notifications are off for HeyTribe. Turn them on in Settings › HeyTribe › Notifications."); return; }
-    const row = { tribe_code: TRIBE, member_id: meId(), endpoint: "apns:" + t, p256dh: "apns", auth: "apns", tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York", dead: false };
+    const row = { tribe_code: TRIBE, member_id: meId(), endpoint: PUSH_PREFIX + ":" + t, p256dh: PUSH_PREFIX, auth: PUSH_PREFIX, tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York", dead: false };
     const r = await sb.from("push_subscriptions").upsert(row, { onConflict: "endpoint" }).select("id, prefs, tribe_code").maybeSingle();
     if(r.error){ toast("Couldn't turn on reminders. Try again."); return; }
     REM.ep = row.endpoint; REM.row = r.data; toast("Reminders are on for this phone"); render(); return;
@@ -518,7 +546,7 @@ function remindersCard(){
   if(!SESSION || TRIBE === "SAMPLE") return "";
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent), standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   let body;
-  if(!REM.ok) body = ios && !standalone ? `<p class="small" style="margin:0;line-height:1.5">To get reminders on iPhone, add HeyTribe to your Home Screen: tap the Share button, then <b>Add to Home Screen</b>. Open HeyTribe from there and turn reminders on.</p>` : `<p class="small" style="margin:0">This browser can't show reminders. Try Chrome, Edge, Firefox or Safari.</p>`;
+  if(!REM.ok) body = ANDROID_APP ? `<p class="small" style="margin:0;line-height:1.5">Reminders in the Android app are on the way. Until then, open www.heytribe.app/app in Chrome on this phone and turn reminders on there.</p>` : ios && !standalone ? `<p class="small" style="margin:0;line-height:1.5">To get reminders on iPhone, add HeyTribe to your Home Screen: tap the Share button, then <b>Add to Home Screen</b>. Open HeyTribe from there and turn reminders on.</p>` : `<p class="small" style="margin:0">This browser can't show reminders. Try Chrome, Edge, Firefox or Safari.</p>`;
   else if(!REM.row) body = `<p class="small" style="margin:0;line-height:1.5">Get a nudge on this ${innerWidth < 1024 ? "phone" : "computer"} before plans, when medicine is due, for bills and school forms, and on big days.</p><div class="row" style="gap:8px"><button class="btn primary" data-act="rem-on">${ico("bellr",17)} Turn on reminders</button></div>`;
   else { const pr = REM.row.prefs || {}; body = `<div class="chips" style="margin-top:0">${REM_TYPES.map(([k,l]) => `<button class="chip plain ${pr[k]!==false?"on":""}" data-act="rem-pref" data-k="${k}" aria-pressed="${pr[k]!==false}">${l}</button>`).join("")}</div>
     <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="rem-test">Send a test</button><button class="btn ghost" data-act="rem-off">Turn off on this device</button></div>`; }
@@ -860,7 +888,7 @@ function loading(){ return `<div class="col" style="gap:18px;padding-top:40px;al
 function offline(){ return `<div class="col" style="gap:16px;padding-top:40px">${mark(44)}<h1 class="title">Can't reach HeyTribe</h1><p class="small" style="font-size:15px;line-height:1.5">Check your connection and try again. Anything you already see is safe.</p><button class="btn primary" onclick="location.reload()">Try again</button></div>`; }
 /* Sign in with Apple or Google. The buttons appear on their own once a provider is switched on in Supabase. */
 const OAUTH = { google: false, apple: false };
-const NATIVE_REDIRECT = "app.heytribe.ios://auth";
+const NATIVE_REDIRECT = NATIVE_REDIRECT_SCHEME + "://auth";
 async function loadProviders(){
   try {
     const r = await fetch(CFG.supabaseUrl + "/auth/v1/settings", { headers: { apikey: CFG.supabaseAnonKey } });
@@ -885,7 +913,7 @@ async function oauthGo(p, btn){
   const label = btn && btn.querySelector("span"), was = label && label.textContent;
   if(btn){ btn.disabled = true; if(label) label.textContent = "Opening…"; }
   try {
-    if(NATIVE && p === "apple"){
+    if(IOS_APP && p === "apple"){
       const raw = (crypto.randomUUID ? crypto.randomUUID() + crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/-/g, "");
       const A = await natPlug("HTAuth");
       const r = await A.apple({ nonce: await sha256hex(raw) });
@@ -893,6 +921,14 @@ async function oauthGo(p, btn){
       if(out.error) throw out.error;
       // Apple only shares the name the first time, so keep it on the login for the "Your first name" step
       if(r.givenName) sb.auth.updateUser({ data: { given_name: r.givenName, full_name: [r.givenName, r.familyName].filter(Boolean).join(" ") } }).catch(() => {});
+    } else if(ANDROID_APP){
+      const o = await sb.auth.signInWithOAuth({ provider: p, options: { redirectTo: NATIVE_REDIRECT, skipBrowserRedirect: true, queryParams: p === "google" ? { prompt: "select_account" } : undefined } });
+      if(o.error || !o.data || !o.data.url) throw o.error || new Error("no url");
+      const B = await natPlug("Browser");
+      const done = new Promise((ok, no) => { NAT_AUTH = { ok, no }; });
+      const h = await B.addListener("browserFinished", () => { setTimeout(() => { if(NAT_AUTH){ const w = NAT_AUTH; NAT_AUTH = null; w.no(new Error("cancel")); } }, 1500); });
+      await B.open({ url: o.data.url, toolbarColor: "#FBFCFA" });
+      try { await done; } finally { try { h.remove(); } catch(e){} }
     } else if(NATIVE){
       const o = await sb.auth.signInWithOAuth({ provider: p, options: { redirectTo: NATIVE_REDIRECT, skipBrowserRedirect: true, queryParams: { prompt: "select_account" } } });
       if(o.error || !o.data || !o.data.url) throw o.error || new Error("no url");

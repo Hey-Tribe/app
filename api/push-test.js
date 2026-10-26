@@ -1,6 +1,7 @@
 // Sends a test reminder to the signed-in person's device. POST { endpoint } with their login token.
 import webpush from "web-push";
 import { apnsReady, apnsClient } from "./_apns.js";
+import { fcmReady, fcmSend } from "./_fcm.js";
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   const token = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
@@ -10,6 +11,11 @@ export default async function handler(req, res) {
   const rows = r && r.ok ? await r.json() : [];
   if (!rows.length) return res.status(404).json({ error: "This device isn't set up for reminders." });
   const msg = { title: "Reminders are on", body: "This is how HeyTribe will nudge you about plans, meds and bills.", url: "/app/#family", tag: "test" };
+  if (rows[0].endpoint.startsWith("fcm:")) {
+    if (!fcmReady()) return res.status(501).json({ error: "Reminders aren't set up yet." });
+    const r = await fcmSend({ token: rows[0].endpoint.slice(4), ...msg });
+    return r.ok ? res.status(200).json({ ok: true }) : res.status(502).json({ error: "Couldn't reach this phone." });
+  }
   if (rows[0].endpoint.startsWith("apns:")) {
     if (!apnsReady()) return res.status(501).json({ error: "Reminders aren't set up yet." });
     const c = apnsClient(); const r = await c.send({ token: rows[0].endpoint.slice(5), ...msg }); c.close();

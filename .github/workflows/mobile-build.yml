@@ -1,0 +1,119 @@
+# Builds the iPhone and Android apps from mobile/, installs each on a simulator/emulator, opens it and
+# takes screenshots. Android also produces an installable test app (APK) and a Play Store bundle (AAB).
+# Runs when mobile/ changes, and from GitHub › Actions › "Mobile apps" › Run workflow.
+#
+# Optional repository secrets:
+#   GOOGLE_SERVICES_JSON          Firebase config for Android push (google-services.json contents)
+#   ANDROID_UPLOAD_KEYSTORE_B64   base64 of the upload keystore (.jks) for signing the Play Store bundle
+#   ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+name: Mobile apps
+on:
+  push:
+    branches: [main]
+    paths: ["mobile/**", ".github/workflows/mobile-build.yml"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version name (e.g. 1.0)"
+        required: false
+        default: "1.0"
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
+      ANDROID_VERSION_NAME: ${{ inputs.version || '1.0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Install and sync
+        working-directory: mobile
+        run: |
+          npm ci
+          npx cap sync android
+      - name: Firebase config (optional)
+        env:
+          GS: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: if [ -n "$GS" ]; then printf '%s' "$GS" > mobile/android/app/google-services.json; echo "push on"; else echo "no Firebase config, push off"; fi
+      - name: Upload key (optional)
+        env:
+          KS: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+          fi
+      - name: Build test app and Play Store bundle
+        working-directory: mobile/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon assembleDebug bundleRelease
+      - name: Collect builds
+        run: |
+          mkdir -p out
+          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk out/HeyTribe-test.apk
+          cp mobile/android/app/build/outputs/bundle/release/app-release.aab out/HeyTribe-release.aab
+          rm -f "$RUNNER_TEMP/upload.jks"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-builds
+          path: out/
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Run on an Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: bash mobile/scripts/android-smoke.sh out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-screenshots
+          path: out/*.png
+
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pick Xcode
+        run: |
+          X="$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)"
+          sudo xcode-select -s "$X" && xcodebuild -version
+      - name: Install and sync
+        working-directory: mobile
+        run: |
+          npm ci
+          npx cap sync ios
+      - name: Build for the simulator (no signing)
+        working-directory: mobile/ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO build | tail -40
+          test -d "$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/App.app"
+      - name: Run on an iPhone simulator
+        run: bash mobile/scripts/ios-smoke.sh "$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/App.app" out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-screenshots
+          path: out/*.png

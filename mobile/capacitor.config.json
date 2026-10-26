@@ -5,7 +5,10 @@
   "server": {
     "url": "https://www.heytribe.app/app/",
     "errorPath": "offline.html",
-    "allowNavigation": ["www.heytribe.app", "heytribe.app"]
+    "allowNavigation": [
+      "www.heytribe.app",
+      "heytribe.app"
+    ]
   },
   "ios": {
     "contentInset": "never",
@@ -14,7 +17,23 @@
     "limitsNavigationsToAppBoundDomains": false
   },
   "plugins": {
-    "SplashScreen": { "launchShowDuration": 600, "backgroundColor": "#FBFCFA", "showSpinner": false },
-    "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] }
+    "SplashScreen": {
+      "launchShowDuration": 600,
+      "backgroundColor": "#FBFCFA",
+      "showSpinner": false
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
+  },
+  "android": {
+    "backgroundColor": "#FBFCFA",
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
   }
 }

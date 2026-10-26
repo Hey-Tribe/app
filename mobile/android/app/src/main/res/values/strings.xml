@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HeyTribe</string>
+    <string name="title_activity_main">HeyTribe</string>
+    <string name="package_name">app.heytribe.android</string>
+    <string name="custom_url_scheme">app.heytribe.android</string>
+</resources>

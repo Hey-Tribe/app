@@ -154,3 +154,25 @@ test("health check reports database status without leaking values", async () => 
   assert.ok(!JSON.stringify(r.body).includes("re_secret_value"));
   delete process.env.RESEND_API_KEY;
 });
+
+/* ---------- Android push ---------- */
+test("Android reminders go to Firebase with the right token and mark dead tokens", async () => {
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  process.env.FCM_SERVICE_ACCOUNT = JSON.stringify({ project_id: "heytribe-test", client_email: "push@heytribe-test.iam.gserviceaccount.com", private_key: privateKey.export({ type: "pkcs8", format: "pem" }), token_uri: "https://oauth2.googleapis.com/token" });
+  const { fcmSend } = await import("../api/_fcm.js");
+  const sent = [];
+  let r = await withFetch(async (url, o) => {
+    if (String(url).includes("oauth2")) return new Response(JSON.stringify({ access_token: "at", expires_in: 3600 }), { status: 200 });
+    sent.push({ url: String(url), body: JSON.parse(o.body), auth: o.headers.authorization });
+    return new Response("{}", { status: 200 });
+  }, () => fcmSend({ token: "tok123", title: "Dentist at 10am", body: "Leo", url: "/app/#calendar", tag: "k1" }));
+  assert.equal(r.ok, true);
+  assert.match(sent[0].url, /projects\/heytribe-test\/messages:send$/);
+  assert.equal(sent[0].auth, "Bearer at");
+  assert.equal(sent[0].body.message.token, "tok123");
+  assert.equal(sent[0].body.message.android.notification.channel_id, "reminders");
+  r = await withFetch(async (url) => String(url).includes("oauth2") ? new Response(JSON.stringify({ access_token: "at" }), { status: 200 }) : new Response(JSON.stringify({ error: { status: "NOT_FOUND", details: [{ errorCode: "UNREGISTERED" }] } }), { status: 404 }),
+    () => fcmSend({ token: "old", title: "t", body: "b" }));
+  assert.deepEqual(r, { ok: false, dead: true });
+  delete process.env.FCM_SERVICE_ACCOUNT;
+});

@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   res.status(db ? 200 : 503).json({
     ok: db, database: db, ms: Date.now() - t0,
     configured: {
-      email: on("RESEND_API_KEY"), web_push: on("VAPID_PRIVATE_KEY"), apple_push: on("APNS_KEY_P8"),
+      email: on("RESEND_API_KEY"), web_push: on("VAPID_PRIVATE_KEY"), apple_push: on("APNS_KEY_P8"), android_push: on("FCM_SERVICE_ACCOUNT"),
       stripe: on("STRIPE_SECRET_KEY") && on("STRIPE_PRICE_ID"), stripe_yearly: on("STRIPE_PRICE_ID_YEARLY"),
       billing_sync: on("BILLING_SYNC_SECRET"), ai: on("ANTHROPIC_API_KEY"), cron: on("CRON_SECRET"), apple_team: on("APPLE_TEAM_ID")
     }

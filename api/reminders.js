@@ -4,6 +4,7 @@
 import webpush from "web-push";
 import { sendQueued } from "./_email.js";
 import { apnsReady, apnsClient } from "./_apns.js";
+import { fcmReady, fcmSend } from "./_fcm.js";
 
 const pad = n => String(n).padStart(2, "0");
 function localNow(tz) {
@@ -98,8 +99,8 @@ export default async function handler(req, res) {
   try { mail = await sendQueued(rpc, process.env.CRON_SECRET); } catch (e) { mail = { error: e.message }; }
   // stop Stripe billing for families that were deleted while Premium was still running
   try { mail.billing_stopped = await stopOrphanBilling(); } catch (e) { mail.billing_stopped = 0; }
-  const web = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY), ios = apnsReady();
-  if (!web && !ios) return res.status(200).json({ ok: true, push: "not set up", ...mail });
+  const web = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY), ios = apnsReady(), android = fcmReady();
+  if (!web && !ios && !android) return res.status(200).json({ ok: true, push: "not set up", ...mail });
   if (web) webpush.setVapidDetails("mailto:hello@heytribe.app", process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
   const apns = ios ? apnsClient() : null;
   const feed = await rpc("reminder_feed", { p_secret: process.env.CRON_SECRET });
@@ -107,10 +108,15 @@ export default async function handler(req, res) {
   (feed.docs || []).forEach(d => { (byTribe[d.tribe] = byTribe[d.tribe] || []).push(d); });
   const keys = [], dead = []; let count = 0;
   await Promise.all((feed.subs || []).map(async sub => {
-    const isApple = String(sub.endpoint).startsWith("apns:");
-    if (isApple ? !ios : !web) return;
+    const isApple = String(sub.endpoint).startsWith("apns:"), isAndroid = String(sub.endpoint).startsWith("fcm:");
+    if (isApple ? !ios : isAndroid ? !android : !web) return;
     const due = dueFor(sub, byTribe[sub.tribe] || [], localNow(sub.tz)).filter(x => !sent.has(x.key));
     for (const n of due) {
+      if (isAndroid) {
+        const r = await fcmSend({ token: sub.endpoint.slice(4), title: n.title, body: n.body, url: n.url, tag: n.key });
+        if (r.ok) { keys.push(n.key); count++; } else if (r.dead) { dead.push(sub.endpoint); break; }
+        continue;
+      }
       if (isApple) {
         const r = await apns.send({ token: sub.endpoint.slice(5), title: n.title, body: n.body, url: n.url, tag: n.key });
         if (r.ok) { keys.push(n.key); count++; } else if (r.dead) { dead.push(sub.endpoint); break; }
