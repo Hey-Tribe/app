@@ -55,6 +55,7 @@ Values live only in Vercel. Never commit them.
 `GET /api/health` shows which of these are configured (true/false only).
 
 GitHub repository secrets for the TestFlight build: APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8.
+GitHub repository secret for uptime emails: RESEND_API_KEY (optional; without it, alerts are GitHub issues only).
 
 ## 4. Deploying
 
@@ -87,13 +88,20 @@ Every Vercel deployment is tied to a commit. To find what's live: Vercel › Dep
 
 ## 8. Monitoring
 
-- **Uptime:** point an uptime service (UptimeRobot, Better Stack or similar) at `https://www.heytribe.app/api/health` every 5 minutes, alerting hello@heytribe.app. Not set up yet.
+- **Uptime:** GitHub › Actions › "Uptime" (`.github/workflows/uptime.yml`, checks in `tools/uptime-check.mjs`) runs every 5 minutes. It checks the marketing site, the app, `/api/health` (server and database), help and contact pages, the sitter page, admin and both app-link files. Each check gets a second try before it counts as down.
+  - When something is down it opens a GitHub issue labeled "outage" (GitHub emails people watching the repo) and closes it when everything is back.
+  - Email alerts: add the repository secret `RESEND_API_KEY` (same key as in Vercel). Alerts go to hello@heytribe.app, or to the repository variable `ALERT_EMAIL` if set.
+  - Run `node tools/uptime-check.mjs` to check everything by hand.
+  - GitHub pauses scheduled jobs in a repo with no commits for 60 days. If that happens, re-enable "Uptime" in Actions.
 - **Browser errors:** collected in `client_errors` and shown in the admin dashboard › Errors.
 - **Server errors:** Vercel › Logs (functions) and Supabase › Logs.
 - **Reminder job:** Supabase › Database › Cron › heytribe-reminders shows each run. `/api/reminders` returns counts of reminders, emails and billing cleanups.
 - **Costs:** Vercel usage, Supabase usage, Resend, and Anthropic (AI quick adds) dashboards. Hey Tribe AI is capped on the server at 10 a month per free family once Premium can be bought (or with PREMIUM_LIMITS=1).
 
 ## 9. When something breaks
+
+Support: families write in from the app (Family & settings › Help and support) or the contact page. Signed-out app screens and the sitter page link to the help center and contact page. Every request becomes a ticket in admin.heytribe.app › Support, the team gets an email, and replies go back by email.
+
 
 1. Check `/api/health`, Vercel status, Supabase status, Resend status.
 2. If a deploy caused it, roll back (section 5) first and investigate after.

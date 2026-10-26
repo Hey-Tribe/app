@@ -378,3 +378,5 @@ nav.bar .mic{margin-top:-20px;filter:drop-shadow(0 6px 10px var(--shadow))}
 .save-tag{font-size:12px;font-weight:700;background:rgba(255,255,255,.22);border-radius:999px;padding:2px 8px;margin-left:2px}
 .gbar>.kidv{flex-shrink:0;white-space:nowrap}
 .sheet:focus{outline:none}
+
+.help-line a{font-weight:600;color:var(--sage-ink);text-decoration:underline;text-underline-offset:3px}

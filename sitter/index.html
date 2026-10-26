@@ -88,8 +88,8 @@ fetch(CFG.supabaseUrl + "/rest/v1/rpc/sitter_sheet", { method: "POST", headers: 
       ${kids.map(kidCard).join("") || `<section class="card"><p class="sub">No kids listed yet.</p></section>`}
       ${contacts.length ? `<section class="card"><span class="eyebrow">Who to call</span>${contacts.map(c => `<div class="row"><span class="ic" style="background:var(--sage-soft);color:var(--sage-ink)">${ico(PHONE)}</span><span><b>${esc(c.name)}</b><small>${esc(c.note || ({emergency:"Emergency", doctor:"Doctor", family:"Family", sitter:"Sitter"})[c.role] || "")}</small></span>${c.phone ? `<a class="call" href="tel:${esc(String(c.phone).replace(/[^0-9+]/g, ""))}">${esc(c.phone)}</a>` : ""}</div>`).join("")}<div class="row"><span class="ic" style="background:var(--m-rose-bg);color:var(--rose-ink)">${ico(PHONE)}</span><span><b>Emergency</b><small>Police, fire, ambulance</small></span><a class="call" href="tel:911">911</a></div></section>` : ""}
       ${i.address || i.wifi || i.rules || i.notes ? `<section class="card info"><span class="eyebrow">The house</span><dl>${[["Address", i.address], ["Wi-Fi", i.wifi], ["House rules", i.rules], ["Good to know", i.notes]].filter(x => x[1]).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl></section>` : ""}
-      <p class="foot">Made with <a href="/">HeyTribe</a>, the calm family planner.</p>`;
+      <p class="foot">Made with <a href="/">HeyTribe</a>, the calm family planner. Problem with this page? <a href="/contact.html">Contact HeyTribe</a>.</p>`;
     document.title = "Care sheet for " + d.tribe + " | HeyTribe";
-  }).catch(() => { $("#m").innerHTML = `<div class="top">${logo}</div><div class="empty"><p class="hand">can't load right now</p><p class="sub">Check your connection and refresh.</p></div>`; });
+  }).catch(() => { $("#m").innerHTML = `<div class="top">${logo}</div><div class="empty"><p class="hand">can't load right now</p><p class="sub">Check your connection and refresh. Still stuck? <a href="/contact.html" style="color:var(--sage-ink);font-weight:600">Contact HeyTribe</a>.</p></div>`; });
 })();
 </script></body></html>

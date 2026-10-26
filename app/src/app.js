@@ -957,6 +957,7 @@ function firstNameGuess(){
   const n = md.given_name || md.first_name || String(md.full_name || md.name || "").split(" ")[0] || "";
   return n.slice(0, 20);
 }
+function helpLine(){ return `<p class="small help-line" style="margin:0">Need help? <a href="/help.html" target="_blank" rel="noopener">Help center</a> · <a href="/contact.html" target="_blank" rel="noopener">Contact us</a></p>`; }
 function authScreen(){
   const m = UI.auth || "signin";
   const logo = `<div class="row" style="gap:8px">${mark(26)}<span style="font-size:19px">hey<b style="font-weight:800">tribe</b></span></div>`;
@@ -985,7 +986,7 @@ function authScreen(){
       <div class="between" style="flex-wrap:wrap;gap:8px">${link("forgot","Forgot password?")}<span class="small">New here? ${link("signup","Make an account")}</span></div></form>`;
   const langSw = `<button class="small lang-sw" data-act="lang" data-l="${((window.HTi18n&&HTi18n.lang)||"en")==="es"?"en":"es"}" data-no-tr>${((window.HTi18n&&HTi18n.lang)||"en")==="es"?"English":"Español"}</button>`;
   return `<div class="col" style="gap:22px;padding-top:18px"><div class="between">${logo}${langSw}</div>${body}
-    ${m==="signin"||m==="signup"?`<button class="choice" data-act="try-sample"><span class="lic" style="background:var(--m-rose-bg);color:var(--m-rose)">${ico("smile",24)}</span><span class="col grow"><b style="font-weight:600;font-size:16px">Look around with a sample family</b><span class="small">No account needed</span></span>${ico("fwd",18,2)}</button>`:""}${m==="signin"?installCard():""}</div>`;
+    ${m==="signin"||m==="signup"?`<button class="choice" data-act="try-sample"><span class="lic" style="background:var(--m-rose-bg);color:var(--m-rose)">${ico("smile",24)}</span><span class="col grow"><b style="font-weight:600;font-size:16px">Look around with a sample family</b><span class="small">No account needed</span></span>${ico("fwd",18,2)}</button>`:""}${m==="signin"?installCard():""}${helpLine()}</div>`;
 }
 
 /* ---------- WELCOME (start / join / sample) ---------- */
@@ -995,7 +996,7 @@ function pendingScreen(){
     <p style="margin:0;color:var(--muted);line-height:1.55">You asked to join the family with code <b class="sel" data-no-tr>${esc(PENDING[0]||"")}</b>. A parent in that family needs to approve you. Ask them to open HeyTribe and check Family &amp; settings.</p>
     <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn primary" data-act="pending-check">Check again</button><button class="btn ghost" data-act="pending-cancel">Cancel request</button></div>
     <button class="small" data-act="onboard" data-mode="" style="text-align:left;font-weight:600;text-decoration:underline;text-underline-offset:3px">Start or join a different family</button>
-    ${SESSION?`<p class="small" style="margin:0">Signed in as ${esc(SESSION.user.email||"")} · <button class="small" data-act="sign-out" style="font-weight:600;text-decoration:underline;text-underline-offset:3px">Log out</button></p>`:""}</div>`;
+    ${SESSION?`<p class="small" style="margin:0">Signed in as ${esc(SESSION.user.email||"")} · <button class="small" data-act="sign-out" style="font-weight:600;text-decoration:underline;text-underline-offset:3px">Log out</button></p>`:""}${helpLine()}</div>`;
 }
 function welcome(){
   const o = UI.onboard, known = knownTribes();
@@ -1027,6 +1028,7 @@ function welcome(){
     ${!o && known.length?`<div class="col" style="gap:8px"><span class="eyebrow">Your tribes</span>${known.map(t=>`<button class="choice" data-act="switch-tribe" data-code="${esc(t.code)}"><span class="lic" style="background:var(--sage-soft);color:var(--sage-ink)">${ico("home",22)}</span><span class="col grow"><b style="font-weight:600">${esc(t.name)}</b><span class="small">Code ${esc(t.code)}</span></span>${ico("fwd",18,2)}</button>`).join("")}</div>`:""}
     ${SESSION?`<p class="small" style="margin:0">Signed in as ${esc(SESSION.user.email||"")} · <button class="small" data-act="sign-out" style="font-weight:600;text-decoration:underline;text-underline-offset:3px">Log out</button></p>`:""}
     ${TRIBE && S.members.length?`<button class="small" data-act="back-tribe" style="font-weight:600;text-align:left">Back to ${esc(S.tribe?.name || "your tribe")}</button>`:""}
+    ${helpLine()}
   </div>`;
 }
 function setup(){
