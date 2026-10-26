@@ -10,9 +10,13 @@
     "web-push": "3.6.7"
   },
   "scripts": {
-    "build:app": "node tools/build-app.mjs"
+    "build:app": "node tools/build-app.mjs",
+    "test": "node --test tests/unit.test.mjs",
+    "test:e2e": "node tests/smoke.mjs",
+    "check": "npm run build:app && git diff --exit-code -- app/index.html app/sw.js app/assets && npm test"
   },
   "devDependencies": {
-    "esbuild": "0.24.0"
+    "esbuild": "0.24.0",
+    "playwright": "1.56.0"
   }
 }

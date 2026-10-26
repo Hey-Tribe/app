@@ -1,0 +1,24 @@
+# Runs on every push and pull request: the built app matches its source, server tests pass,
+# and a real browser clicks through the site and the sample family.
+name: Checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Built app matches source
+        run: npm run build:app && git diff --exit-code -- app/index.html app/sw.js app/assets
+      - name: Server tests
+        run: npm test
+      - name: Browser smoke test
+        run: npx playwright install --with-deps chromium && npm run test:e2e

@@ -3,3 +3,4 @@ supabase/
 tools/
 node_modules/
 docs/
+tests/

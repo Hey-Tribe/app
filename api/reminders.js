@@ -76,11 +76,28 @@ export function dueFor(sub, docs, now) {
   return out;
 }
 
+async function stopOrphanBilling() {
+  if (!process.env.STRIPE_SECRET_KEY || !process.env.BILLING_SYNC_SECRET) return 0;
+  let rows = [];
+  try { rows = (await rpc("billing_orphans", { p_secret: process.env.CRON_SECRET })) || []; } catch (e) { return 0; }
+  let n = 0;
+  for (const r of rows.slice(0, 20)) {
+    const x = await fetch("https://api.stripe.com/v1/subscriptions/" + encodeURIComponent(r.stripe_subscription_id), {
+      method: "DELETE", headers: { authorization: "Bearer " + process.env.STRIPE_SECRET_KEY, "idempotency-key": "orphan-" + r.stripe_subscription_id }
+    }).catch(() => null);
+    const ok = x && (x.ok || x.status === 404);
+    if (ok) { await rpc("billing_sync", { p_secret: process.env.BILLING_SYNC_SECRET, p_code: r.tribe_code, p_status: "canceled", p_customer: null, p_subscription: null, p_period_end: null }).catch(() => {}); n++; }
+  }
+  return n;
+}
+
 export default async function handler(req, res) {
   const secret = req.headers["x-cron-secret"] || req.query.key;
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) return res.status(401).json({ error: "no" });
   let mail = {};
   try { mail = await sendQueued(rpc, process.env.CRON_SECRET); } catch (e) { mail = { error: e.message }; }
+  // stop Stripe billing for families that were deleted while Premium was still running
+  try { mail.billing_stopped = await stopOrphanBilling(); } catch (e) { mail.billing_stopped = 0; }
   const web = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY), ios = apnsReady();
   if (!web && !ios) return res.status(200).json({ ok: true, push: "not set up", ...mail });
   if (web) webpush.setVapidDetails("mailto:hello@heytribe.app", process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);

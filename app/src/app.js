@@ -87,7 +87,11 @@ function makeDb(client){
           .on("postgres_changes", { event: "UPDATE", schema: "public", table: "tribes", filter: "code=eq." + code }, p => {
             if(T.code !== code) return; T.tribe = { name: p.new.name }; notify("__tribe");
           })
-          .subscribe(status => { if(status === "CHANNEL_ERROR" || status === "TIMED_OUT"){ /* refetch on reconnect */ } });
+          .subscribe(status => {
+            // live updates dropped: once the channel is back, reload so nothing missed in between stays stale
+            if(status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") T.lost = true;
+            else if(status === "SUBSCRIBED" && T.lost && T.code === code){ T.lost = false; setTimeout(() => { if(T.code === code) api.refresh(); }, 300); }
+          });
       }
     })();
     return T.ready;
@@ -120,7 +124,7 @@ function makeDb(client){
       delete: async () => { colMap(col).delete(id); notify(col); await serverWrite(() => client.from("docs").delete().match({ tribe_code: code, col, id })); }
     };
   }
-  return {
+  const api = {
     doc: docRef,
     collection(path){
       const { code, col } = parse(path);
@@ -134,6 +138,7 @@ function makeDb(client){
     isLocal: () => T.local,
     reset: teardown
   };
+  return api;
 }
 /* desktop: spread sections across the full width in balanced columns (shortest column first, reading order kept) */
 const PAGE_COLS = ["home","health","docs","school","contacts","family","baby","routines","menu","sitter","trip","trips"];
@@ -816,7 +821,7 @@ function groupOf(v){ if(v === "trip") return "plan"; return Object.keys(GROUPS).
 function lastIn(g){ const v = store.get("ht-last-"+g); return GROUPS[g].views.some(x=>x[0]===v) ? v : GROUPS[g].views[0][0]; }
 function groupBar(){
   const g = groupOf(UI.view), cur = UI.view === "trip" ? "trips" : UI.view;
-  return `<div class="gbar"><div class="gtabs" role="tablist" aria-label="${GROUPS[g].label}">${GROUPS[g].views.map(([v,l])=>`<button class="gtab ${cur===v?"on":""}" data-go="${v}" role="tab" aria-selected="${cur===v}">${l}</button>`).join("")}${g==="kids"?`<button class="gtab kidv" data-act="kid-pick">${ico("smile",15,2)} Kid view</button>`:""}</div><button class="gme" data-go="family" aria-label="Family and settings">${face(mem(meId()),34)}</button></div>`;
+  return `<div class="gbar"><div class="gtabs" role="tablist" aria-label="${GROUPS[g].label}">${GROUPS[g].views.map(([v,l])=>`<button class="gtab ${cur===v?"on":""}" data-go="${v}" role="tab" aria-selected="${cur===v}">${l}</button>`).join("")}</div>${g==="kids"?`<button class="gtab kidv" data-act="kid-pick">${ico("smile",15,2)} Kid view</button>`:""}<button class="gme" data-go="family" aria-label="Family and settings">${face(mem(meId()),34)}</button></div>`;
 }
 function renderNav(){
   renderSide();
@@ -1217,9 +1222,9 @@ function chores(){
     const cells = [...Array(7)].map((_,i) => {
       const k = ymd(addDays(base,i)), on = days.includes(i), done = !!(c.done && c.done[k]);
       if(done) stars++;
-      if(!on) return `<td><span class="stamp off" aria-label="Not scheduled">·</span></td>`;
+      if(!on) return `<td><span class="stamp off" role="img" aria-label="Not scheduled">·</span></td>`;
       if(done) return `<td><button class="stamp done" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" style="transform:rotate(${rot[(r+i)%8]}deg)" aria-label="${esc(c.title)} ${DOW[i]}: done">${ico("star",16,2)}</button></td>`;
-      if(i > tIdx) return `<td><span class="stamp" style="border:1.5px solid var(--line)" aria-label="Upcoming"></span></td>`;
+      if(i > tIdx) return `<td><span class="stamp" role="img" style="border:1.5px solid var(--line)" aria-label="Upcoming"></span></td>`;
       if(i === tIdx) return `<td><button class="stamp todo" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" aria-label="${esc(c.title)} today: tap when done">today</button></td>`;
       return `<td><button class="stamp miss" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" aria-label="${esc(c.title)} ${DOW[i]}: missed"></button></td>`;
     }).join("");
@@ -1613,16 +1618,34 @@ function family(){
 const VIEWFN = { today, calendar, chores, lists, menu, baby, fridge: today, routines, health, school, sitter, home, docs, trips, trip, contacts, kid, family };
 
 /* ---------- sheets ---------- */
+let SHEET_RETURN = null;
 function openSheet(html, night=false, onOpen){
-  closeSheet();
+  if(!$("#scrim")) SHEET_RETURN = document.activeElement;
+  closeSheet(true);
   const s = document.createElement("div"); s.className = "scrim"; s.id = "scrim";
   s.innerHTML = `<div class="sheet ${night?"night":""}" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
   document.body.appendChild(s);
   s.addEventListener("click", e => { if(e.target === s) closeSheet(); });
-  const f = s.querySelector("[autofocus]"); if(f) setTimeout(()=>f.focus(), 60);
+  const sh = s.querySelector(".sheet"), h = sh.querySelector("h1,h2,h3");
+  if(h){ h.id = h.id || "sheet-title"; sh.setAttribute("aria-labelledby", h.id); }
+  sh.tabIndex = -1;
+  const f = s.querySelector("[autofocus]"); setTimeout(() => (f || sh).focus(), 60);
   if(onOpen) onOpen(s);
 }
-function closeSheet(){ const s = $("#scrim"); if(s) s.remove(); if(htCtl){ htCtl.abort(); htCtl = null; } }
+// keep keyboard focus inside an open sheet
+document.addEventListener("keydown", e => {
+  if(e.key !== "Tab") return;
+  const sh = $("#scrim .sheet"); if(!sh) return;
+  const items = [...sh.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x => x.offsetParent !== null);
+  if(!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if(e.shiftKey && (document.activeElement === first || document.activeElement === sh)){ e.preventDefault(); last.focus(); }
+  else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+});
+function closeSheet(reopening){
+  const s = $("#scrim"); if(s) s.remove(); if(htCtl){ htCtl.abort(); htCtl = null; }
+  if(s && !reopening && SHEET_RETURN && SHEET_RETURN.isConnected){ try { SHEET_RETURN.focus({ preventScroll: true }); } catch(e){} SHEET_RETURN = null; }
+}
 document.addEventListener("keydown", e => { if(e.key === "Escape" && $("#scrim")) closeSheet(); });
 function toast(t){ const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(()=>el.hidden = true, 2400); }
 const memberOptions = (sel, extra="") => extra + sorted(S.members).map(m=>`<option value="${esc(m.id)}" ${m.id===sel?"selected":""}>${esc(m.name)}</option>`).join("");
@@ -1954,7 +1977,11 @@ async function htCommit(){
 }
 
 /* ---------- writes ---------- */
-function writeErr(e){ toast(e && e.code==="quota_exceeded" ? "Storage is full. Delete old notes or items, then try again." : "Couldn't save that. Check your connection and try again."); }
+function writeErr(e){
+  toast(e && e.code==="quota_exceeded" ? "Storage is full. Delete old notes or items, then try again." : !navigator.onLine ? "You're offline, so that change wasn't saved. Try again when you're back online." : "Couldn't save that. Check your connection and try again.");
+  // the screen already showed the change; put it back to what's really saved
+  if(db && TRIBE && TRIBE !== "SAMPLE") setTimeout(() => db.refresh(), 600);
+}
 const W = {
   async set(path, data){ try { await db.doc(P(path)).set(data); return true; } catch(e){ writeErr(e); return false; } },
   async upd(path, data){ try { await db.doc(P(path)).update(data); return true; } catch(e){ writeErr(e); return false; } },
@@ -2126,8 +2153,8 @@ document.addEventListener("click", async e => {
     case "sitter-stop": await sb.rpc("stop_sitter_link", { p_code: TRIBE }); toast("Sitter link turned off"); sitterLinkSheet(); break;
     case "cal-sub": calSubSheet(false); break;
     case "cal-reset": calSubSheet(true); toast("New link made. The old one stopped working."); break;
-    case "close-family": openSheet(`<form data-form="close-family" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Delete ${esc(S.tribe?.name || "this family")}?</h2><p style="margin:0;color:var(--muted);line-height:1.5">Everyone loses access right away, and everything in the family is erased within 30 days. This can't be undone. Download your data first if you want a copy.</p><div class="field"><label for="cf-name">Type the family name to confirm</label><input id="cf-name" name="name" autocomplete="off" required></div><p class="form-err small" id="cf-err" role="alert"></p><button class="btn danger">Delete the family</button></form>`); break;
-    case "delete-account": openSheet(`<form data-form="delete-account" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Delete your account?</h2><p style="margin:0;color:var(--muted);line-height:1.5">You'll be logged out and lose access to your families. Families where you're the only member are deleted too. Your login and data are erased within 30 days.</p><div class="field"><label for="da-word">Type DELETE to confirm</label><input id="da-word" name="word" autocomplete="off" autocapitalize="characters" required></div><p class="form-err small" id="da-err" role="alert"></p><button class="btn danger">Delete my account</button></form>`); break;
+    case "close-family": openSheet(`<form data-form="close-family" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Delete ${esc(S.tribe?.name || "this family")}?</h2><p style="margin:0;color:var(--muted);line-height:1.5">Everyone loses access right away, and everything in the family is erased within 30 days. This can't be undone. Download your data first if you want a copy. <span class="small" style="display:block;margin-top:8px">${appleSub() ? "Premium is paid through Apple, so cancel it in your Apple ID settings too." : "Any Premium payment through heytribe.app stops automatically."}</span></p><div class="field"><label for="cf-name">Type the family name to confirm</label><input id="cf-name" name="name" autocomplete="off" required></div><p class="form-err small" id="cf-err" role="alert"></p><button class="btn danger">Delete the family</button></form>`); break;
+    case "delete-account": openSheet(`<form data-form="delete-account" class="col" style="gap:14px"><h2 class="serif" style="font-size:28px;margin:0">Delete your account?</h2><p style="margin:0;color:var(--muted);line-height:1.5">You'll be logged out and lose access to your families. Families where you're the only member are deleted too. Your login and data are erased within 30 days. <span class="small" style="display:block;margin-top:8px">${appleSub() ? "Premium is paid through Apple, so cancel it in your Apple ID settings too." : "Any Premium payment through heytribe.app stops automatically."}</span></p><div class="field"><label for="da-word">Type DELETE to confirm</label><input id="da-word" name="word" autocomplete="off" autocapitalize="characters" required></div><p class="form-err small" id="da-err" role="alert"></p><button class="btn danger">Delete my account</button></form>`); break;
     case "tk-open": ticketSheet(id); break;
     case "billing-portal": billingGo("portal", b); break;
     case "iap-restore": appleRestore(b); break;
@@ -2369,7 +2396,7 @@ async function afterLogin(){
   if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
-if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261025c', document.body);
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261026', document.body);
 if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
 addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
 render();

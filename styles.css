@@ -1,9 +1,9 @@
 /* HeyTribe site — one light look: white paper, sage green lead, family accent colors as stickers. */
 :root{
-  --paper:#FBFCFA; --white:#FFFFFF; --ink:#2F3B45; --muted:#5A6570; --line:#E1E6E1;
+  --paper:#FBFCFA; --white:#FFFFFF; --ink:#2F3B45; --muted:#555E67; --line:#E1E6E1;
   --sage:#5E8C7A; --sage-ink:#46705F; --sage-soft:#E6EEE9; --mint:#D7E5DC; --deep:#3E5A55;
-  --rose:#B08A84; --rose-ink:#8E6A64; --rose-soft:#F3E6E2; --blue:#6B8BA4; --blue-ink:#4E6F88; --blue-soft:#DEE7EE;
-  --olive:#8A8F6B; --olive-ink:#666B4C; --olive-soft:#E9EBDC; --sand:#C9A66B; --sand-soft:#F4EBDA;
+  --rose:#B08A84; --rose-ink:#7A5852; --rose-soft:#F3E6E2; --blue:#6B8BA4; --blue-ink:#43627A; --blue-soft:#DEE7EE;
+  --olive:#8A8F6B; --olive-ink:#595E42; --olive-soft:#E9EBDC; --sand:#C9A66B; --sand-soft:#F4EBDA;
   --f-display:"Fraunces",Georgia,"Times New Roman",serif; --f-ui:"Outfit",ui-sans-serif,system-ui,sans-serif; --f-hand:"Caveat","Segoe Print","Bradley Hand",cursive;
   color-scheme:light;
 }
