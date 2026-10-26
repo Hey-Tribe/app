@@ -90,7 +90,7 @@ Privacy: https://www.heytribe.app/privacy.html
 
 Tracking: **No**. The app does not track people across other companies' apps or websites.
 
-Data collected, all **linked to the user**, none used for tracking:
+Data collected, none used for tracking. Everything is **linked to the user** except crash data and product interaction:
 
 | Data type | Purpose |
 |---|---|
@@ -99,8 +99,8 @@ Data collected, all **linked to the user**, none used for tracking:
 | User content: photos, documents, plans, notes | App functionality |
 | Identifiers: user ID | App functionality |
 | Purchases: purchase history | App functionality |
-| Diagnostics: crash data (error reports) | App functionality |
-| Usage data: product interaction (page views, not linked to ads) | Analytics |
+| Diagnostics: crash data (error reports, not linked) | App functionality |
+| Usage data: product interaction (page views with a random id, not linked) | Analytics |
 
 ## Notes for App Review
 
@@ -113,3 +113,5 @@ Data collected, all **linked to the user**, none used for tracking:
 
 App Store Connect needs 6.9-inch iPhone screenshots (1320 × 2868). Suggested screens: Today, Plan (calendar), Chores with stars,
 Lists, Kids screen, Family. Spanish screenshots can be added under the Spanish (Mexico) localization.
+
+The same answers are in the app's privacy manifest (`mobile/ios/App/App/PrivacyInfo.xcprivacy`). Keep the two in sync.
