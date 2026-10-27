@@ -143,14 +143,14 @@ if(df){
 /* chore toy */
 var toy = $("#toy");
 if(toy){
-  var GOAL = +toy.getAttribute("data-goal") || 15, rots = [-14,9,-6,12,-10,5,-12,8];
+  var GOAL = +toy.getAttribute("data-goal") || 15, rots = [0];
   function count(){ return $$(".stamp.on", toy).length; }
   function update(celebrate){
     var n = count(), pct = Math.min(100, Math.round(n / GOAL * 100));
     $("#toy-meter").style.width = pct + "%";
     $("#toy-count").textContent = n;
     var msg = $("#toy-msg");
-    if(n >= GOAL){ msg.textContent = "Movie night unlocked!"; if(celebrate) confetti(); }
+    if(n >= GOAL){ msg.textContent = "Movie night unlocked!"; }
     else msg.textContent = (GOAL - n) + (GOAL - n === 1 ? " star to movie night" : " stars to movie night");
   }
   $$(".stamp", toy).forEach(function(s, i){
@@ -279,4 +279,4 @@ $$("[data-year]").forEach(function(el){ el.textContent = new Date().getFullYear(
 /* language switch in the header */
 (function(){ var L = (window.HTi18n && HTi18n.lang) || 'en'; document.querySelectorAll('[data-lang-toggle]').forEach(function(b){ b.textContent = L === 'es' ? 'EN' : 'ES'; b.setAttribute('aria-label', L === 'es' ? 'View in English' : 'Ver en español'); b.addEventListener('click', function(){ HTi18n.set(L === 'es' ? 'en' : 'es'); }); }); })();
 }
-if(window.HTi18n){ HTi18n.start('/i18n/es-site.json?v=20261025').then(__htBoot, __htBoot); } else { __htBoot(); }
+if(window.HTi18n){ HTi18n.start('/i18n/es-site.json?v=20261027').then(__htBoot, __htBoot); } else { __htBoot(); }

@@ -17,7 +17,7 @@ export function layout(title, bodyHtml, cta, opts = {}) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:540px">
 <tr><td style="padding:0 6px 18px">${MARK}</td></tr>
 <tr><td style="background:#FFFFFF;border:1px solid #E1E6E1;border-radius:22px;padding:32px 30px 28px">
-<h1 style="margin:0 0 16px;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:28px;line-height:1.2;color:#2F3B45">${title}</h1>
+<h1 style="margin:0 0 16px;font-weight:700;font-size:24px;line-height:1.25;color:#2F3B45">${title}</h1>
 <div style="font-size:16px;line-height:1.6;color:#2F3B45">${bodyHtml}</div>
 ${cta ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 4px"><tr><td style="border-radius:999px;background:#2F3B45"><a href="${cta.url}" style="display:inline-block;padding:14px 26px;color:#FFFFFF;text-decoration:none;font-weight:600;font-size:15.5px;border-radius:999px">${esc(cta.label)}</a></td></tr></table>` : ""}
 ${opts.after || ""}
@@ -43,7 +43,7 @@ export const T = {
     text: `${t.subject}\n${t.email || ""}\n\n${t.body || ""}\n\nhttps://admin.heytribe.app/` }),
   welcome: w => ({ subject: `${w.tribe} is ready on HeyTribe`, ...em(`Welcome to HeyTribe`,
       P(`<b>${esc(w.tribe)}</b> is set up, and your 14 days of Premium have started. Here's your invite code for the people who help run your house:`) +
-      `<div style="margin:6px 0 18px;padding:16px;border-radius:16px;background:#E6EEE9;text-align:center;font-family:Georgia,serif;font-size:34px;letter-spacing:8px;color:#2F3B45">${esc(w.code)}</div>` +
+      `<div style="margin:6px 0 18px;padding:16px;border-radius:16px;background:#E6EEE9;text-align:center;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;font-size:30px;letter-spacing:6px;color:#2F3B45">${esc(w.code)}</div>` +
       P("Three things to do first:") +
       `<ol style="margin:0 0 6px;padding-left:20px;line-height:1.7"><li>Add the people in your house, kids included.</li><li>Send your invite code to your partner or family. You approve them when they join.</li><li>Tell Hey Tribe what's coming up this week.</li></ol>`,
       { url: APP, label: "Open HeyTribe" }, { preheader: `Your invite code is ${w.code}.` }),

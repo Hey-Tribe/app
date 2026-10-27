@@ -589,7 +589,7 @@ function accessCard(){
   const who = l => { const m = l.member_id && mem(l.member_id); return m ? esc(m.name) : esc(l.email.split("@")[0]); };
   return `${secHead("Who has access")}<div class="paper col" style="padding:6px 16px 12px">
     ${pend.map(l => `<div class="lrow" style="flex-wrap:wrap;gap:10px"><span class="lic" style="background:var(--m-sand-bg);color:var(--sand-ink)">${ico("users",18)}</span><span class="col grow" style="min-width:160px"><b style="font-weight:600;overflow-wrap:anywhere">${esc(l.email)}</b><span class="small">wants to join</span></span>${parent?`<span class="row" style="gap:6px;flex-wrap:wrap"><button class="chip plain on" data-act="login-approve" data-u="${esc(l.user_id)}" data-role="family">Approve</button><button class="chip plain" data-act="login-approve" data-u="${esc(l.user_id)}" data-role="parent">As a parent</button><button class="chip plain" data-act="login-remove" data-u="${esc(l.user_id)}">Decline</button></span>`:`<span class="small">a parent can approve</span>`}</div>`).join("")}
-    ${act.map(l => `<div class="lrow"><span class="col grow" style="min-width:0"><b style="font-weight:500;overflow-wrap:anywhere">${who(l)}${l.is_me?` <span class="hand" style="font-size:17px;color:var(--sage-ink)">you</span>`:""}</b><span class="small" style="overflow-wrap:anywhere">${esc(l.email)}</span></span><span class="tag ${l.role==="parent"?"":"muted"}">${l.role==="parent"?"Parent":"Family"}</span>${parent && !l.is_me?`<button class="iconbtn" data-act="login-menu" data-u="${esc(l.user_id)}" aria-label="Manage ${esc(l.email)}" style="width:34px;height:34px">${ico("gear",16)}</button>`:""}</div>`).join("")}
+    ${act.map(l => `<div class="lrow"><span class="col grow" style="min-width:0"><b style="font-weight:500;overflow-wrap:anywhere">${who(l)}${l.is_me?` <span class="hand" style="font-size:15px;color:var(--sage-ink)">you</span>`:""}</b><span class="small" style="overflow-wrap:anywhere">${esc(l.email)}</span></span><span class="tag ${l.role==="parent"?"":"muted"}">${l.role==="parent"?"Parent":"Family"}</span>${parent && !l.is_me?`<button class="iconbtn" data-act="login-menu" data-u="${esc(l.user_id)}" aria-label="Manage ${esc(l.email)}" style="width:34px;height:34px">${ico("gear",16)}</button>`:""}</div>`).join("")}
     <p class="small" style="margin:8px 0 0;line-height:1.45">${parent ? "New people who use your invite code wait here until a parent approves them. Parents can approve, remove people and delete the family." : "Parents approve new people and manage access."}</p></div>`;
 }
 async function manageLogin(u, action, role){
@@ -966,21 +966,21 @@ function authScreen(){
   const err = `<p class="form-err small" id="au-err" role="alert">${esc(UI.authErr||"")}</p>`;
   const link = (mode, t) => `<button type="button" class="small" data-act="auth-mode" data-mode="${mode}" style="font-weight:600;color:var(--sage-ink)">${t}</button>`;
   let body;
-  if(m === "signup") body = `<form data-form="auth-signup" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Make your <em>account</em></h1>
+  if(m === "signup") body = `<form data-form="auth-signup" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Make your account</h1>
       <p class="small" style="font-size:15px;margin:0">One login per person. Then start your tribe or join your family's with their code.</p>
       ${socialButtons()}${email(UI.authEmail)}${pw("au-pw","Password (8 or more characters)","new-password")}
       <button class="btn primary" id="au-go">Create account</button>${err}
       <p class="small" style="margin:0">Already have one? ${link("signin","Log in")}</p></form>`;
-  else if(m === "forgot") body = `<form data-form="auth-forgot" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Reset your <em>password</em></h1>
+  else if(m === "forgot") body = `<form data-form="auth-forgot" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Reset your password</h1>
       <p class="small" style="font-size:15px;margin:0">We'll email you a link to choose a new one.</p>
       ${email(UI.authEmail)}<button class="btn primary" id="au-go">Send the link</button>${err}
       <p class="small" style="margin:0">${link("signin","Back to log in")}</p></form>`;
-  else if(m === "reset") body = `<form data-form="auth-reset" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Choose a new <em>password</em></h1>
+  else if(m === "reset") body = `<form data-form="auth-reset" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Choose a new password</h1>
       ${pw("au-pw","New password (8 or more characters)","new-password")}<button class="btn primary" id="au-go">Save password</button>${err}</form>`;
-  else if(m === "check") body = `<div class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Check your <em>email</em></h1>
+  else if(m === "check") body = `<div class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Check your email</h1>
       <p style="font-size:16px;line-height:1.5;margin:0;color:var(--muted)">${esc(UI.authMsg||"We sent you a link. Open it on this device to finish.")}</p>
       <p class="small" style="margin:0">${link("signin","Back to log in")}</p></div>`;
-  else body = `<form data-form="auth-signin" class="col" style="gap:14px"><h1 class="title" style="font-size:44px">Welcome <em>back.</em></h1>
+  else body = `<form data-form="auth-signin" class="col" style="gap:14px"><h1 class="title" style="font-size:44px">Log in</h1>
       ${socialButtons()}${email(UI.authEmail)}${pw("au-pw","Password","current-password")}
       <button class="btn primary" id="au-go">Log in</button>${err}
       <div class="between" style="flex-wrap:wrap;gap:8px">${link("forgot","Forgot password?")}<span class="small">New here? ${link("signup","Make an account")}</span></div></form>`;
@@ -992,7 +992,7 @@ function authScreen(){
 /* ---------- WELCOME (start / join / sample) ---------- */
 function pendingScreen(){
   return `<div class="col" style="gap:18px;padding-top:30px">${mark(48)}
-    <h1 class="title">Waiting for <em>approval</em></h1>
+    <h1 class="title">Waiting for approval</h1>
     <p style="margin:0;color:var(--muted);line-height:1.55">You asked to join the family with code <b class="sel" data-no-tr>${esc(PENDING[0]||"")}</b>. A parent in that family needs to approve you. Ask them to open HeyTribe and check Family &amp; settings.</p>
     <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn primary" data-act="pending-check">Check again</button><button class="btn ghost" data-act="pending-cancel">Cancel request</button></div>
     <button class="small" data-act="onboard" data-mode="" style="text-align:left;font-weight:600;text-decoration:underline;text-underline-offset:3px">Start or join a different family</button>
@@ -1022,7 +1022,7 @@ function welcome(){
       ${choice("join","users","blue","Join with an invite code","Someone in your family already started one")}
       <button class="choice" data-act="try-sample"><span class="lic" style="background:var(--m-rose-bg);color:var(--m-rose)">${ico("smile",24)}</span><span class="col grow"><b style="font-weight:600;font-size:16px">Look around with a sample family</b><span class="small">A shared demo anyone can try</span></span>${ico("fwd",18,2)}</button></div>`;
   return `<div class="col" style="gap:22px;padding-top:18px">${logo}
-    ${!o?`<h1 class="title" style="font-size:44px">The whole family,<br><em>finally</em> in sync.</h1>
+    ${!o?`<h1 class="title" style="font-size:34px">Your family's calendar, chores and lists in one place.</h1>
     <p style="color:var(--muted);font-size:16px;line-height:1.5;margin:0">Plans, chores, lists, meds, bills and the baby's naps, shared live with everyone in your house.</p>`:""}
     ${body}
     ${!o && known.length?`<div class="col" style="gap:8px"><span class="eyebrow">Your tribes</span>${known.map(t=>`<button class="choice" data-act="switch-tribe" data-code="${esc(t.code)}"><span class="lic" style="background:var(--sage-soft);color:var(--sage-ink)">${ico("home",22)}</span><span class="col grow"><b style="font-weight:600">${esc(t.name)}</b><span class="small">Code ${esc(t.code)}</span></span>${ico("fwd",18,2)}</button>`).join("")}</div>`:""}
@@ -1141,7 +1141,7 @@ function today(){
   const groceries = S.items.filter(i => !i.checked && (i.list||"Groceries")==="Groceries");
   const due = S.chores.filter(c => (c.days||[0,1,2,3,4,5,6]).includes(dowIdx(d)));
   const doneCount = due.filter(c => c.done && c.done[key]).length;
-  const hr = d.getHours(), hi = hr<12 ? "Morning" : hr<17 ? "Afternoon" : "Evening";
+  const hr = d.getHours(), hi = hr<12 ? "Good morning" : hr<17 ? "Good afternoon" : "Good evening";
   let brief = evs.length ? `${evs.length} ${evs.length===1?"plan":"plans"} today.` : "Nothing on the calendar today.";
   if(next) brief += ` Next up: <b style="font-weight:600">${esc(next.title)}</b> at ${fmtT(next.start)}${next.member&&next.member!=="all"?" with "+esc(memName(next.member)):""}${next.driver?", "+esc(memName(next.driver))+" driving":""}.`;
   else if(evs.length) brief += " That's everything for today.";
@@ -1166,7 +1166,7 @@ function today(){
   ${setupCard()}
   ${annCard()}
   ${layoutOf().brief && !limited() ? `<div class="brief" style="margin-top:18px">
-    <div class="hi">${hi}, ${esc(me?.name||"there")} —</div>
+    <div class="hi">${hi}, ${esc(me?.name||"there")}</div>
     <div style="font-size:15px;line-height:1.5;margin-top:6px">${brief}</div>
     <button class="row" data-act="ht" style="gap:6px;margin-top:10px">${mark(16)}<span class="small" style="text-decoration:underline;text-underline-offset:3px">Tell Hey Tribe something</span></button>
   </div>` : ""}
@@ -1231,7 +1231,7 @@ function calendar(){
   evs.filter(e => !e.allDay).forEach(e => {
     if(e.end/60 <= H0 || e.start/60 >= H1) return;
     const top = Math.max(0,(e.start/60-H0)*PX)+1, h = Math.max(24, ((Math.min(e.end, H1*60) - Math.max(e.start, H0*60))/60)*PX - 3);
-    if(e.member === "all"){ blocks += `<button class="blk all" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="left:38px;right:0;top:${top}px;height:${h}px;z-index:2"><span>${esc(e.title)} · everyone</span><span class="hand" style="font-size:16px">${fmtT(e.start)}</span></button>`; return; }
+    if(e.member === "all"){ blocks += `<button class="blk all" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="left:38px;right:0;top:${top}px;height:${h}px;z-index:2"><span>${esc(e.title)} · everyone</span><span class="hand" style="font-size:15px">${fmtT(e.start)}</span></button>`; return; }
     const li = Math.max(0, lanes.findIndex(m=>m.id===e.member)), c = okColor(mem(e.member)?.color), cf = conflictFor(e, sel);
     blocks += `<button class="blk" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="left:calc(38px + ${laneW} * ${li});width:calc(${laneW} - 4px);top:${top}px;height:${h}px;background:color-mix(in srgb, var(--m-${c}) 18%, var(--surface));border-color:var(--m-${c})">${esc(e.title)}${h>40?`<span class="s">${fmtT(e.start)}${e.driver?" · "+esc(memName(e.driver)):""}</span>`:""}${cf?`<span class="warn">${esc(memName(e.driver))} is busy!</span>`:""}</button>`;
   });
@@ -1239,7 +1239,7 @@ function calendar(){
   const early = evs.filter(e => !e.allDay && (e.end/60 <= H0 || e.start/60 >= H1));
   const head = lanes.map(m=>`<div class="col" style="align-items:center;gap:3px;min-width:0">${face(m,30)}<span style="font-size:11px;font-weight:500;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.name)}</span></div>`).join("");
   return `
-  <div class="between" style="flex-wrap:wrap;gap:10px 12px"><h1 class="title" style="white-space:nowrap">${MONTHS[sd.getMonth()]} <em>${sd.getDate()}</em></h1>
+  <div class="between" style="flex-wrap:wrap;gap:10px 12px"><h1 class="title" style="white-space:nowrap">${MONTHS[sd.getMonth()]} ${sd.getDate()}</h1>
     <div class="row" style="gap:8px;margin-left:auto">${TRIBE!=="SAMPLE"&&SESSION?`<button class="iconbtn" data-act="cal-sub" aria-label="Add to Google, Apple or Outlook calendar" title="Add to your phone's calendar">${ico("link",18)}</button>`:""}${S.members.length>1?`<button class="iconbtn" data-act="custody" aria-label="Co-parenting schedule" title="Co-parenting schedule">${ico("users",18)}</button>`:""}<button class="iconbtn" data-act="calweek" data-dir="-1" aria-label="Previous week">${ico("back",18,2)}</button><button class="iconbtn" data-act="calweek" data-dir="1" aria-label="Next week">${ico("fwd",18,2)}</button><button class="iconbtn solid" data-act="event-new" data-day="${sel}" aria-label="Add a plan">${ico("plus",20,2.2)}</button></div></div>
   <div class="week" style="margin-top:14px">${days}</div>
   ${custodyOn(sel) ? `<p class="small" style="margin:10px 2px 0;font-size:13.5px">${custodyLine(sel)}</p>` : ""}
@@ -1247,7 +1247,7 @@ function calendar(){
   <div class="lanehead" style="grid-template-columns:repeat(${n},minmax(0,1fr));margin-top:16px;margin-bottom:10px">${head}</div>
   <div class="lanes" style="height:${(H1-H0)*PX}px">${grid}${blocks}</div>
   ${early.length?`<div class="col" style="gap:6px;margin-top:12px"><span class="eyebrow">Outside these hours</span>${early.map(e=>`<button class="hu" data-act="event" data-id="${esc(e.id)}" data-day="${sel}"><span class="tabular small">${fmtT(e.start)}</span><span class="grow">${esc(e.title)}</span>${whoFace(e.member,24)}</button>`).join("")}</div>`:""}
-  ${evs.length?"":`<p class="hand" style="text-align:center;font-size:20px;color:var(--sage-ink);margin-top:12px">nothing planned. Tap + to add</p>`}`;
+  ${evs.length?"":`<p class="hand" style="text-align:center;font-size:15px;color:var(--sage-ink);margin-top:12px">nothing planned. Tap + to add</p>`}`;
 }
 
 /* ---------- CHORES ---------- */
@@ -1264,7 +1264,7 @@ function chores(){
       const k = ymd(addDays(base,i)), on = days.includes(i), done = !!(c.done && c.done[k]);
       if(done) stars++;
       if(!on) return `<td><span class="stamp off" role="img" aria-label="Not scheduled">·</span></td>`;
-      if(done) return `<td><button class="stamp done" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" style="transform:rotate(${rot[(r+i)%8]}deg)" aria-label="${esc(c.title)} ${DOW[i]}: done">${ico("star",16,2)}</button></td>`;
+      if(done) return `<td><button class="stamp done" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" aria-label="${esc(c.title)} ${DOW[i]}: done">${ico("star",16,2)}</button></td>`;
       if(i > tIdx) return `<td><span class="stamp" role="img" style="border:1.5px solid var(--line)" aria-label="Upcoming"></span></td>`;
       if(i === tIdx) return `<td><button class="stamp todo" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" aria-label="${esc(c.title)} today: tap when done">today</button></td>`;
       return `<td><button class="stamp miss" data-act="stamp" data-id="${esc(c.id)}" data-day="${k}" aria-label="${esc(c.title)} ${DOW[i]}: missed"></button></td>`;
@@ -1283,7 +1283,7 @@ function chores(){
     <div class="col grow"><span class="eyebrow">Saving up for</span>
       <span class="serif" style="font-size:23px;line-height:1.1;margin-top:4px">${esc(m?.reward || "Pick a reward")}</span>
       <span style="font-size:14px;margin-top:8px" class="tabular"><b style="font-weight:600">${stars}</b> of ${goal} stars this week</span>
-      <span class="hand" style="color:var(--rose-ink);font-size:19px">${cheer}</span>
+      <span class="hand" style="color:var(--rose-ink);font-size:15px">${cheer}</span>
       <button class="small" data-act="reward" style="text-align:left;text-decoration:underline;text-underline-offset:3px;margin-top:2px">Change reward</button>
     </div>
   </div>`;
@@ -1300,7 +1300,7 @@ function routines(){
       <div class="between"><button data-act="ent-edit" data-kind="routine" data-id="${esc(r.id)}" class="col" style="text-align:left;min-width:0"><span class="serif" style="font-size:22px">${esc(r.name)}</span><span class="small">${r.time?"Starts "+fmtT(fromHHMM(r.time))+" · ":""}tap to edit</span></button><span class="tag ${n===steps.length&&steps.length?"":"muted"} tabular">${n}/${steps.length}</span></div>
       <span class="meter" style="margin:10px 0 4px"><i style="width:${steps.length?n/steps.length*100:0}%"></i></span>
       ${steps.map(s=>`<button class="lrow" data-act="rstep" data-id="${esc(r.id)}" data-step="${esc(s.id)}" aria-pressed="${!!done[s.id]}"><span class="box ${done[s.id]?"on":""}">${done[s.id]?TICK:""}</span><span class="grow" style="font-size:16px">${strikeIf(done[s.id], s.text)}</span></button>`).join("")}
-      ${n===steps.length&&steps.length?`<p class="hand" style="font-size:20px;color:var(--sage-ink);margin:8px 0 0">all done, nice work!</p>`:""}
+      ${n===steps.length&&steps.length?`<p class="hand" style="font-size:15px;color:var(--sage-ink);margin:8px 0 0">all done, nice work!</p>`:""}
     </div>`;
   }).join("");
   return `${pageHead("Routines", addBtn(`data-act="ent-new" data-kind="routine" data-who="${esc(who||"")}"`, "Add a routine"))}
@@ -1348,14 +1348,14 @@ function menu(){
     return `<button class="mrow ${k===key?"today":""}" data-act="meal" data-day="${k}"><span class="eyebrow" style="width:34px;flex-shrink:0;${k===key?"color:var(--sage-ink)":""}">${DOW[i]}</span><span class="dish ${dish?"":"none"}">${esc(dish||"Add a dinner")}</span><span class="lead"></span><span class="small tabular">${d.getDate()}</span></button>`; }).join("");
   const planned = [...Array(7)].filter((_,i)=>S.meals[ymd(addDays(base,i))]?.dish).length;
   return `
-  ${pageHead("Dinner <em>menu</em>", `<button class="iconbtn" data-act="mealweek" data-dir="-1" aria-label="Previous week">${ico("back",18,2)}</button><button class="iconbtn" data-act="mealweek" data-dir="1" aria-label="Next week">${ico("fwd",18,2)}</button>`)}
+  ${pageHead("Dinner menu", `<button class="iconbtn" data-act="mealweek" data-dir="-1" aria-label="Previous week">${ico("back",18,2)}</button><button class="iconbtn" data-act="mealweek" data-dir="1" aria-label="Next week">${ico("fwd",18,2)}</button>`)}
   <div class="paper menu" style="margin-top:14px">
     <div class="col" style="align-items:center;text-align:center">${mark(26)}
       <span class="eyebrow" style="margin-top:10px">${MONTHS[base.getMonth()].slice(0,3)} ${base.getDate()} – ${MONTHS[end.getMonth()].slice(0,3)} ${end.getDate()}</span>
-      <h2 class="serif" style="font-size:30px;margin:4px 0 0">This week's <em style="color:var(--sage-ink)">menu</em></h2></div>
+      <h2 class="serif" style="font-size:24px;margin:4px 0 0">This week's dinners</h2></div>
     <div class="col" style="margin-top:12px">${rows}</div>
   </div>
-  <p class="hand" style="font-size:20px;color:var(--sage-ink);margin:14px 0 0 8px;transform:rotate(-1.5deg)">${planned===7?"every night is covered":planned?`${7-planned} ${7-planned===1?"night":"nights"} still open`:"tap a night to plan dinner"}</p>`;
+  <p class="hand" style="color:var(--muted);margin:14px 0 0 8px">${planned===7?"every night is covered":planned?`${7-planned} ${7-planned===1?"night":"nights"} still open`:"tap a night to plan dinner"}</p>`;
 }
 
 /* ---------- BABY ---------- */
@@ -1495,7 +1495,7 @@ function sitter(){
     ${!allergies.length&&!meds.length&&!bed.length?`<p class="small" style="margin:10px 0 0">No allergies, medicine or bedtime routine added yet.</p>`:""}
   </div>`;
   const infoRow = (l, v) => v ? `<div class="lrow" style="align-items:flex-start"><span class="eyebrow" style="width:74px;padding-top:3px">${l}</span><span class="grow" style="white-space:pre-line">${esc(v)}</span></div>` : "";
-  return `${pageHead("Sitter <em>sheet</em>", `<button class="iconbtn" data-act="sitter-edit" aria-label="Edit house info">${ico("gear",18)}</button>`, "today", "Everything a sitter or grandparent needs, built from your tribe.")}
+  return `${pageHead("Sitter sheet", `<button class="iconbtn" data-act="sitter-edit" aria-label="Edit house info">${ico("gear",18)}</button>`, "today", "Everything a sitter or grandparent needs, built from your tribe.")}
   <div class="row" style="gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn dark grow" data-act="copy-care">${ico("copy",18)} Copy care sheet</button>${TRIBE!=="SAMPLE"&&SESSION?`<button class="btn primary grow" data-act="sitter-link">${ico("link",18)} Share a sitter link</button>`:""}</div>
   <div class="col" style="gap:12px;margin-top:16px">${ks.map(kidCard).join("") || `<div class="empty">Add kids to your tribe to build their care sheet.</div>`}</div>
   ${secHead("Emergency and doctors", 'data-act="ent-new" data-kind="contact" data-role="emergency"', "Add")}
@@ -1515,7 +1515,7 @@ function home(){
   const billRow = ({b,s}) => `<div class="lrow"><button class="col grow" data-act="ent-edit" data-kind="bill" data-id="${esc(b.id)}" style="text-align:left;min-width:0"><span style="font-weight:500">${esc(b.name)} ${b.amount?`<span class="tabular" style="color:var(--muted);font-weight:400">${money(b.amount)}</span>`:""}</span><span class="small">${b.autopay?"Autopay · ":""}${s.paid?"Paid for "+MONTHS[fromYmd(k).getMonth()]+" · next "+fmtDay(s.date):s.days<0?"Overdue since "+fmtDay(s.date):"Due "+fmtDayW(s.date)}</span></button>${b.autopay&&!s.paid?`<span class="tag muted">auto</span>`:`<button class="chip plain ${s.paid?"on":""} ${!s.paid&&s.days<0?"late":""}" data-act="bill-paid" data-id="${esc(b.id)}" aria-pressed="${s.paid}">${s.paid?TICK+" Paid":"Mark paid"}</button>`}</div>`;
   const upRow = ({u,n}) => `<div class="lrow"><button class="col grow" data-act="ent-edit" data-kind="upkeep" data-id="${esc(u.id)}" style="text-align:left;min-width:0"><span style="font-weight:500">${esc(u.name)}</span><span class="small">Every ${Number(u.every)||3} ${Number(u.every)===1?"month":"months"} · ${u.last?"last done "+fmtDay(u.last):"not done yet"}</span></button><span class="tag ${n.days<0?"warn":n.days<=14?"sand":"muted"}">${n.days<0?"overdue":n.days===0?"due":fmtDay(n.date)}</span><button class="chip plain" data-act="upkeep-done" data-id="${esc(u.id)}">Done</button></div>`;
   const subRow = ({s,n}) => `<button class="lrow" data-act="ent-edit" data-kind="sub" data-id="${esc(s.id)}"><span class="col grow"><span style="font-weight:500">${esc(s.name)}</span><span class="small">${n?"Renews "+fmtDay(n.date):"No renewal date"}</span></span><span class="tabular" style="font-weight:500">${money(s.amount)}<span class="small">/${s.cycle==="yearly"?"yr":"mo"}</span></span></button>`;
-  return `${pageHead("Home <em>&amp; bills</em>", "")}
+  return `${pageHead("Home &amp; bills", "")}
   <div class="paper" style="padding:18px 20px;margin-top:16px;background:var(--sage-soft);border:0">
     <span class="eyebrow">Every month</span>
     <div class="serif tabular" style="font-size:40px;line-height:1.1;margin-top:4px">${money(Math.round(monthly))}</div>
@@ -1588,13 +1588,13 @@ function fridgeBoard(){
   const status = sorted(S.members).map(m=>`<button class="chip" data-act="status" data-id="${esc(m.id)}">${face(m,26)}<span style="font-size:12.5px"><b style="font-weight:600">${esc(m.name)}</b> <span style="color:var(--muted)">${esc(m.status||"—")}</span></span></button>`).join("");
   const notes = S.notes.slice().sort((a,b)=>(b.at||0)-(a.at||0)).map(n => {
     const h = hash(n.id), rot = ((h%9)-4)*0.8, tone = TONES.includes(n.tone)?n.tone:"white", pin = h%2 ? `<span class="tape"></span>` : `<span class="mag" style="background:var(--${["rose","sage","blue","olive"][h%4]})"></span>`;
-    return `<button class="note" data-act="note" data-id="${esc(n.id)}" style="background:var(--note-${tone});transform:rotate(${rot}deg)">${pin}<span class="t">${esc(n.text)}</span><span class="row" style="gap:6px">${face(mem(n.by),22)}<span class="small">${esc(memName(n.by))}</span></span></button>`;
+    return `<button class="note" data-act="note" data-id="${esc(n.id)}" style="background:var(--note-${tone})">${pin}<span class="t">${esc(n.text)}</span><span class="row" style="gap:6px">${face(mem(n.by),22)}<span class="small">${esc(memName(n.by))}</span></span></button>`;
   }).join("");
   const p = S.poll, total = p ? p.options.reduce((s,o)=>s+(o.votes||[]).length,0) : 0;
-  const poll = p ? `<div class="note" style="background:var(--note-white);transform:rotate(-1deg);grid-column:1 / -1;min-height:0"><span class="tape"></span>
+  const poll = p ? `<div class="note" style="background:var(--note-white);grid-column:1 / -1;min-height:0"><span class="tape"></span>
       <div class="between"><span style="font-weight:600;font-size:15px">${esc(p.question)}</span><button class="small" data-act="poll-edit" style="text-decoration:underline;text-underline-offset:3px">Edit</button></div>
       ${p.options.map((o,i)=>{ const v = o.votes||[], pct = total? Math.round(v.length/total*100):0, mine = v.includes(meIdv);
-        return `<button class="pollopt" data-act="vote" data-i="${i}" aria-pressed="${mine}"><span class="between"><span class="hand" style="font-size:21px;font-weight:700">${esc(o.label)}${mine?` <span style="color:var(--sage-ink);font-size:16px">your vote</span>`:""}</span><span class="faces">${v.map(id=>face(mem(id),20)).join("")}</span></span><span class="meter"><i style="width:${pct}%"></i></span></button>`; }).join("")}
+        return `<button class="pollopt" data-act="vote" data-i="${i}" aria-pressed="${mine}"><span class="between"><span class="hand" style="font-size:15px;font-weight:700">${esc(o.label)}${mine?` <span style="color:var(--sage-ink);font-size:16px">your vote</span>`:""}</span><span class="faces">${v.map(id=>face(mem(id),20)).join("")}</span></span><span class="meter"><i style="width:${pct}%"></i></span></button>`; }).join("")}
     </div>` : "";
   return `
   <div class="statusrow">${status}</div>
@@ -1629,7 +1629,7 @@ function kid(){
 /* ---------- FAMILY & SETTINGS ---------- */
 function family(){
   const t = S.tribe || { name:"Your tribe" }, me = meId(), known = knownTribes().filter(x=>x.code!==TRIBE), ks = sorted(S.members).filter(m=>m.style==="kid");
-  return `${pageHead("Your <em>tribe</em>")}
+  return `${pageHead("Your tribe")}
   <div class="paper col" style="padding:20px;gap:12px;margin-top:16px">
     <div class="between"><span class="serif" style="font-size:26px;min-width:0;overflow-wrap:anywhere">${esc(t.name)}</span><button class="small" data-act="tribe-rename" style="font-weight:600;color:var(--sage-ink)">Rename</button></div>
     <span class="eyebrow">Invite code</span>
@@ -1637,7 +1637,7 @@ function family(){
     <p class="small" style="margin:0;font-size:14px;line-height:1.45">Anyone with this code can join and see your tribe, so share it only with family, grandparents or your sitter. They open HeyTribe, tap <b>Join with an invite code</b> and type it in.</p>
   </div>
   ${secHead("People", 'data-act="member-new"', "Add someone")}
-  <div class="paper" style="padding:4px 16px">${sorted(S.members).map(m=>`<div class="lrow">${face(m,40)}<span class="grow" style="font-weight:500">${esc(m.name)}${m.style==="kid"||m.style==="baby"?` <span class="tag muted">${m.style}</span>`:""}</span>${m.id===me?`<span class="hand" style="font-size:19px;color:var(--sage-ink)">that's you</span>`:`<button class="chip plain" data-act="setme" data-id="${esc(m.id)}">That's me</button>`}<button class="iconbtn" data-act="member-edit" data-id="${esc(m.id)}" aria-label="Edit ${esc(m.name)}" style="width:36px;height:36px">${ico("fwd",16,2)}</button></div>`).join("")}</div>
+  <div class="paper" style="padding:4px 16px">${sorted(S.members).map(m=>`<div class="lrow">${face(m,40)}<span class="grow" style="font-weight:500">${esc(m.name)}${m.style==="kid"||m.style==="baby"?` <span class="tag muted">${m.style}</span>`:""}</span>${m.id===me?`<span class="hand" style="font-size:15px;color:var(--sage-ink)">that's you</span>`:`<button class="chip plain" data-act="setme" data-id="${esc(m.id)}">That's me</button>`}<button class="iconbtn" data-act="member-edit" data-id="${esc(m.id)}" aria-label="Edit ${esc(m.name)}" style="width:36px;height:36px">${ico("fwd",16,2)}</button></div>`).join("")}</div>
   ${ks.length?secHead("Kid view")+`<div class="chips">${ks.map(k=>`<button class="chip" data-act="kid-go" data-id="${esc(k.id)}">${face(k,28)}Open ${esc(k.name)}'s view</button>`).join("")}</div><p class="small" style="margin:8px 0 0">A big, simple screen with their routines and chores. Hand them the phone or leave it on a tablet.</p>`:""}
   ${secHead("Switch tribe")}
   <div class="col" style="gap:8px">
@@ -1714,7 +1714,7 @@ function eventSheet(id, day){
       ${e.place?`<div class="row">${ico("pin",20)}<span>${esc(e.place)}</span></div>`:""}
       <label class="field"><span class="row" style="gap:8px">${ico("car",18)}<span class="small">Who's driving</span></span>
         <select id="ev-driver" data-act-change="driver" data-id="${esc(e.id)}" data-day="${esc(day)}"><option value="">Nobody needed</option>${memberOptions(e.driver)}</select></label>
-      ${cf?`<p class="hand" style="font-size:20px;color:var(--rose-ink);margin:0">Heads up: ${esc(memName(e.driver))} has ${esc(cf.title)} at ${fmtT(cf.start)}.</p>`:""}
+      ${cf?`<p class="hand" style="font-size:15px;color:var(--rose-ink);margin:0">Heads up: ${esc(memName(e.driver))} has ${esc(cf.title)} at ${fmtT(cf.start)}.</p>`:""}
       ${e.note?`<p style="margin:0;color:var(--muted);line-height:1.5">${esc(e.note)}</p>`:""}
     </div>
   </div>
@@ -2437,7 +2437,7 @@ async function afterLogin(){
   if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
-if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261026b', document.body);
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261027', document.body);
 if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
 addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
 render();

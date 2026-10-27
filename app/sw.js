@@ -1,6 +1,6 @@
 /* HeyTribe service worker: opens offline with the last saved app, and shows reminders. */
-const CACHE = "ht-app-553a0979";
-const SHELL = ["/app/", "/app/assets/app.6c0d6dfe04.js", "/app/assets/app.fd722aaa50.css", "/app/config.js", "/app/vendor/supabase.js", "/app/vendor/591.supabase.js", "/i18n/ht-i18n.js", "/app/i18n/es-app.json", "/app/manifest.webmanifest", "/app/icons/icon-192.png", "/favicon.svg", "/assets/fonts/outfit.woff2", "/assets/fonts/fraunces.woff2", "/assets/fonts/fraunces-italic.woff2", "/assets/fonts/caveat.woff2"];
+const CACHE = "ht-app-07258b70";
+const SHELL = ["/app/", "/app/assets/app.4167197fe0.js", "/app/assets/app.a4d99c47aa.css", "/app/config.js", "/app/vendor/supabase.js", "/app/vendor/591.supabase.js", "/i18n/ht-i18n.js", "/app/i18n/es-app.json", "/app/manifest.webmanifest", "/app/icons/icon-192.png", "/favicon.svg", "/assets/fonts/atkinson.woff2", "/assets/fonts/atkinson-italic.woff2"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {

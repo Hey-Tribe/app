@@ -13,7 +13,10 @@
     "build:app": "node tools/build-app.mjs",
     "test": "node --test tests/unit.test.mjs",
     "test:e2e": "node tests/smoke.mjs",
-    "check": "npm run build:app && git diff --exit-code -- app/index.html app/sw.js app/assets && npm test"
+    "check": "npm run build:app && git diff --exit-code -- app/index.html app/sw.js app/assets && npm test",
+    "screenshots": "npm run build:app && node tools/screenshots.mjs && python3 tools/screenshots-webp.py",
+    "og": "node tools/og-images.mjs",
+    "i18n:check": "node tools/i18n-missing.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.0",

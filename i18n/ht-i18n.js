@@ -34,8 +34,9 @@
     [/^Autopay · Due (.+)$/, function(s, d){ return "Pago automático · Vence " + date(d); }],
     [/^Every (\d+) months? · last done (.+)$/, function(s, n, d){ return "Cada " + n + (n === "1" ? " mes" : " meses") + " · última vez " + date(d); }],
     [/^(\d+) plans? today\.(?: Next up:)?$/, function(s, n){ return n + (n === "1" ? " plan hoy." : " planes hoy.") + (/Next up/.test(s) ? " Lo que sigue:" : ""); }],
+    [/^(January|February|March|April|May|June|July|August|September|October|November|December) (\d{1,2})$/, function(s, m, n){ return n + " de " + MONL[m]; }],
     [/^Nothing on the calendar today\.$/, function(){ return "Nada en el calendario hoy."; }],
-    [/^(Morning|Afternoon|Evening), (.+) —$/, function(s, t, n){ return ({Morning:"Buenos días", Afternoon:"Buenas tardes", Evening:"Buenas noches"})[t] + ", " + n + " —"; }],
+    [/^(?:Good )?(morning|afternoon|evening|Morning|Afternoon|Evening), (.+?)(?: —)?$/, function(s, t, n){ return ({morning:"Buenos días", afternoon:"Buenas tardes", evening:"Buenas noches"})[t.toLowerCase()] + ", " + n; }],
     [/^Next up: (.+), (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|today|tomorrow) at (.+)$/, function(s, w, d, t){ return "Lo que sigue: " + w + ", " + (d === "today" ? "hoy" : d === "tomorrow" ? "mañana" : date(d).toLowerCase()) + " a las " + t; }],
     [/^Fed (\d+h )?(\d+)m ago$/, function(s, h, m){ return "Comió hace " + (h || "") + m + "m"; }],
     [/^(\d+h )?(\d+)m ago$/, function(s, h, m){ return "hace " + (h || "") + m + "m"; }],
@@ -124,6 +125,7 @@
   }
   window.HTi18n = {
     lang: LANG,
+    _tr: tr, // used by tools/i18n-missing.mjs to find untranslated text
     set: function(l){ try { localStorage.setItem(KEY, l); } catch(e){} location.reload(); },
     start: function(url, root){
       document.documentElement.lang = LANG;

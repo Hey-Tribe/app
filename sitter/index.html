@@ -13,20 +13,19 @@
 <title>Care sheet | HeyTribe</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="preload" href="/assets/fonts/outfit.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin>
-<style>@font-face{font-family:"Outfit";font-style:normal;font-weight:100 900;font-display:swap;src:url(/assets/fonts/outfit.woff2) format("woff2")}@font-face{font-family:"Fraunces";font-style:normal;font-weight:400 500;font-display:swap;src:url(/assets/fonts/fraunces.woff2) format("woff2")}@font-face{font-family:"Fraunces";font-style:italic;font-weight:100 900;font-display:swap;src:url(/assets/fonts/fraunces-italic.woff2) format("woff2")}@font-face{font-family:"Caveat";font-style:normal;font-weight:400 700;font-display:swap;src:url(/assets/fonts/caveat.woff2) format("woff2")}</style>
+<link rel="preload" href="/assets/fonts/atkinson.woff2" as="font" type="font/woff2" crossorigin>
+<style>@font-face{font-family:"Atkinson Hyperlegible Next";font-style:normal;font-weight:200 800;font-display:swap;src:url(/assets/fonts/atkinson.woff2) format("woff2")}@font-face{font-family:"Atkinson Hyperlegible Next";font-style:italic;font-weight:200 800;font-display:swap;src:url(/assets/fonts/atkinson-italic.woff2) format("woff2")}</style>
 <style>
 :root{--bg:#FBFCFA;--surface:#fff;--ink:#2F3B45;--muted:#606A73;--line:#E1E6E1;--sage:#5E8C7A;--sage-ink:#46705F;--sage-soft:#E6EEE9;--rose-ink:#8E6A64;
 --m-sage:#5E8C7A;--m-sage-bg:#D7E5DC;--m-blue:#6B8BA4;--m-blue-bg:#D9E3EB;--m-rose:#B08A84;--m-rose-bg:#EFE0DC;--m-olive:#8A8F6B;--m-olive-bg:#E6E8D7;--m-sand:#C9A66B;--m-sand-bg:#F1E7D3;
---f-ui:"Outfit",system-ui,sans-serif;--f-display:"Fraunces",Georgia,serif;--f-hand:"Caveat",cursive}
+--f-ui:"Atkinson Hyperlegible Next",system-ui,sans-serif;--f-display:"Atkinson Hyperlegible Next",system-ui,sans-serif;--f-hand:"Atkinson Hyperlegible Next",system-ui,sans-serif}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
 main{max-width:720px;margin:0 auto;padding:24px 20px 60px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px}.logo{display:flex;align-items:center;gap:8px;font-size:19px;text-decoration:none;color:inherit}
-h1{font-family:var(--f-display);font-weight:400;font-size:clamp(36px,8vw,52px);letter-spacing:-1px;line-height:1.05;margin:22px 0 6px}h1 em{color:var(--sage-ink)}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(32px,7vw,44px);letter-spacing:-.02em;line-height:1.05;margin:22px 0 6px}h1 em{color:var(--sage-ink)}
 .sub{color:var(--muted);margin:0}.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted)}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px;margin-top:16px}
-.kid{display:flex;align-items:center;gap:12px}.kid h2{font-family:var(--f-display);font-weight:400;font-size:26px;margin:0}
+.kid{display:flex;align-items:center;gap:12px}.kid h2{font-family:var(--f-display);font-weight:700;font-size:22px;margin:0}
 .face{display:inline-flex;border-radius:50%;overflow:hidden;flex-shrink:0}
 .allergy{background:var(--m-rose-bg);border-radius:14px;padding:10px 12px;margin-top:12px;color:var(--rose-ink)}.allergy b{font-weight:600}
 .row{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}.row:first-of-type{border-top:0}
@@ -34,7 +33,7 @@ h1{font-family:var(--f-display);font-weight:400;font-size:clamp(36px,8vw,52px);l
 .row b{font-weight:600}.row small{display:block;color:var(--muted);font-size:13.5px}
 .call{margin-left:auto;align-self:center;background:var(--ink);color:#fff;border-radius:999px;padding:8px 14px;font-weight:600;text-decoration:none;font-size:14px;white-space:nowrap}
 .info dt{font-size:11.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-top:12px}.info dd{margin:2px 0 0;white-space:pre-line}
-.empty{text-align:center;padding:60px 10px}.hand{font-family:var(--f-hand);font-size:26px;color:var(--sage-ink)}
+.empty{text-align:center;padding:60px 10px}.hand{font-size:20px;font-weight:700;color:var(--ink)}
 .foot{margin-top:28px;text-align:center;font-size:13px;color:var(--muted)}.foot a{color:var(--sage-ink);font-weight:600}
 @media print{.call,.foot{display:none}.card{break-inside:avoid}}
 </style></head>
@@ -84,7 +83,7 @@ fetch(CFG.supabaseUrl + "/rest/v1/rpc/sitter_sheet", { method: "POST", headers: 
     const contacts = (d.contacts || []).slice().sort((a,b) => (order[a.role] ?? 9) - (order[b.role] ?? 9));
     const i = d.info || {};
     $("#m").innerHTML = `<div class="top">${logo}<button onclick="print()" style="border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer">Print</button></div>
-      <h1>Care sheet for <em>${esc(d.tribe)}</em></h1><p class="sub">Shared by the family. This link works until ${esc(until)}.</p>
+      <h1>Care sheet for ${esc(d.tribe)}</h1><p class="sub">Shared by the family. This link works until ${esc(until)}.</p>
       ${kids.map(kidCard).join("") || `<section class="card"><p class="sub">No kids listed yet.</p></section>`}
       ${contacts.length ? `<section class="card"><span class="eyebrow">Who to call</span>${contacts.map(c => `<div class="row"><span class="ic" style="background:var(--sage-soft);color:var(--sage-ink)">${ico(PHONE)}</span><span><b>${esc(c.name)}</b><small>${esc(c.note || ({emergency:"Emergency", doctor:"Doctor", family:"Family", sitter:"Sitter"})[c.role] || "")}</small></span>${c.phone ? `<a class="call" href="tel:${esc(String(c.phone).replace(/[^0-9+]/g, ""))}">${esc(c.phone)}</a>` : ""}</div>`).join("")}<div class="row"><span class="ic" style="background:var(--m-rose-bg);color:var(--rose-ink)">${ico(PHONE)}</span><span><b>Emergency</b><small>Police, fire, ambulance</small></span><a class="call" href="tel:911">911</a></div></section>` : ""}
       ${i.address || i.wifi || i.rules || i.notes ? `<section class="card info"><span class="eyebrow">The house</span><dl>${[["Address", i.address], ["Wi-Fi", i.wifi], ["House rules", i.rules], ["Good to know", i.notes]].filter(x => x[1]).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl></section>` : ""}

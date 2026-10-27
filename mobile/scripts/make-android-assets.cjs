@@ -36,6 +36,6 @@ const D = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
   await shot(480, 320, splash(320, 480), path.join(res, 'drawable', 'splash.png'));
   // Play Store: 512 icon (no transparency) and the 1024x500 feature graphic
   await shot(512, 512, `<div style="margin-top:22px">${mark(320)}</div>`, path.join(store, 'icon-512.png'));
-  await shot(1024, 500, `<div style="display:flex;flex-direction:column;align-items:center;gap:22px"><div style="display:flex;align-items:center;gap:22px">${mark(110)}<span style="font:500 92px Helvetica,Arial,sans-serif;color:#2F3B45;letter-spacing:-2px">hey<b style="font-weight:800">tribe</b></span></div><span style="font:400 34px Helvetica,Arial,sans-serif;color:#555E67">The whole family, in sync.</span></div>`, path.join(store, 'feature-graphic.png'));
+  await shot(1024, 500, `<div style="display:flex;flex-direction:column;align-items:center;gap:22px"><div style="display:flex;align-items:center;gap:22px">${mark(110)}<span style="font:500 92px Helvetica,Arial,sans-serif;color:#2F3B45;letter-spacing:-2px">hey<b style="font-weight:800">tribe</b></span></div><span style="font:400 34px Helvetica,Arial,sans-serif;color:#555E67">Family calendar, chores and lists</span></div>`, path.join(store, 'feature-graphic.png'));
   await b.close();
 })();
