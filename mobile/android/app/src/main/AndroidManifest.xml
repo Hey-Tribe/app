@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="false"
@@ -59,4 +60,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Premium isn't sold in the Android app (no Google Play Billing yet), so drop the billing permission the purchases plugin adds. -->
+    <uses-permission android:name="com.android.vending.BILLING" tools:node="remove" />
 </manifest>

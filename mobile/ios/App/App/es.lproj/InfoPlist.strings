@@ -1,0 +1,3 @@
+/* Permission prompts (Spanish) */
+"NSCameraUsageDescription" = "HeyTribe usa la cámara cuando tomas una foto de un documento, como una tarjeta del seguro o un formulario de la escuela.";
+"NSPhotoLibraryUsageDescription" = "HeyTribe te deja adjuntar una foto de tu biblioteca a un documento, como una tarjeta del seguro o un formulario de la escuela.";

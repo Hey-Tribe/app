@@ -1,0 +1,3 @@
+/* Permission prompts (English) */
+"NSCameraUsageDescription" = "HeyTribe uses the camera when you take a photo of a document, like an insurance card or a school form.";
+"NSPhotoLibraryUsageDescription" = "HeyTribe lets you attach a photo from your library to a document, like an insurance card or a school form.";

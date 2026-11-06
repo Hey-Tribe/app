@@ -18,6 +18,7 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A1B2C3D42FF0000100000001 /* HTAuthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42FF0000100000002 /* HTAuthPlugin.swift */; };
+		A1B2C3D42FF0000100000011 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42FF0000100000012 /* InfoPlist.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,6 +35,8 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		A1B2C3D42FF0000100000002 /* HTAuthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTAuthPlugin.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		A1B2C3D42FF0000100000013 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		A1B2C3D42FF0000100000014 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,6 +78,7 @@
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				A1B2C3D42FF0000100000004 /* PrivacyInfo.xcprivacy */,
+				A1B2C3D42FF0000100000012 /* InfoPlist.strings */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
 				504EC3131FED79650016851F /* Info.plist */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
@@ -128,6 +132,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				es,
 				Base,
 			);
 			mainGroup = 504EC2FB1FED79650016851F;
@@ -152,6 +157,7 @@
 				50B271D11FEDC1A000F3C39B /* public in Resources */,
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,
 				A1B2C3D42FF0000100000003 /* PrivacyInfo.xcprivacy in Resources */,
+				A1B2C3D42FF0000100000011 /* InfoPlist.strings in Resources */,
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
@@ -188,6 +194,15 @@
 				504EC3111FED79650016851F /* Base */,
 			);
 			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		A1B2C3D42FF0000100000012 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				A1B2C3D42FF0000100000013 /* en */,
+				A1B2C3D42FF0000100000014 /* es */,
+			);
+			name = InfoPlist.strings;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */

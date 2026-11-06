@@ -350,7 +350,7 @@ function upsell(why){
     <h2 class="serif" style="font-size:28px;margin:0">That's a Premium extra</h2>
     <p style="margin:0;color:var(--muted)">${esc(why)}</p>
     ${ANDROID_APP ? "" : `<p style="margin:0">${priceSentence()}</p>`}
-    <div class="col" style="gap:10px">${BILLING ? planButtons() : `<span class="small">Premium checkout opens soon.</span>`}<button class="btn ghost" data-act="close" style="border:0">Not now</button></div>${NATIVE ? appleTerms() : ""}</div>`);
+    <div class="col" style="gap:10px">${BILLING ? planButtons() : `<span class="small">Premium checkout opens soon.</span>`}<button class="btn ghost" data-act="close" style="border:0">Not now</button></div>${IOS_APP ? appleTerms() : ""}</div>`);
 }
 function gate(ok, why){ if(ok || !limited()) return true; upsell(why); return false; }
 /* what a free tribe can add (existing records always stay; this only stops new ones) */
@@ -367,7 +367,7 @@ const FREE_ADD = {
 function gateTribes(){ const mine = knownTribes().filter(t => t.code !== "SAMPLE"); return !mine.length || !TRIBE || TRIBE === "SAMPLE" ? true : gate(false, "Being in more than one family is a Premium extra. It's handy for the grandparents' house or a co-parent's home."); }
 function gateAdd(kind){ const f = FREE_ADD[kind]; if(!f) return true; const [ok, why] = f(); return gate(ok, why); }
 const appleSub = () => !!(PLAN && String(PLAN.stripe_subscription_id || "").startsWith("apple:"));
-function appleTerms(){ return `<p class="small" style="margin:0;line-height:1.5">Monthly or yearly subscription for your whole family. Payment is charged to your Apple ID. It renews for the same period unless you cancel at least 24 hours before it ends. Manage or cancel anytime in your Apple ID settings. <a href="/terms.html" target="_blank" style="color:inherit;text-decoration:underline">Terms</a> · <a href="/privacy.html" target="_blank" style="color:inherit;text-decoration:underline">Privacy</a></p><div class="row"><button class="btn ghost" data-act="iap-restore">Restore purchases</button></div>`; }
+function appleTerms(){ return `<p class="small" style="margin:0;line-height:1.5">Monthly or yearly subscription for your whole family. If you haven't had Premium through Apple before, the first 2 weeks are free, then the price above is charged unless you cancel before the free weeks end. Payment is charged to your Apple ID. It renews for the same period unless you cancel at least 24 hours before it ends. Manage or cancel anytime in your Apple ID settings. <a href="/terms.html" target="_blank" style="color:inherit;text-decoration:underline">Terms</a> · <a href="/privacy.html" target="_blank" style="color:inherit;text-decoration:underline">Privacy</a></p><div class="row"><button class="btn ghost" data-act="iap-restore">Restore purchases</button></div>`; }
 async function billingGo(action, btn){
   if(ANDROID_APP){ toast("Premium can't be bought in the Android app yet."); return; }
   if(NATIVE){
@@ -391,7 +391,7 @@ function planCard(){
   if(!SESSION || !TRIBE || TRIBE === "SAMPLE" || !PLAN) return "";
   const st = PLAN.status, d = trialDays();
   let head, sub, btn = "";
-  const up = () => BILLING ? `${planButtons()}${NATIVE ? appleTerms() : ""}` : `<span class="small">Premium checkout opens soon.</span>`;
+  const up = () => BILLING ? `${planButtons()}${IOS_APP ? appleTerms() : ""}` : `<span class="small">Premium checkout opens soon.</span>`;
   const manage = label => NATIVE ? (appleSub() ? `<button class="btn ghost" data-act="billing-portal">Manage subscription</button>` : (PLAN.stripe_customer_id ? `<span class="small">Billing is managed on heytribe.app.</span>` : "")) : BILLING && PLAN.stripe_customer_id ? `<button class="btn ghost" data-act="billing-portal">${label}</button>` : "";
   if(st === "comped"){ head = "Premium"; sub = "On the house. Enjoy every extra."; }
   else if(st === "active"){ head = "Premium"; sub = PLAN.current_period_end ? "Renews " + fmtDay(ymd(new Date(PLAN.current_period_end))) : "Thanks for being Premium."; btn = manage("Manage billing"); }
@@ -1653,7 +1653,7 @@ function family(){
   ${remindersCard()}
   ${supportCard()}
   ${SESSION?`${secHead("Your account")}<div class="paper col" style="padding:16px;gap:10px"><span style="font-weight:500;overflow-wrap:anywhere">${esc(SESSION.user.email||"")}</span><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="auth-change-pw">Change password</button><button class="btn ghost" data-act="sign-out">Log out</button></div>
-    <div class="row" style="gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px"><button class="btn ghost" data-act="export-data">${ico("download",17)} Download our data</button>${isParent()?`<button class="small" data-act="close-family" style="color:var(--rose-ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Delete this family</button>`:""}<button class="small" data-act="delete-account" style="color:var(--rose-ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Delete my account</button></div></div>`:""}`;
+    <div class="row" style="gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px"><button class="btn ghost" data-act="export-data">${ico("download",17)} Download our data</button><button class="btn ghost" data-act="ai-toggle" aria-pressed="${aiConsent() === true}">Hey Tribe AI: ${aiConsent() === true ? "On" : "Off"}</button>${isParent()?`<button class="small" data-act="close-family" style="color:var(--rose-ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Delete this family</button>`:""}<button class="small" data-act="delete-account" style="color:var(--rose-ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Delete my account</button></div></div>`:""}`;
 }
 
 const VIEWFN = { today, calendar, chores, lists, menu, baby, fridge: today, routines, health, school, sitter, home, docs, trips, trip, contacts, kid, family };
@@ -1976,6 +1976,12 @@ function describe(a){
   if(a.type==="chore") return { ic:"check", who:a.member, head:a.title, sub:`Chore for ${memName(a.member)}` };
   return { ic:"note", head:a.text, sub:"Note on the fridge" };
 }
+/* Hey Tribe AI: ask once before any text goes to the AI provider (App Review 5.1.2(i)). "yes" / "no" per device. */
+const aiConsent = () => { const v = store.get("ht-ai-ok"); return v === "yes" ? true : v === "no" ? false : null; };
+let htAsked = "";
+function aiAskHtml(){
+  return `<div class="col" style="gap:10px;margin:6px 0"><p style="margin:0;font-weight:600">Use AI to understand what you type?</p><p style="margin:0;opacity:.85;line-height:1.5">Hey Tribe can send what you type, the first names in your family and today's date to Anthropic, an AI company, to work out who, when and what. Anthropic doesn't use it to train its models. Without AI, HeyTribe uses a simpler built-in reader that stays on your phone.</p><a href="/privacy.html#ai" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;opacity:.85">How we handle this</a><div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn" style="background:var(--night-ink);color:var(--night-a)" data-act="ai-yes">Allow</button><button class="btn" style="border:1.5px solid rgba(255,255,255,.3);background:transparent;color:inherit" data-act="ai-no">Don't use AI</button></div></div>`;
+}
 async function htUnderstand(text){
   const out = $("#ht-out"); if(!out) return;
   if(limited()){
@@ -1987,7 +1993,8 @@ async function htUnderstand(text){
   }
   out.innerHTML = `<p class="serif" style="font-size:20px;opacity:.75;margin:6px 0">Thinking…</p>`;
   let acts = null;
-  if(sampler && TRIBE !== "SAMPLE"){
+  if(sampler && TRIBE !== "SAMPLE" && aiConsent() === null){ htAsked = text; out.innerHTML = aiAskHtml(); return; }
+  if(sampler && TRIBE !== "SAMPLE" && aiConsent() === true){
     htCtl = new AbortController();
     const d = new Date();
     const ctx = { code: TRIBE, dow: DOW_LONG[dowIdx(d)], today: todayKey(), time: toHHMM(nowMin()), me: memName(meId()), members: S.members.map(m=>({ id:m.id, name:m.name })), lists: listNames() };
@@ -2052,7 +2059,7 @@ document.addEventListener("click", async e => {
   const tc = e.target.closest("[data-tk-cat]"); if(tc){ const f = tc.closest("form"); f.querySelectorAll("[data-tk-cat]").forEach(x => x.classList.toggle("on", x === tc)); f.querySelector('input[name="category"]').value = tc.dataset.tkCat; return; }
   const b = e.target.closest("[data-act]"); if(!b) return;
   const id = b.dataset.id, act = b.dataset.act;
-  const needsDb = !["close","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal","tk-new","tk-open","pending-check","pending-cancel","export-data","delete-account","sitter-link","sitter-make","sitter-stop","cal-sub","cal-reset","rem-on","rem-off","rem-pref","rem-test","search","theme","setup-hide","ann-hide","install-app"].includes(act);
+  const needsDb = !["close","ai-yes","ai-no","ai-toggle","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal","tk-new","tk-open","pending-check","pending-cancel","export-data","delete-account","sitter-link","sitter-make","sitter-stop","cal-sub","cal-reset","rem-on","rem-off","rem-pref","rem-test","search","theme","setup-hide","ann-hide","install-app"].includes(act);
   if(needsDb && !db) return;
   switch(act){
     case "close": closeSheet(); break;
@@ -2077,6 +2084,8 @@ document.addEventListener("click", async e => {
     /* hey tribe */
     case "ht": htSheet(); break;
     case "ht-commit": htCommit(); break;
+    case "ai-yes": case "ai-no": store.set("ht-ai-ok", act === "ai-yes" ? "yes" : "no"); if(htAsked){ const t = htAsked; htAsked = ""; htUnderstand(t); } else render(); break;
+    case "ai-toggle": store.set("ht-ai-ok", aiConsent() === true ? "no" : "yes"); toast(aiConsent() ? "AI is on for Hey Tribe" : "AI is off. Hey Tribe uses the built-in reader."); render(); break;
     case "ht-reset": { htPending = null; $("#ht-out").innerHTML = ""; const t = $("#ht-text"); if(t){ t.value = ""; t.focus(); } break; }
     /* calendar */
     case "event": eventSheet(id, b.dataset.day); break;

@@ -1,4 +1,5 @@
 {
+"The app asks before it sends anything to Anthropic the first time. If you say no, Hey Tribe uses a simpler built-in reader instead and nothing is sent. You can turn AI on or off any time in Family › Your account.": "La app te pregunta antes de enviar algo a Anthropic por primera vez. Si dices que no, Hey Tribe usa un lector más sencillo integrado y no se envía nada. Puedes activar o desactivar la IA cuando quieras en Familia › Tu cuenta.",
 ", founder": ", fundador",
 "A baby log for feeds, diapers and sleep": "Un registro del bebé para tomas, pañales y sueño",
 "A care sheet you can send to the sitter": "Una ficha de cuidados para enviar a la niñera",
