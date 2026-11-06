@@ -1147,7 +1147,7 @@ function today(){
   else if(evs.length) brief += " That's everything for today.";
   const cdToday = countdownsUpcoming().filter(x => x.n === 0);
   if(cdToday.length) brief = `<b style="font-weight:600">Today's the day: ${cdToday.map(x=>esc(x.c.title)).join(", ")}!</b> ` + brief;
-  if(S.meals[key]?.dish) brief += ` Dinner is <b style="font-weight:600">${esc(S.meals[key].dish)}</b>.`;
+  if(S.meals[key]?.dish) brief += ` <span>Dinner is</span> <b style="font-weight:600">${esc(S.meals[key].dish)}</b>.`;
   if(custodyOn(key)) brief += " " + custodyLine(key);
   const hu = [...headsUpAccess(), ...headsUp()];
   let tl = "", nowPlaced = false;
@@ -2446,7 +2446,7 @@ async function afterLogin(){
   if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
-if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261027', document.body);
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261106', document.body);
 if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
 addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
 render();

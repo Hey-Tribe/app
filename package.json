@@ -16,7 +16,8 @@
     "check": "npm run build:app && git diff --exit-code -- app/index.html app/sw.js app/assets && npm test",
     "screenshots": "npm run build:app && node tools/screenshots.mjs && python3 tools/screenshots-webp.py",
     "og": "node tools/og-images.mjs",
-    "i18n:check": "node tools/i18n-missing.mjs"
+    "i18n:check": "node tools/i18n-missing.mjs",
+    "store-shots": "npm run build:app && node tools/store-screenshots.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.0",

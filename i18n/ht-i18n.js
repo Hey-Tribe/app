@@ -37,6 +37,8 @@
     [/^(January|February|March|April|May|June|July|August|September|October|November|December) (\d{1,2})$/, function(s, m, n){ return n + " de " + MONL[m]; }],
     [/^Nothing on the calendar today\.$/, function(){ return "Nada en el calendario hoy."; }],
     [/^(?:Good )?(morning|afternoon|evening|Morning|Afternoon|Evening), (.+?)(?: —)?$/, function(s, t, n){ return ({morning:"Buenos días", afternoon:"Buenas tardes", evening:"Buenas noches"})[t.toLowerCase()] + ", " + n; }],
+    [/^in (\d+) days?$/, function(s, n){ return "en " + n + (n === "1" ? " día" : " días"); }],
+    [/^at (\d{1,2}(?::\d\d)?\s?[ap]m)(?: with (.+?))?(?:, (.+) driving)?\.$/, function(s, t, w, d){ return "a las " + t + (w ? " con " + w : "") + (d ? ", maneja " + d : "") + "."; }],
     [/^Next up: (.+), (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|today|tomorrow) at (.+)$/, function(s, w, d, t){ return "Lo que sigue: " + w + ", " + (d === "today" ? "hoy" : d === "tomorrow" ? "mañana" : date(d).toLowerCase()) + " a las " + t; }],
     [/^Fed (\d+h )?(\d+)m ago$/, function(s, h, m){ return "Comió hace " + (h || "") + m + "m"; }],
     [/^(\d+h )?(\d+)m ago$/, function(s, h, m){ return "hace " + (h || "") + m + "m"; }],
