@@ -110,6 +110,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--sage)}
 .rm b{font-weight:600;line-height:1.3}
 .rm .meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
 .prio{display:inline-flex;gap:2px}.prio i{width:6px;height:6px;border-radius:50%;background:var(--line)}.prio i.on{background:var(--rose)}
+.rm-groups{display:grid;gap:14px}.rm-group h2{margin:0}.rm-group summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:center}.rm-row{width:100%;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;cursor:pointer;font:inherit;color:inherit}.rm-row:hover{background:var(--bg)}.rm-row .t{flex:1;min-width:0}.rm-row .t small{display:block;color:var(--muted)}.rm-row .badge{min-width:52px;text-align:center}
 .addcard{border:1.5px dashed #C9D3CC;border-radius:14px;padding:9px;color:var(--sage-ink);font-weight:600;text-align:center}
 /* drawer & modal */
 .scrim{position:fixed;inset:0;background:rgba(20,26,29,.38);z-index:50;display:flex;justify-content:flex-end}
@@ -243,7 +244,7 @@ async function render(){
 
 /* ---------- overview ---------- */
 async function overview(m){
-  const [s, daily, tribes, road] = await Promise.all([rpc("admin_stats"), rpc("admin_daily", { p_days: 30 }), rpc("admin_tribes", { p_q:"", p_limit:200, p_offset:0 }), sb.from("roadmap_items").select("*").eq("area","launch").neq("status","shipped").order("priority")]);
+  const [s, daily, tribes, road] = await Promise.all([rpc("admin_stats"), rpc("admin_daily", { p_days: 30 }), rpc("admin_tribes", { p_q:"", p_limit:200, p_offset:0 }), sb.from("roadmap_items").select("*").neq("status","shipped").not("target","is",null).order("target").order("sort").limit(8)]);
   ST.stats = s;
   const mrr = s.active * PRICE;
   const soon = (tribes||[]).filter(t => t.status === "trialing" && t.trial_ends_at && new Date(t.trial_ends_at) > new Date() && new Date(t.trial_ends_at) - new Date() < 3*864e5);
@@ -373,11 +374,22 @@ async function roadmap(m){
   const r = await sb.from("roadmap_items").select("*").order("priority").order("sort");
   if(r.error) throw r.error;
   const items = r.data;
-  m.innerHTML = `<div class="head"><div><h1>Roadmap</h1><p class="sub">Click a card to edit it or move it along. Items marked public can be shown on the website later.</p></div><button class="btn" data-new="idea">+ New item</button></div>
-    <div class="board">${COLS.map(([k,l]) => { const list = items.filter(i => i.status === k); return `<div class="col"><h3><span>${l}</span><span class="tab">${list.length}</span></h3>
+  let view = "milestones"; try { view = localStorage.getItem("ht-rm-view") || view; } catch(e) {}
+  const owner = d => ((d||"").match(/^Owner:\s*([^.]+)\./) || [])[1] || "";
+  const ST = { idea:["Idea","none"], planned:["To do","new"], in_progress:["Doing","replied"], shipped:["Done","done"] };
+  const groups = [...new Set(items.filter(i => i.status !== "shipped").map(i => i.target || "No milestone"))].sort((a,b) => a === "No milestone" ? 1 : b === "No milestone" ? -1 : a.localeCompare(b));
+  const row = i => `<button class="li rm-row" data-id="${i.id}"><span class="badge b-${ST[i.status][1]}">${ST[i.status][0]}</span><div class="t"><b>${esc(i.title)}</b><small>${esc(owner(i.details))}</small></div><span class="pill">${esc(i.area)}</span><span class="prio" title="Priority ${i.priority}">${[1,2,3].map(n => `<i class="${n <= 4 - i.priority ? "on" : ""}"></i>`).join("")}</span></button>`;
+  const done = items.filter(i => i.status === "shipped");
+  const milestones = groups.map(g => { const list = items.filter(i => i.status !== "shipped" && (i.target || "No milestone") === g).sort((a,b) => (a.sort||0)-(b.sort||0) || a.priority-b.priority);
+      return `<div class="card rm-group"><div class="between"><h2>${esc(g)}</h2><span class="sub">${list.length} to do</span></div><div class="list">${list.map(row).join("")}</div></div>`; }).join("")
+    + `<details class="card rm-group"><summary><b>Done</b> <span class="sub">${done.length}</span></summary><div class="list">${done.map(row).join("")}</div></details>`;
+  m.innerHTML = `<div class="head"><div><h1>Roadmap</h1><p class="sub">Work top to bottom: each milestone needs the ones above it. Click an item to edit it.</p></div><div class="row" style="gap:8px"><button class="btn ghost sm" data-view="${view === "board" ? "milestones" : "board"}">${view === "board" ? "Milestones" : "Board"}</button><button class="btn" data-new="planned">+ New item</button></div></div>
+    ${view === "board" ? "" : `<div class="rm-groups">${milestones}</div>`}
+    <div class="board" ${view === "board" ? "" : "hidden"}>${COLS.map(([k,l]) => { const list = items.filter(i => i.status === k); return `<div class="col"><h3><span>${l}</span><span class="tab">${list.length}</span></h3>
       ${list.map(i => `<button class="rm" data-id="${i.id}"><b>${esc(i.title)}</b><span class="meta"><span class="pill">${esc(i.area)}</span><span class="prio" title="Priority ${i.priority}">${[1,2,3].map(n => `<i class="${n <= 4 - i.priority ? "on" : ""}"></i>`).join("")}</span>${i.target?`<span>${esc(i.target)}</span>`:""}${i.public?`<span>· public</span>`:""}</span></button>`).join("")}
       <button class="addcard" data-new="${k}">+ Add</button></div>`; }).join("")}</div>`;
   m.querySelectorAll("[data-id]").forEach(b => b.onclick = () => itemModal(items.find(i => i.id === b.dataset.id)));
+  m.querySelectorAll("[data-view]").forEach(b => b.onclick = () => { try { localStorage.setItem("ht-rm-view", b.dataset.view); } catch(e) {} roadmap(m); });
   m.querySelectorAll("[data-new]").forEach(b => b.onclick = () => itemModal({ status: b.dataset.new, area: "app", priority: 2, public: false }));
 }
 function itemModal(it){
