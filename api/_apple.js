@@ -2,6 +2,7 @@
 // A JWS is trusted only if its certificate chain ends at Apple Root CA - G3 (pinned below), every link
 // is signed by the next, each certificate is in date, the Apple marker extensions are present, and the
 // ES256 signature checks out with the leaf key. Anything else is rejected.
+import { sbHeaders } from "./_sb.js";
 import crypto from "node:crypto";
 
 const APPLE_ROOT_G3 = "MIICQzCCAcmgAwIBAgIILcX8iNLFS5UwCgYIKoZIzj0EAwMwZzEbMBkGA1UEAwwSQXBwbGUgUm9vdCBDQSAtIEczMSYwJAYDVQQLDB1BcHBsZSBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTETMBEGA1UECgwKQXBwbGUgSW5jLjELMAkGA1UEBhMCVVMwHhcNMTQwNDMwMTgxOTA2WhcNMzkwNDMwMTgxOTA2WjBnMRswGQYDVQQDDBJBcHBsZSBSb290IENBIC0gRzMxJjAkBgNVBAsMHUFwcGxlIENlcnRpZmljYXRpb24gQXV0aG9yaXR5MRMwEQYDVQQKDApBcHBsZSBJbmMuMQswCQYDVQQGEwJVUzB2MBAGByqGSM49AgEGBSuBBAAiA2IABJjpLz1AcqTtkyJygRMc3RCV8cWjTnHcFBbZDuWmBSp3ZHtfTjjTuxxEtX/1H7YyYl3J6YRbTzBPEVoA/VhYDKX1DyxNB0cTddqXl5dvMVztK517IDvYuVTZXpmkOlEKMaNCMEAwHQYDVR0OBBYEFLuw3qFYM4iapIqZ3r6966/ayySrMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMAoGCCqGSM49BAMDA2gAMGUCMQCD6cHEFl4aXTQY2e3v9GwOAEZLuN+yRhHFD/3meoyhpmvOwgPUnPWTxnS4at+qIxUCMG1mihDK1A3UT82NQz60imOlM27jbdoXt2QfyFMm+YhidDkLF1vLUagM6BgD56KyKA==";
@@ -41,7 +42,7 @@ export function txStatus(tx, now = Date.now()) {
 export async function appleSync(body) {
   const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/apple_sync`, {
     method: "POST",
-    headers: { apikey: process.env.SUPABASE_ANON_KEY, authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}`, "content-type": "application/json" },
+    headers: { ...sbHeaders(), "content-type": "application/json" },
     body: JSON.stringify({ p_secret: process.env.BILLING_SYNC_SECRET, ...body })
   });
   if (!r.ok) throw new Error("apple_sync " + r.status);

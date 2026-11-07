@@ -1,4 +1,5 @@
 // Marketing site forms (waitlist and contact). Saves into the Supabase table site_submissions.
+import { sbHeaders } from "./_sb.js";
 const clip = (v, n) => (v == null ? null : String(v).trim().slice(0, n) || null);
 
 export default async function handler(req, res) {
@@ -11,7 +12,7 @@ export default async function handler(req, res) {
   const row = { kind, email, name: clip(b.name, 120), phone: clip(b.phone, 40), topic: clip(b.topic, 80), message: clip(b.message, 5000) };
   const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/site_submissions`, {
     method: "POST",
-    headers: { apikey: process.env.SUPABASE_ANON_KEY, authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}`, "content-type": "application/json", prefer: "return=minimal" },
+    headers: { ...sbHeaders(), "content-type": "application/json", prefer: "return=minimal" },
     body: JSON.stringify(row)
   }).catch(() => null);
   if (!r || !r.ok) return res.status(502).json({ error: "Couldn't save" });

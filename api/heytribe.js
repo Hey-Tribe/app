@@ -2,13 +2,14 @@
 // Needs ANTHROPIC_API_KEY. Without it the app quietly uses its built-in parser instead.
 // Only signed-in HeyTribe users can call it, and the prompt is built here, not by the browser.
 
+import { sbKey } from "./_sb.js";
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
 
 async function signedInUser(req) {
   const auth = req.headers.authorization || "";
   if (!auth.startsWith("Bearer ")) return null;
   const r = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
-    headers: { apikey: process.env.SUPABASE_ANON_KEY, authorization: auth }
+    headers: { apikey: sbKey(), authorization: auth }
   });
   return r.ok ? r.json() : null;
 }
@@ -28,7 +29,7 @@ export default async function handler(req, res) {
   const enforce = !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID) || process.env.PREMIUM_LIMITS === "1";
   const take = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/ht_ai_take`, {
     method: "POST",
-    headers: { apikey: process.env.SUPABASE_ANON_KEY, authorization: req.headers.authorization, "content-type": "application/json" },
+    headers: { apikey: sbKey(), authorization: req.headers.authorization, "content-type": "application/json" },
     body: JSON.stringify({ p_code: code, p_enforce: enforce })
   }).catch(() => null);
   if (!take || !take.ok) return res.status(403).json({ error: "You're not in that family" });

@@ -1,6 +1,7 @@
 // Phone reminders (web push). Called every 5 minutes by a schedule in Supabase (pg_cron) with the cron secret.
 // Sends: plans 30 min before (all-day plans at 7:30am), medicine at dose time, bills on the due day and 3 days before (9am),
 // school forms the evening before they're due (6pm), and countdowns on the big day (8am). Each reminder is sent once.
+import { sbHeaders } from "./_sb.js";
 import webpush from "web-push";
 import { sendQueued } from "./_email.js";
 import { apnsReady, apnsClient } from "./_apns.js";
@@ -36,7 +37,7 @@ const hm = s => { const [h, m] = String(s || "").split(":").map(Number); return 
 async function rpc(name, body) {
   const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/${name}`, {
     method: "POST",
-    headers: { apikey: process.env.SUPABASE_ANON_KEY, authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}`, "content-type": "application/json" },
+    headers: { ...sbHeaders(), "content-type": "application/json" },
     body: JSON.stringify(body)
   });
   if (!r.ok) throw new Error(name + " " + r.status);

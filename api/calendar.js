@@ -1,5 +1,6 @@
 // Family calendar feed (iCalendar) for Google, Apple and Outlook. /api/calendar?t=<private token>
 // Times are "floating" (no time zone), so each phone shows them in its own local time, like the app does.
+import { sbHeaders } from "./_sb.js";
 const pad = n => String(n).padStart(2, "0");
 const d8 = s => String(s || "").replace(/-/g, "");
 const addDay = (s, n) => { const [y, m, d] = s.split("-").map(Number); const x = new Date(Date.UTC(y, m - 1, d + n)); return x.getUTCFullYear() + pad(x.getUTCMonth() + 1) + pad(x.getUTCDate()); };
@@ -13,7 +14,7 @@ export default async function handler(req, res) {
   if (!t) return res.status(400).send("Missing link");
   const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/calendar_feed`, {
     method: "POST",
-    headers: { apikey: process.env.SUPABASE_ANON_KEY, authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}`, "content-type": "application/json" },
+    headers: { ...sbHeaders(), "content-type": "application/json" },
     body: JSON.stringify({ p_token: t })
   }).catch(() => null);
   const feed = r && r.ok ? await r.json() : null;

@@ -4,7 +4,7 @@
   "type": "module",
   "description": "HeyTribe: the family planning app and its marketing site",
   "engines": {
-    "node": ">=20"
+    "node": "24.x"
   },
   "dependencies": {
     "web-push": "3.6.7"

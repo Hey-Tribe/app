@@ -3,6 +3,7 @@
 // POST /api/billing { action: "checkout"|"portal", code } with the signed-in user's token
 // Needs: STRIPE_SECRET_KEY, STRIPE_PRICE_ID (the $4.99/month price), SUPABASE_URL, SUPABASE_ANON_KEY.
 // Optional: STRIPE_PRICE_ID_YEARLY (the $39.99/year price). When set, people can pick yearly: POST { ..., plan: "year" }.
+import { sbKey } from "./_sb.js";
 const SITE = process.env.SITE_URL || "https://www.heytribe.app";
 
 async function stripe(path, params) {
@@ -31,7 +32,7 @@ export default async function handler(req, res) {
   const code = String(rawCode || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
   if (!token || !code || code === "SAMPLE") return res.status(400).json({ error: "Sign in first." });
 
-  const SB = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_ANON_KEY;
+  const SB = process.env.SUPABASE_URL, KEY = sbKey();
   const auth = { apikey: KEY, authorization: "Bearer " + token };
   const ur = await fetch(SB + "/auth/v1/user", { headers: auth }).catch(() => null);
   if (!ur || !ur.ok) return res.status(401).json({ error: "Please sign in again." });

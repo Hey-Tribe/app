@@ -1,12 +1,13 @@
 // Health check for uptime monitoring: GET /api/health -> 200 when the database answers, 503 when it doesn't.
 // Shows which services are configured (true/false only, never values).
+import { sbHeaders } from "./_sb.js";
 export default async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
   const t0 = Date.now();
   let db = false;
   try {
     const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/tribes?select=code&code=eq.SAMPLE`, {
-      headers: { apikey: process.env.SUPABASE_ANON_KEY, authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}` },
+      headers: { ...sbHeaders() },
       signal: AbortSignal.timeout(5000)
     });
     db = r.ok;

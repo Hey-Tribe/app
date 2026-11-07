@@ -2,6 +2,7 @@
 // Point a Stripe webhook at https://www.heytribe.app/api/stripe-webhook with these events:
 //   checkout.session.completed, customer.subscription.created, customer.subscription.updated, customer.subscription.deleted
 // Needs: STRIPE_WEBHOOK_SECRET (whsec_...), BILLING_SYNC_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY.
+import { sbHeaders } from "./_sb.js";
 import crypto from "node:crypto";
 
 function verify(raw, header, secret) {
@@ -18,7 +19,7 @@ const STATUS = { active: "active", trialing: "active", past_due: "past_due", unp
 async function sync(code, status, customer, subscription, periodEnd) {
   const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/billing_sync`, {
     method: "POST",
-    headers: { apikey: process.env.SUPABASE_ANON_KEY, authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}`, "content-type": "application/json" },
+    headers: { ...sbHeaders(), "content-type": "application/json" },
     body: JSON.stringify({ p_secret: process.env.BILLING_SYNC_SECRET, p_code: code, p_status: status, p_customer: customer || null, p_subscription: subscription || null, p_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null })
   });
   if (!r.ok) throw new Error("sync failed " + r.status);

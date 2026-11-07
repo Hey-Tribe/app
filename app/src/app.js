@@ -190,6 +190,24 @@ let deskT = 0; addEventListener("resize", () => { clearTimeout(deskT); deskT = s
 /* iPhone and Android apps: the store builds wrap this page. Native extras load only there. */
 const NATIVE = (() => { try { return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()); } catch(e){ return false; } })();
 const PLATFORM = NATIVE ? (() => { try { return Capacitor.getPlatform(); } catch(e){ return "ios"; } })() : "web";
+// Forced-update gate. In the phone app, ask /api/app-version for the oldest version still allowed and, if this
+// build is older, cover the screen with an update prompt. Any failure lets the app through.
+if (NATIVE) (async () => { try {
+  const info = await Capacitor.Plugins.App.getInfo();
+  const r = await fetch("/api/app-version", { cache: "no-store" });
+  const min = String((await r.json()).min || "0.0.0");
+  const a = String(info.version || "").split(".").map(n => parseInt(n, 10)), b = min.split(".").map(n => parseInt(n, 10));
+  if (a.concat(b).some(Number.isNaN)) return;
+  let older = false;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) { const x = a[i] || 0, y = b[i] || 0; if (x !== y) { older = x < y; break; } }
+  if (!older) return;
+  const link = PLATFORM === "ios" ? "https://apps.apple.com/app/heytribe" : "https://play.google.com/store/apps/details?id=app.heytribe.android";
+  const box = document.createElement("div");
+  box.setAttribute("role", "alertdialog"); box.setAttribute("aria-modal", "true");
+  box.style.cssText = "position:fixed;inset:0;z-index:100000;background:#fff;color:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;font-family:system-ui,sans-serif";
+  box.innerHTML = '<h1 style="font-size:24px;margin:0">Please update HeyTribe</h1><p style="max-width:320px;color:#555">This version is no longer supported. Update to keep using the app.</p><a style="margin-top:16px;min-height:48px;padding:14px 28px;border-radius:999px;background:#111;color:#fff;font-weight:700;text-decoration:none" href="' + link + '">Open the store</a>';
+  document.body.appendChild(box);
+} catch(e) {} })();
 const IOS_APP = PLATFORM === "ios", ANDROID_APP = PLATFORM === "android";
 const NATIVE_REDIRECT_SCHEME = ANDROID_APP ? "app.heytribe.android" : "app.heytribe.ios";
 const IAP_IDS = { month: "app.heytribe.premium.monthly", year: "app.heytribe.premium.yearly" };
