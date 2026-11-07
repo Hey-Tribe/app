@@ -1,7 +1,8 @@
+import { watch } from "./_watch.js";
 // Health check for uptime monitoring: GET /api/health -> 200 when the database answers, 503 when it doesn't.
 // Shows which services are configured (true/false only, never values).
 import { sbHeaders } from "./_sb.js";
-export default async function handler(req, res) {
+async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
   const t0 = Date.now();
   let db = false;
@@ -22,3 +23,5 @@ export default async function handler(req, res) {
     }
   });
 }
+
+export default watch(handler);

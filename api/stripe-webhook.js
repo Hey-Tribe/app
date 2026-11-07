@@ -1,3 +1,4 @@
+import { watchWeb } from "./_watch.js";
 // Stripe webhook: keeps public.subscriptions in sync with Stripe.
 // Point a Stripe webhook at https://www.heytribe.app/api/stripe-webhook with these events:
 //   checkout.session.completed, customer.subscription.created, customer.subscription.updated, customer.subscription.deleted
@@ -25,7 +26,7 @@ async function sync(code, status, customer, subscription, periodEnd) {
   if (!r.ok) throw new Error("sync failed " + r.status);
 }
 
-export async function POST(request) {
+async function postHandler(request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret || !process.env.BILLING_SYNC_SECRET) return new Response("Billing not set up", { status: 501 });
   const raw = await request.text();
@@ -48,3 +49,5 @@ export async function POST(request) {
   }
   return new Response(JSON.stringify({ received: true }), { status: 200, headers: { "content-type": "application/json" } });
 }
+
+export const POST = watchWeb(postHandler);

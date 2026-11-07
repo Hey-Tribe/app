@@ -1,3 +1,4 @@
+import { watch } from "./_watch.js";
 // Premium billing with Stripe.
 // GET  /api/billing                                  -> { enabled } (true once Stripe keys are set in Vercel)
 // POST /api/billing { action: "checkout"|"portal", code } with the signed-in user's token
@@ -19,7 +20,7 @@ async function stripe(path, params) {
   return j;
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const enabled = !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID);
   res.setHeader("cache-control", "no-store");
   const yearlyPrice = process.env.STRIPE_PRICE_ID_YEARLY || "";
@@ -73,3 +74,5 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: "Couldn't reach the payment service. Try again in a minute." });
   }
 }
+
+export default watch(handler);

@@ -1,3 +1,4 @@
+import { watch } from "./_watch.js";
 // Phone reminders (web push). Called every 5 minutes by a schedule in Supabase (pg_cron) with the cron secret.
 // Sends: plans 30 min before (all-day plans at 7:30am), medicine at dose time, bills on the due day and 3 days before (9am),
 // school forms the evening before they're due (6pm), and countdowns on the big day (8am). Each reminder is sent once.
@@ -93,7 +94,7 @@ async function stopOrphanBilling() {
   return n;
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const secret = req.headers["x-cron-secret"] || req.query.key;
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) return res.status(401).json({ error: "no" });
   let mail = {};
@@ -135,3 +136,5 @@ export default async function handler(req, res) {
   if (keys.length || dead.length) await rpc("reminder_done", { p_secret: process.env.CRON_SECRET, p_keys: keys, p_dead: dead });
   res.status(200).json({ ok: true, sent: count, subs: (feed.subs || []).length, ...mail });
 }
+
+export default watch(handler);

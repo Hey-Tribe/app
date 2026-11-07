@@ -1,10 +1,11 @@
+import { watch } from "./_watch.js";
 // Premium bought in the iPhone app. After a purchase or "Restore purchases", the app posts the signed
 // transaction from StoreKit here: POST { jws, code } with the signed-in user's token.
 // Needs: BILLING_SYNC_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY. Optional: APPLE_BUNDLE_ID, APPLE_PRODUCT_ID.
 import { sbKey } from "./_sb.js";
 import { verifyJws, txStatus, appleSync, BUNDLE_ID, isPremiumProduct } from "./_apple.js";
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   if (!process.env.BILLING_SYNC_SECRET) return res.status(503).json({ error: "Premium isn't set up yet." });
@@ -37,3 +38,5 @@ export default async function handler(req, res) {
   } catch (e) { return res.status(502).json({ error: "Couldn't save your purchase. Try Restore purchases in a minute." }); }
   return res.status(200).json({ ok: true, active: status === "active" });
 }
+
+export default watch(handler);

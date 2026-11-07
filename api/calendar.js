@@ -1,3 +1,4 @@
+import { watch } from "./_watch.js";
 // Family calendar feed (iCalendar) for Google, Apple and Outlook. /api/calendar?t=<private token>
 // Times are "floating" (no time zone), so each phone shows them in its own local time, like the app does.
 import { sbHeaders } from "./_sb.js";
@@ -9,7 +10,7 @@ const txt = s => String(s || "").replace(/\\/g, "\\\\").replace(/\n/g, "\\n").re
 const fold = line => { const out = []; let s = line; while (s.length > 74) { out.push(s.slice(0, 74)); s = " " + s.slice(74); } out.push(s); return out.join("\r\n"); };
 const RR = { weekly: "FREQ=WEEKLY", biweekly: "FREQ=WEEKLY;INTERVAL=2", monthly: "FREQ=MONTHLY", yearly: "FREQ=YEARLY" };
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   const t = String(req.query.t || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 80);
   if (!t) return res.status(400).send("Missing link");
   const r = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/calendar_feed`, {
@@ -52,3 +53,5 @@ export default async function handler(req, res) {
   res.setHeader("cache-control", "public, max-age=900");
   res.status(200).send(L.map(fold).join("\r\n") + "\r\n");
 }
+
+export default watch(handler);

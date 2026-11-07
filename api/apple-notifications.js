@@ -1,10 +1,11 @@
+import { watch } from "./_watch.js";
 // App Store Server Notifications V2: Apple tells us about renewals, failed payments, cancellations and refunds.
 // In App Store Connect › App Information › App Store Server Notifications, set both URLs (production and sandbox) to
 //   https://www.heytribe.app/api/apple-notifications   (Version 2)
 // Needs: BILLING_SYNC_SECRET, SUPABASE_URL, SUPABASE_ANON_KEY.
 import { verifyJws, txStatus, appleSync, BUNDLE_ID, isPremiumProduct } from "./_apple.js";
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   if (!process.env.BILLING_SYNC_SECRET) return res.status(501).send("Billing not set up");
   let note, tx;
@@ -26,3 +27,5 @@ export default async function handler(req, res) {
   } catch (e) { return res.status(500).send("Try again"); } // Apple retries
   return res.status(200).json({ ok: true });
 }
+
+export default watch(handler);

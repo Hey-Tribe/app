@@ -1,9 +1,10 @@
+import { watch } from "./_watch.js";
 // Sends a test reminder to the signed-in person's device. POST { endpoint } with their login token.
 import { sbKey } from "./_sb.js";
 import webpush from "web-push";
 import { apnsReady, apnsClient } from "./_apns.js";
 import { fcmReady, fcmSend } from "./_fcm.js";
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   const token = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   const endpoint = String((req.body || {}).endpoint || "");
@@ -29,3 +30,5 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   } catch (e) { return res.status(502).json({ error: "Couldn't reach this device." }); }
 }
+
+export default watch(handler);

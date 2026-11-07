@@ -1,3 +1,4 @@
+import { watch } from "./_watch.js";
 // Outage emails for the GitHub "Uptime" monitor, sent with the Resend key already in Vercel (no extra secret).
 // POST {"state":"down"} or {"state":"up"}. Nothing in the request is trusted:
 //  - "down" emails only if the newest GitHub issue labeled "outage" is open and under 15 minutes old,
@@ -14,7 +15,7 @@ const TO = () => (process.env.ALERT_EMAIL || "admin@kopimorehospitalitygroup.com
 const sent = new Set();
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   const state = (req.body || {}).state === "up" ? "up" : "down";
@@ -53,3 +54,5 @@ export default async function handler(req, res) {
     return res.status(502).json({ emailed: false, why: "email failed" });
   }
 }
+
+export default watch(handler);

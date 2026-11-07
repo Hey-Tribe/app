@@ -1,3 +1,4 @@
+import { watch } from "./_watch.js";
 // Hey Tribe: turns a quick note ("Dentist for Leo Tuesday at 3, Maria drives") into app actions.
 // Needs ANTHROPIC_API_KEY. Without it the app quietly uses its built-in parser instead.
 // Only signed-in HeyTribe users can call it, and the prompt is built here, not by the browser.
@@ -16,7 +17,7 @@ async function signedInUser(req) {
 
 const clip = (v, n) => String(v ?? "").slice(0, n);
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   if (!process.env.ANTHROPIC_API_KEY) return res.status(501).json({ error: "Hey Tribe AI is not set up" });
   const user = await signedInUser(req).catch(() => null);
@@ -66,3 +67,5 @@ Note: """${note}"""`;
     return res.status(502).json({ error: "Couldn't understand that" });
   }
 }
+
+export default watch(handler);

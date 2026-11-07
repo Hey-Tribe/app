@@ -1,8 +1,9 @@
+import { watch } from "./_watch.js";
 // Marketing site forms (waitlist and contact). Saves into the Supabase table site_submissions.
 import { sbHeaders } from "./_sb.js";
 const clip = (v, n) => (v == null ? null : String(v).trim().slice(0, n) || null);
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   const b = req.body || {};
   if (b["bot-field"]) return res.status(200).json({ ok: true }); // honeypot: quietly ignore bots
@@ -18,3 +19,5 @@ export default async function handler(req, res) {
   if (!r || !r.ok) return res.status(502).json({ error: "Couldn't save" });
   return res.status(200).json({ ok: true });
 }
+
+export default watch(handler);
