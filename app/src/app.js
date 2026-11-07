@@ -1,3 +1,27 @@
+/* PostHog (shared project, public key). */
+window.__PH = {key:"phc_n8UZg3Q74nLoh4pjBwyuPyBnYh5peYuVQbZHn8MsrQF4", app:"heytribe"};
+/* Product analytics. Sends page views to the shared PostHog project with a few lines of code instead of
+   the full SDK. Off until a key is set. Tags every event with app and platform. Anonymous random id kept
+   on this device only; no cookies, no emails, no names. Call window.__track(name, props) for named events. */
+(function(){
+  var cfg = window.__PH || {};
+  if (!cfg.key) return;
+  var id; try { id = localStorage.getItem("ph_id"); if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()); localStorage.setItem("ph_id", id); } } catch (e) { id = String(Math.random()).slice(2); }
+  var platform = (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() !== "web") ? Capacitor.getPlatform() : "web";
+  function send(event, props){
+    try {
+      var p = { token: cfg.key, distinct_id: window.__phUser || id, app: cfg.app, platform: platform,
+        $current_url: location.origin + location.pathname, $host: location.host, $pathname: location.pathname,
+        $process_person_profile: false };
+      for (var k in props) p[k] = props[k];
+      fetch("https://us.i.posthog.com/capture/", { method: "POST", keepalive: true, credentials: "omit", mode: "cors",
+        headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ api_key: cfg.key, event: event, properties: p, timestamp: new Date().toISOString() }) }).catch(function(){});
+    } catch (e) {}
+  }
+  window.__track = function(n, p){ send(n, p || {}); };
+  window.__identify = function(uid){ window.__phUser = cfg.app + ":" + uid; };
+  send("$pageview", {});
+})();
 /* Error reporting. Sends uncaught errors to Sentry with a few lines of code instead of the 30 kB SDK.
    Off until a DSN is set in the config. Sends the message, a stack and the page path only: no cookies,
    no user ids, no query strings. At most 5 reports per page load, each message once. */
