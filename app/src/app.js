@@ -437,6 +437,7 @@ async function loadPlan(code){
 }
 function trialDays(){ return PLAN && PLAN.trial_ends_at ? Math.ceil((new Date(PLAN.trial_ends_at) - Date.now()) / 864e5) : 0; }
 function upsell(why){
+  if(window.__track) window.__track("paywall_viewed");
   openSheet(`<div class="col" style="gap:14px">
     <span class="tag" style="align-self:flex-start">Premium</span>
     <h2 class="serif" style="font-size:28px;margin:0">That's a Premium extra</h2>
@@ -2422,7 +2423,7 @@ document.addEventListener("submit", async e => {
       const endDate = allDay && v.endDate && v.endDate > v.date ? v.endDate : null;
       const data = {title:v.title.trim(), member:v.member, date:v.date, start, end:Math.min(end,1439), allDay, endDate, driver:v.driver||null, repeat, until: repeat && v.until ? v.until : null, place:(v.place||"").trim(), note:(v.note||"").trim()};
       if(f.dataset.id){ const old = S.events.find(x => x.id === f.dataset.id); W.set("events/"+f.dataset.id, {...(old||{}), ...data, id: undefined}); toast("Saved"); }
-      else { W.add("events", {...data, by}); toast("Added to the calendar"); }
+      else { W.add("events", {...data, by}); toast("Added to the calendar"); if(window.__track) window.__track("key_action", {action:"event_added"}); }
       UI.calDay = v.date; closeSheet(); break; }
     case "chore": { const days = [...f.querySelectorAll("[data-day-toggle].on")].map(x=>+x.dataset.dayToggle); if(!days.length){ toast("Pick at least one day"); return; }
       if(f.dataset.id) W.upd("chores/"+f.dataset.id, {title:v.title.trim(), member:v.member, days}); else W.add("chores", {title:v.title.trim(), member:v.member, days, done:{}});
