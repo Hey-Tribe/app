@@ -20,6 +20,19 @@ window.__PH = {key:"phc_n8UZg3Q74nLoh4pjBwyuPyBnYh5peYuVQbZHn8MsrQF4", app:"heyt
   }
   window.__track = function(n, p){ send(n, p || {}); };
   window.__identify = function(uid){ window.__phUser = cfg.app + ":" + uid; };
+  window.__trackAuth = function(client){
+    try {
+      client.auth.onAuthStateChange(function(ev, s){
+        if (ev !== "SIGNED_IN" || !s || !s.user) return;
+        var k = "ph_in_" + s.user.id;
+        try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, "1"); } catch (e) {}
+        window.__identify(s.user.id);
+        var m = (s.user.app_metadata && s.user.app_metadata.provider) || "email";
+        if (Date.now() - new Date(s.user.created_at).getTime() < 120000) window.__track("signed_up", { method: m });
+        window.__track("signed_in", { method: m });
+      });
+    } catch (e) {}
+  };
   send("$pageview", {});
 })();
 /* Error reporting. Sends uncaught errors to Sentry with a few lines of code instead of the 30 kB SDK.
@@ -2532,6 +2545,7 @@ render();
 (async () => {
   if(!window.supabase || !CFG.supabaseUrl || !CFG.supabaseAnonKey){ S.status = "offline"; render(); return; }
   sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } });
+  if(window.__trackAuth) window.__trackAuth(sb);
   db = makeDb(sb); assets = assetsApi; sampler = aiApi;
   const bq = /[?&]billing=(success|cancel)/.exec(location.search);
   if(bq){ try { history.replaceState(null, "", location.pathname + location.hash); } catch(e){} if(bq[1] === "success"){ setTimeout(() => toast("Welcome to Premium. Thanks for supporting HeyTribe!"), 1200); [3000, 8000, 15000].forEach(t => setTimeout(() => TRIBE && loadPlan(TRIBE), t)); } }
