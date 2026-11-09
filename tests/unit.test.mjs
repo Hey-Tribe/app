@@ -211,3 +211,45 @@ test("uptime alert emails when a fresh outage is confirmed from the server", asy
   });
   delete process.env.RESEND_API_KEY;
 });
+
+/* ---------- Sign in with Apple: revoke on deletion, server notifications ---------- */
+const AS = await import("../api/_applesignin.js");
+test("the Apple client secret is a valid ES256 token for our Services ID", () => {
+  const { privateKey, publicKey } = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
+  Object.assign(process.env, { APPLE_TEAM_ID: "TEAM123", APPLE_SIGNIN_KEY_ID: "KEY123", APPLE_SIGNIN_KEY_P8: privateKey.export({ type: "pkcs8", format: "pem" }) });
+  const [h, b, s] = AS.clientSecret("app.heytribe.web", 1000).split(".");
+  const head = JSON.parse(Buffer.from(h, "base64url")), body = JSON.parse(Buffer.from(b, "base64url"));
+  assert.equal(head.kid, "KEY123"); assert.equal(body.iss, "TEAM123"); assert.equal(body.sub, "app.heytribe.web"); assert.equal(body.aud, "https://appleid.apple.com");
+  assert.ok(crypto.verify("sha256", Buffer.from(h + "." + b), { key: publicKey, dsaEncoding: "ieee-p1363" }, Buffer.from(s, "base64url")));
+});
+test("pending Apple tokens are revoked and the result is recorded", async () => {
+  const calls = [];
+  const rpc = async (name, body) => { calls.push([name, body]); return name === "apple_revoke_pending" ? [{ user_id: "u1", refresh_token: "good", client_id: "app.heytribe.ios" }, { user_id: "u2", refresh_token: "bad", client_id: "app.heytribe.web" }] : null; };
+  const sentTo = [];
+  const fake = async (url, opt) => { sentTo.push(new URLSearchParams(opt.body).get("client_id")); return new Response(String(opt.body).includes("token=good") ? "" : "invalid_grant", { status: String(opt.body).includes("token=good") ? 200 : 400 }); };
+  const out = await AS.revokePending(rpc, "cron", fake);
+  assert.deepEqual(out, { revoked: 1, failed: 1 });
+  const done = calls.filter(c => c[0] === "apple_revoke_done");
+  assert.equal(done[0][1].p_error, null); assert.match(done[1][1].p_error, /400/);
+  assert.deepEqual(sentTo, ["app.heytribe.ios", "app.heytribe.web"], "each token is revoked with the ID that issued it");
+});
+test("Apple notifications are accepted only with Apple's signature and our audience", async () => {
+  const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const jwk = { ...publicKey.export({ format: "jwk" }), kid: "k1", alg: "RS256" };
+  const sign = (body, key = privateKey) => { const h = Buffer.from(JSON.stringify({ alg: "RS256", kid: "k1" })).toString("base64url"), b = Buffer.from(JSON.stringify(body)).toString("base64url"); return h + "." + b + "." + crypto.sign("sha256", Buffer.from(h + "." + b), key).toString("base64url"); };
+  const good = { iss: "https://appleid.apple.com", aud: "app.heytribe.web", exp: Math.floor(Date.now() / 1000) + 300, events: JSON.stringify({ type: "consent-revoked", sub: "001" }) };
+  const p = await AS.verifyNotification(sign(good), { keys: [jwk] });
+  assert.equal(JSON.parse(p.events).type, "consent-revoked");
+  await assert.rejects(AS.verifyNotification(sign({ ...good, aud: "someone.else" }), { keys: [jwk] }), /audience/);
+  const other = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey;
+  await assert.rejects(AS.verifyNotification(sign(good, other), { keys: [jwk] }), /signature/);
+  for (const k of ["APPLE_TEAM_ID", "APPLE_SIGNIN_KEY_ID", "APPLE_SIGNIN_KEY_P8"]) delete process.env[k];
+});
+test("app-version reads the minimum from the database and never locks people out on errors", async () => {
+  const { default: appVersion } = await import("../api/app-version.js");
+  await withFetch(async url => new Response(JSON.stringify(String(url).includes("platform=eq.android") ? [{ min_version: "1.2.0" }] : []), { status: 200 }), async () => {
+    const a = resMock(); await appVersion({ query: { platform: "android" } }, a); assert.equal(a.body.min, "1.2.0");
+    const i = resMock(); await appVersion({ query: { platform: "ios" } }, i); assert.equal(i.body.min, "0.0.0");
+  });
+  await withFetch(async () => { throw new Error("offline"); }, async () => { const r = resMock(); await appVersion({ query: {} }, r); assert.equal(r.body.min, "0.0.0"); });
+});

@@ -49,6 +49,30 @@ On developer.apple.com › Certificates, Identifiers & Profiles:
 6. **The Apple secret key expires every 6 months.** Make a new one with step 4 before then, or Apple sign-in stops working
    on the website. It keeps working in the iPhone app either way.
 
+## 4. Apple: revoking, notifications and private email (needs the Apple Developer account)
+
+Apple requires that deleting an account also revokes HeyTribe's Apple sign-in. The code is done; it needs the key.
+
+1. Vercel › heytribe (and heytribe-site if it serves www.heytribe.app/api) › Environment Variables, Production:
+   - `APPLE_TEAM_ID`: your Team ID
+   - `APPLE_SIGNIN_KEY_ID`: the Key ID from step 3 above
+   - `APPLE_SIGNIN_KEY_P8`: the whole .p8 file from step 3 (sensitive)
+   Then redeploy. /api/health shows `apple_signin: true`.
+2. Identifiers › app.heytribe.web › Sign In with Apple › Configure › **Server-to-Server Notification Endpoint**:
+   `https://www.heytribe.app/api/apple-signin`
+   Apple then tells HeyTribe when someone stops using Apple sign-in, deletes their Apple account, or turns email
+   forwarding off. Each is handled automatically.
+3. **Private email relay.** People who choose "Hide my email" get an @privaterelay.appleid.com address. Apple only
+   forwards mail from registered senders. Services › Sign in with Apple for Email Communication › Configure:
+   - Domains: `heytribe.app`
+   - Email addresses: `hello@heytribe.app`
+   Apple checks SPF, so the Resend DNS records for heytribe.app must pass (see docs/OPERATIONS.md).
+
+How it works: after an Apple sign-in, the website saves Apple's refresh token from the session, and the iPhone app sends
+Apple's one-time code to `/api/apple-signin`, which trades it for the refresh token. Tokens are stored where no app
+user can read them. When someone deletes their account, the 5-minute schedule revokes the token at Apple and the admin
+Settings page shows "Apple sign-in revoked" on that deletion request.
+
 ## Apple's rule
 
 Apple requires Sign in with Apple in the iPhone app whenever Google sign-in is offered there. Both are built in.

@@ -2,14 +2,14 @@
    the page path, where the visit came from, the device size and the language. */
 (function(){
   "use strict";
-  var U = "https://ayafbypcbsfmqckuwqom.supabase.co/rest/v1/", K = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5YWZieXBjYnNmbXFja3V3cW9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NDY0NzcsImV4cCI6MjEwNzEyMjQ3N30.LhKcVqZtz9xbrbo72ORBoHg6BfzPmIZrd7kSj_9FXRU";
+  var U = "https://ayafbypcbsfmqckuwqom.supabase.co/rest/v1/", K = "sb_publishable_MymhCm7AOF3UhF24YGO8ag_Vpq7JYZf";
   if (navigator.webdriver || /^(localhost|127\.)/.test(location.hostname)) return;
   var ls = function(k, v){ try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch(e){ return null; } };
   var ss = function(k, v){ try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch(e){ return null; } };
   var vid = ls("ht-vid"); if (!vid) { vid = Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-6); ls("ht-vid", vid); }
   var admin = /^admin\./.test(location.hostname);
   function post(table, row){
-    try { fetch(U + table, { method: "POST", keepalive: true, headers: { apikey: K, authorization: "Bearer " + K, "content-type": "application/json", prefer: "return=minimal" }, body: JSON.stringify(row) }).catch(function(){}); } catch(e){}
+    try { fetch(U + table, { method: "POST", keepalive: true, headers: { apikey: K, "content-type": "application/json", prefer: "return=minimal" }, body: JSON.stringify(row) }).catch(function(){}); } catch(e){}
   }
   // where this visit came from: ?utm_source=..., else the referring site, else "direct"
   var q = new URLSearchParams(location.search), src = ss("ht-ses-src"), camp = ss("ht-ses-camp");

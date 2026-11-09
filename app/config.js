@@ -1,8 +1,10 @@
-// Public Supabase settings for the browser. The anon key is safe to ship: row level security protects the data.
+// Public Supabase settings for the browser. The publishable key is safe to ship: row level security protects the data.
 window.HEYTRIBE = {
   // Sentry DSN for error reports (public by design). Empty turns reporting off.
   sentryDsn: "https://12f8ffd6dd40a341c8c6469092260634@o4512392984657920.ingest.us.sentry.io/4512393028108288",
   supabaseUrl: "https://ayafbypcbsfmqckuwqom.supabase.co",
   vapidPublicKey: "BF98FzITXaMSmtQTT-ykMkcXDyVJUwgxRenmuRZ-MjL90ZNytQhtdAUFyXUqvmKC2w-zE6ZTSdY5RbcvAiJaPsc",
-  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5YWZieXBjYnNmbXFja3V3cW9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NDY0NzcsImV4cCI6MjEwNzEyMjQ3N30.LhKcVqZtz9xbrbo72ORBoHg6BfzPmIZrd7kSj_9FXRU"
+  supabaseKey: "sb_publishable_MymhCm7AOF3UhF24YGO8ag_Vpq7JYZf",
+  // Old name, kept so app versions still cached on phones keep working. Remove after December 2026.
+  supabaseAnonKey: "sb_publishable_MymhCm7AOF3UhF24YGO8ag_Vpq7JYZf"
 };

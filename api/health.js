@@ -4,6 +4,10 @@ import { watch } from "./_watch.js";
 import { sbHeaders } from "./_sb.js";
 async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
+  // Test hook for Sentry: GET /api/health?sentry-test=1 with the x-cron-secret header throws one deliberate error.
+  if (req.query && req.query["sentry-test"] === "1" && process.env.CRON_SECRET && req.headers && req.headers["x-cron-secret"] === process.env.CRON_SECRET) {
+    throw new Error("HeyTribe server Sentry test error (deliberate)");
+  }
   const t0 = Date.now();
   let db = false;
   try {
@@ -19,7 +23,7 @@ async function handler(req, res) {
     configured: {
       email: on("RESEND_API_KEY"), web_push: on("VAPID_PRIVATE_KEY"), apple_push: on("APNS_KEY_P8"), android_push: on("FCM_SERVICE_ACCOUNT"),
       stripe: on("STRIPE_SECRET_KEY") && on("STRIPE_PRICE_ID"), stripe_yearly: on("STRIPE_PRICE_ID_YEARLY"),
-      billing_sync: on("BILLING_SYNC_SECRET"), ai: on("ANTHROPIC_API_KEY"), cron: on("CRON_SECRET"), apple_team: on("APPLE_TEAM_ID")
+      billing_sync: on("BILLING_SYNC_SECRET"), ai: on("ANTHROPIC_API_KEY"), cron: on("CRON_SECRET"), apple_team: on("APPLE_TEAM_ID"), apple_signin: on("APPLE_SIGNIN_KEY_P8") && on("APPLE_SIGNIN_KEY_ID")
     }
   });
 }

@@ -47,6 +47,25 @@ try {
   if (await input.count()) { await input.fill("Smoke test bananas"); await input.press("Enter"); await page.waitForTimeout(600); }
   check((await page.content()).includes("Smoke test bananas"), "sample family: adding a grocery item shows it");
   check(errors.length === 0, "no page errors" + (errors.length ? ": " + errors.slice(0, 3).join(" | ") : ""));
+
+  // sign-up screen links the Terms and Privacy Policy
+  const p2 = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await p2.goto(base + "/app/#signup");
+  await p2.waitForSelector('a[href="/terms.html"]', { timeout: 15000 }).catch(() => {});
+  check(await p2.locator('a[href="/terms.html"]').count() > 0 && await p2.locator('a[href="/privacy.html"]').count() > 0, "sign-up screen links the Terms and Privacy Policy");
+  await p2.close();
+
+  // forced-update gate: a phone app older than the minimum sees the update screen, a current one doesn't
+  for (const [min, want] of [["2.0.0", true], ["0.0.0", false]]) {
+    const p3 = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await p3.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true, getPlatform: () => "ios", Plugins: { App: { getInfo: async () => ({ version: "1.0.0" }) } } }; });
+    await p3.route("**/api/app-version**", r => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ min }) }));
+    await p3.goto(base + "/app/");
+    await p3.waitForTimeout(2500);
+    const shown = (await p3.content()).includes("Please update HeyTribe");
+    check(shown === want, `update screen ${want ? "shows" : "stays hidden"} when the minimum is ${min}`);
+    await p3.close();
+  }
 } finally {
   await browser.close(); server.close();
 }

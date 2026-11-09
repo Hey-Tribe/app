@@ -139,14 +139,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--sage)}
 </style>
 </head><body>
 <div id="root"></div>
-<script src="/app/vendor/supabase.js"></script>
+<script src="/app/vendor/supabase-2.118.0.js"></script>
 <script src="/app/config.js"></script>
 <script src="/t.js" defer></script>
 <script>
 (function(){
 "use strict";
 const CFG = window.HEYTRIBE || {};
-const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce", storageKey: "ht-admin-auth" } });
+const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey || CFG.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce", storageKey: "ht-admin-auth" } });
 const $ = s => document.querySelector(s);
 /* install as a phone / desktop app */
 let INSTALL_EVT = null;
@@ -440,7 +440,7 @@ async function inbox(m){
 
 /* ---------- settings ---------- */
 async function settings(m){
-  const [a, an, dr] = await Promise.all([sb.from("admin_emails").select("*").order("added_at"), sb.from("announcements").select("*").order("created_at", { ascending: false }).limit(20), sb.from("deletion_requests").select("*").order("requested_at", { ascending: false }).limit(50)]);
+  const [av, a, an, dr] = await Promise.all([sb.from("app_versions").select("*").order("platform"), sb.from("admin_emails").select("*").order("added_at"), sb.from("announcements").select("*").order("created_at", { ascending: false }).limit(20), sb.from("deletion_requests").select("*").order("requested_at", { ascending: false }).limit(50)]);
   m.innerHTML = `<div class="head"><div><h1>Settings</h1><p class="sub">Who can open this admin site, and where things live.</p></div></div>
     <div class="grid two" style="margin-top:0">
       <div class="card"><h2>Admins</h2><div class="list" style="margin-top:6px">${(a.data||[]).map(x => `<div class="li"><div class="t"><b>${esc(x.email)}</b><small>${x.user_id ? "login linked" : "not signed in yet"}</small></div></div>`).join("")}</div>
@@ -459,9 +459,11 @@ async function settings(m){
         <form id="anf" style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><input id="an-t" class="search" maxlength="120" placeholder="Title, e.g. New: phone reminders" required style="width:100%"><textarea id="an-b" rows="2" maxlength="600" placeholder="One or two sentences (optional)" style="border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit"></textarea><input id="an-l" class="search" maxlength="300" placeholder="Link (optional)" style="width:100%"><button class="btn sm" style="align-self:flex-start">Post announcement</button></form>
         <div class="list" style="margin-top:10px">${(an.data||[]).map(x => `<div class="li"><div class="t"><b>${esc(x.title)}</b><small>${esc(x.body||"")} · ${fmtD(x.created_at)}</small></div><button class="btn ${x.active?"ghost":""} sm" data-an="${x.id}" data-on="${x.active?0:1}">${x.active?"Hide":"Show again"}</button></div>`).join("") || `<div class="sub">None yet.</div>`}</div></div>
       <div class="card"><h2>Deletion requests</h2><p class="sub" style="font-size:13px;margin-top:4px">People who deleted their account or family in the app. They lost access right away. Erase the login in Supabase → Authentication → Users within 30 days, then mark it done.</p>
-        <div class="list" style="margin-top:6px">${(dr.data||[]).map(x => `<div class="li"><div class="t"><b>${esc(x.email||x.user_id)}</b><small>${x.kind==="family"?"Closed a family":"Deleted their account"}${x.tribes&&x.tribes.length?" · families "+esc(x.tribes.join(", ")):""} · ${fmtD(x.requested_at)}</small></div>${x.done_at?`<span class="badge b-done">Done</span>`:`<button class="btn ghost sm" data-dr="${x.id}">Mark done</button>`}</div>`).join("") || `<div class="sub">None.</div>`}</div>
+        <div class="list" style="margin-top:6px">${(dr.data||[]).map(x => `<div class="li"><div class="t"><b>${esc(x.email||x.user_id)}</b><small>${x.kind==="family"?"Closed a family":"Deleted their account"}${x.apple_revoked_at?" · Apple sign-in revoked":x.apple_revoke_error?" · Apple revoke waiting: "+esc(x.apple_revoke_error):""}${x.tribes&&x.tribes.length?" · families "+esc(x.tribes.join(", ")):""} · ${fmtD(x.requested_at)}</small></div>${x.done_at?`<span class="badge b-done">Done</span>`:`<button class="btn ghost sm" data-dr="${x.id}">Mark done</button>`}</div>`).join("") || `<div class="sub">None.</div>`}</div>
         <a class="btn ghost sm" href="https://supabase.com/dashboard/project/ayafbypcbsfmqckuwqom/auth/users" target="_blank" rel="noopener" style="margin-top:10px">Open Supabase users</a></div>
     </div>
+    ${av.error ? "" : `<div class="card" style="margin-top:16px"><h2>Phone app minimum version</h2><p class="sub" style="font-size:13px;margin-top:4px">Phone apps older than this show an "update the app" screen at launch. Use it only after the newer version is live in the store. 0.0.0 turns it off.</p>
+      <form id="avf" style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:10px">${(av.data||[]).map(x => `<label style="display:flex;flex-direction:column;gap:4px;font-size:13px">${x.platform === "ios" ? "iPhone" : "Android"}<input class="search" data-av="${esc(x.platform)}" value="${esc(x.min_version)}" pattern="[0-9]{1,3}(\\.[0-9]{1,3}){0,2}" required style="width:120px"></label>`).join("")}<button class="btn sm">Save</button></form></div>`}
     <div class="card" style="margin-top:16px"><h2>Switching on payments</h2><ol class="sub" style="margin:8px 0 0;padding-left:20px;line-height:1.7">
       <li>In Stripe, create a product “HeyTribe Premium” with a $4.99 monthly price. Copy the price id (price_…).</li>
       <li>In Stripe → Developers → Webhooks, add <b>https://www.heytribe.app/api/stripe-webhook</b> with the events checkout.session.completed and customer.subscription.created, .updated and .deleted. Copy the signing secret (whsec_…).</li>
@@ -471,6 +473,10 @@ async function settings(m){
 }
 
 function settingsWire(m){
+  const avf = m.querySelector("#avf");
+  if(avf) avf.onsubmit = async e => { e.preventDefault();
+    for(const inp of avf.querySelectorAll("[data-av]")){ const r = await sb.from("app_versions").update({ min_version: inp.value.trim(), updated_at: new Date().toISOString() }).eq("platform", inp.dataset.av); if(r.error){ toast(r.error.message); return; } }
+    toast("Saved"); };
   wireInstall();
   const f = m.querySelector("#anf"); if(f) f.onsubmit = async e => { e.preventDefault(); const r = await sb.from("announcements").insert({ title: m.querySelector("#an-t").value.trim(), body: m.querySelector("#an-b").value.trim() || null, link: m.querySelector("#an-l").value.trim() || null }); if(r.error) return toast(r.error.message); toast("Posted"); render(); };
   m.querySelectorAll("[data-an]").forEach(b => b.onclick = async () => { await sb.from("announcements").update({ active: b.dataset.on === "1" }).eq("id", b.dataset.an); render(); });

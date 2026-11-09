@@ -65,7 +65,7 @@ const ico = p => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" st
 const PILL = '<path d="M10.5 3.5a5 5 0 0 1 7 7l-7 7a5 5 0 0 1-7-7z"/><path d="M7 7l7 7"/>', MOON = '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>', PHONE = '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>';
 const logo = `<a class="logo" href="/"><svg width="26" height="24" viewBox="0 0 120 112" aria-hidden="true"><path d="M30 0H90A30 30 0 0 1 120 30V58A30 30 0 0 1 90 88H46L22 110V88A22 24 0 0 1 0 64V30A30 30 0 0 1 30 0Z" fill="#5E8C7A"/><circle cx="35" cy="44" r="11" fill="#fff"/><circle cx="63" cy="44" r="11" fill="#fff"/><circle cx="88" cy="49" r="7" fill="#fff"/></svg><span>hey<b style="font-weight:800">tribe</b></span></a>`;
 const t = new URLSearchParams(location.search).get("t") || "";
-fetch(CFG.supabaseUrl + "/rest/v1/rpc/sitter_sheet", { method: "POST", headers: { apikey: CFG.supabaseAnonKey, authorization: "Bearer " + CFG.supabaseAnonKey, "content-type": "application/json" }, body: JSON.stringify({ p_token: t }) })
+fetch(CFG.supabaseUrl + "/rest/v1/rpc/sitter_sheet", { method: "POST", headers: { apikey: CFG.supabaseKey || CFG.supabaseAnonKey, "content-type": "application/json" }, body: JSON.stringify({ p_token: t }) })
   .then(r => r.ok ? r.json() : null).then(d => {
     if(!d){ $("#m").innerHTML = `<div class="top">${logo}</div><div class="empty"><p class="hand">this link has ended</p><p class="sub">Ask the family for a new sitter link.</p></div>`; return; }
     const kids = (d.members || []).filter(m => m.style === "kid" || m.style === "baby").sort((a,b) => (a.order ?? 99) - (b.order ?? 99));

@@ -7,6 +7,7 @@ import webpush from "web-push";
 import { sendQueued } from "./_email.js";
 import { apnsReady, apnsClient } from "./_apns.js";
 import { fcmReady, fcmSend } from "./_fcm.js";
+import { appleSigninReady, revokePending } from "./_applesignin.js";
 
 const pad = n => String(n).padStart(2, "0");
 function localNow(tz) {
@@ -101,6 +102,8 @@ async function handler(req, res) {
   try { mail = await sendQueued(rpc, process.env.CRON_SECRET); } catch (e) { mail = { error: e.message }; }
   // stop Stripe billing for families that were deleted while Premium was still running
   try { mail.billing_stopped = await stopOrphanBilling(); } catch (e) { mail.billing_stopped = 0; }
+  // Sign in with Apple: revoke the Apple tokens of accounts that asked to be deleted (Apple requires it)
+  if (appleSigninReady()) { try { mail.apple = await revokePending(rpc, process.env.CRON_SECRET); } catch (e) { mail.apple = { error: e.message }; } }
   const web = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY), ios = apnsReady(), android = fcmReady();
   if (!web && !ios && !android) return res.status(200).json({ ok: true, push: "not set up", ...mail });
   if (web) webpush.setVapidDetails("mailto:hello@heytribe.app", process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);

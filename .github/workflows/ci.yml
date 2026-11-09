@@ -1,5 +1,5 @@
 # Runs on every push and pull request: the built app matches its source, server tests pass,
-# and a real browser clicks through the site and the sample family.
+# a real browser clicks through the site and the sample family, and the database tests pass.
 name: Checks
 on:
   push:
@@ -22,3 +22,28 @@ jobs:
         run: npm test
       - name: Browser smoke test
         run: npx playwright install --with-deps chromium && npm run test:e2e
+
+  # Database: start a fresh local Supabase from supabase/migrations, run the row level security tests,
+  # and check the committed types (supabase/types.ts) match. With the SUPABASE_ACCESS_TOKEN secret it also
+  # checks the types against production, which catches changes made to production but not saved as a migration.
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HAS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.1
+      - name: Start a local database from the migrations
+        run: supabase db start
+      - name: Row level security tests
+        run: supabase test db
+      - name: Generated types match the migrations
+        run: supabase gen types typescript --local --schema public > /tmp/types.ts && diff -u supabase/types.ts /tmp/types.ts
+      - name: Generated types match production
+        if: env.HAS_TOKEN == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase gen types typescript --project-id ayafbypcbsfmqckuwqom --schema public > /tmp/live.ts && diff -u supabase/types.ts /tmp/live.ts

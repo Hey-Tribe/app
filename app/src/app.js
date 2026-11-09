@@ -28,7 +28,9 @@ window.__PH = {key:"phc_n8UZg3Q74nLoh4pjBwyuPyBnYh5peYuVQbZHn8MsrQF4", app:"heyt
         try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, "1"); } catch (e) {}
         window.__identify(s.user.id);
         var m = (s.user.app_metadata && s.user.app_metadata.provider) || "email";
-        if (Date.now() - new Date(s.user.created_at).getTime() < 120000) window.__track("signed_up", { method: m });
+        var fresh = function(t){ return t && Date.now() - new Date(t).getTime() < 600000; };
+        // new account: made just now (Apple/Google) or its email was confirmed just now (email sign-up)
+        if (fresh(s.user.created_at) || (m === "email" && fresh(s.user.email_confirmed_at || s.user.confirmed_at))) window.__track("signed_up", { method: m });
         window.__track("signed_in", { method: m });
       });
     } catch (e) {}
@@ -44,6 +46,8 @@ window.__PH = {key:"phc_n8UZg3Q74nLoh4pjBwyuPyBnYh5peYuVQbZHn8MsrQF4", app:"heyt
   if (!m) return;
   var url = "https://" + m[2] + "/api/" + m[3] + "/envelope/?sentry_key=" + m[1] + "&sentry_version=7";
   var sent = 0, seen = {};
+  // release = the hash in the built app file name (app.<hash>.js), so each deploy shows up separately in Sentry
+  var rel = cfg.release; if (!rel) { try { var sc = document.querySelector('script[src*="/app/assets/app."]'); var h = sc && /app\.([0-9a-f]+)\.js/.exec(sc.src); rel = h ? "heytribe-app@" + h[1] : undefined; } catch (e) {} }
   function hex(n){ var a = new Uint8Array(n/2); (window.crypto||{}).getRandomValues && crypto.getRandomValues(a); var s = ""; for (var i=0;i<a.length;i++) s += ("0"+a[i].toString(16)).slice(-2); return s; }
   function send(type, value, stack){
     try {
@@ -52,7 +56,8 @@ window.__PH = {key:"phc_n8UZg3Q74nLoh4pjBwyuPyBnYh5peYuVQbZHn8MsrQF4", app:"heyt
       seen[key] = 1; sent++;
       var id = hex(32);
       var ev = { event_id: id, timestamp: Date.now()/1000, platform: "javascript", level: "error",
-        environment: location.hostname, release: cfg.release || undefined,
+        environment: location.hostname, release: rel,
+        tags: { app: "heytribe", platform: (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform()) || "web" },
         exception: { values: [{ type: type, value: msg }] },
         request: { url: location.origin + location.pathname },
         extra: { stack: String(stack || "").slice(0, 4000) } };
@@ -70,6 +75,8 @@ window.__PH = {key:"phc_n8UZg3Q74nLoh4pjBwyuPyBnYh5peYuVQbZHn8MsrQF4", app:"heyt
     var r = e && e.reason;
     send((r && r.name) || "UnhandledRejection", (r && r.message) || r, r && r.stack);
   });
+  // Test hook: open the app with ?sentry-test=1 to send one deliberate error and check reporting end to end.
+  if (/[?&]sentry-test=1\b/.test(location.search)) setTimeout(function(){ throw new Error("HeyTribe Sentry test error (deliberate)"); }, 0);
 })();
 
 
@@ -99,6 +106,9 @@ const store = { get(k){ try { return localStorage.getItem(k); } catch(e){ return
    and stores everything in Supabase: one row per document in public.docs, live updates over Realtime.
    The SAMPLE tribe is read-only on the server, so changes there stay on this device. */
 const CFG = window.HEYTRIBE || {};
+const SB_KEY = CFG.supabaseKey || CFG.supabaseAnonKey;
+// Dates of the current Terms and Privacy Policy. Change these when either page changes and everyone is asked to agree again.
+const TERMS_VERSION = "2026-11-06", PRIVACY_VERSION = "2026-11-06";
 function applyTheme(){ const t = (()=>{ try { return localStorage.getItem("ht-theme") || "auto"; } catch(e){ return "auto"; } })(); const dark = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches); document.documentElement.dataset.theme = dark ? "dark" : "light"; const m = document.querySelector('meta[name="theme-color"]'); if(m) m.content = dark ? "#151B1F" : "#FBFCFA"; }
 applyTheme(); try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme); } catch(e){}
 const APP_URL = location.origin + "/app/";
@@ -268,7 +278,7 @@ const PLATFORM = NATIVE ? (() => { try { return Capacitor.getPlatform(); } catch
 // build is older, cover the screen with an update prompt. Any failure lets the app through.
 if (NATIVE) (async () => { try {
   const info = await Capacitor.Plugins.App.getInfo();
-  const r = await fetch("/api/app-version", { cache: "no-store" });
+  const r = await fetch("/api/app-version?platform=" + PLATFORM, { cache: "no-store" });
   const min = String((await r.json()).min || "0.0.0");
   const a = String(info.version || "").split(".").map(n => parseInt(n, 10)), b = min.split(".").map(n => parseInt(n, 10));
   if (a.concat(b).some(Number.isNaN)) return;
@@ -987,7 +997,7 @@ const OAUTH = { google: false, apple: false };
 const NATIVE_REDIRECT = NATIVE_REDIRECT_SCHEME + "://auth";
 async function loadProviders(){
   try {
-    const r = await fetch(CFG.supabaseUrl + "/auth/v1/settings", { headers: { apikey: CFG.supabaseAnonKey } });
+    const r = await fetch(CFG.supabaseUrl + "/auth/v1/settings", { headers: { apikey: SB_KEY } });
     const j = r.ok ? await r.json() : {};
     OAUTH.google = !!(j.external && j.external.google); OAUTH.apple = !!(j.external && j.external.apple);
   } catch(e){}
@@ -1015,6 +1025,8 @@ async function oauthGo(p, btn){
       const r = await A.apple({ nonce: await sha256hex(raw) });
       const out = await sb.auth.signInWithIdToken({ provider: "apple", token: r.identityToken, nonce: raw });
       if(out.error) throw out.error;
+      // hand Apple's one-time code to the server, which keeps the refresh token so a deleted account can be revoked at Apple
+      if(r.authorizationCode && out.data && out.data.session) fetch("/api/apple-signin", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + out.data.session.access_token }, body: JSON.stringify({ code: r.authorizationCode }) }).catch(() => {});
       // Apple only shares the name the first time, so keep it on the login for the "Your first name" step
       if(r.givenName) sb.auth.updateUser({ data: { given_name: r.givenName, full_name: [r.givenName, r.familyName].filter(Boolean).join(" ") } }).catch(() => {});
     } else if(ANDROID_APP){
@@ -1050,6 +1062,7 @@ function firstNameGuess(){
   const n = md.given_name || md.first_name || String(md.full_name || md.name || "").split(" ")[0] || "";
   return n.slice(0, 20);
 }
+function agreeLine(){ return `<p class="small" style="margin:0;line-height:1.45">By continuing, you agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms</a> and the <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</p>`; }
 function helpLine(){ return `<p class="small help-line" style="margin:0">Need help? <a href="/help.html" target="_blank" rel="noopener">Help center</a> · <a href="/contact.html" target="_blank" rel="noopener">Contact us</a></p>`; }
 function authScreen(){
   const m = UI.auth || "signin";
@@ -1062,7 +1075,7 @@ function authScreen(){
   if(m === "signup") body = `<form data-form="auth-signup" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Make your account</h1>
       <p class="small" style="font-size:15px;margin:0">One login per person. Then start your tribe or join your family's with their code.</p>
       ${socialButtons()}${email(UI.authEmail)}${pw("au-pw","Password (8 or more characters)","new-password")}
-      <button class="btn primary" id="au-go">Create account</button>${err}
+      <button class="btn primary" id="au-go">Create account</button>${err}${agreeLine()}
       <p class="small" style="margin:0">Already have one? ${link("signin","Log in")}</p></form>`;
   else if(m === "forgot") body = `<form data-form="auth-forgot" class="col" style="gap:14px"><h1 class="title" style="font-size:38px">Reset your password</h1>
       <p class="small" style="font-size:15px;margin:0">We'll email you a link to choose a new one.</p>
@@ -1075,7 +1088,7 @@ function authScreen(){
       <p class="small" style="margin:0">${link("signin","Back to log in")}</p></div>`;
   else body = `<form data-form="auth-signin" class="col" style="gap:14px"><h1 class="title" style="font-size:44px">Log in</h1>
       ${socialButtons()}${email(UI.authEmail)}${pw("au-pw","Password","current-password")}
-      <button class="btn primary" id="au-go">Log in</button>${err}
+      <button class="btn primary" id="au-go">Log in</button>${err}${agreeLine()}
       <div class="between" style="flex-wrap:wrap;gap:8px">${link("forgot","Forgot password?")}<span class="small">New here? ${link("signup","Make an account")}</span></div></form>`;
   const langSw = `<button class="small lang-sw" data-act="lang" data-l="${((window.HTi18n&&HTi18n.lang)||"en")==="es"?"en":"es"}" data-no-tr>${((window.HTi18n&&HTi18n.lang)||"en")==="es"?"English":"Español"}</button>`;
   return `<div class="col" style="gap:22px;padding-top:18px"><div class="between">${logo}${langSw}</div>${body}
@@ -1745,7 +1758,7 @@ function family(){
   ${installCard()}
   ${remindersCard()}
   ${supportCard()}
-  ${SESSION?`${secHead("Your account")}<div class="paper col" style="padding:16px;gap:10px"><span style="font-weight:500;overflow-wrap:anywhere">${esc(SESSION.user.email||"")}</span><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="auth-change-pw">Change password</button><button class="btn ghost" data-act="sign-out">Log out</button></div>
+  ${SESSION?`${secHead("Your account")}<div class="paper col" style="padding:16px;gap:10px"><span style="font-weight:500;overflow-wrap:anywhere">${esc(SESSION.user.email||"")}</span>${/@privaterelay\.appleid\.com$/i.test(SESSION.user.email||"") ? `<span class="small" style="line-height:1.45">Apple hides your real email. We write to this address and Apple forwards it to you.</span>` : ""}<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="auth-change-pw">Change password</button><button class="btn ghost" data-act="sign-out">Log out</button></div>
     <div class="row" style="gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px"><button class="btn ghost" data-act="export-data">${ico("download",17)} Download our data</button><button class="btn ghost" data-act="ai-toggle" aria-pressed="${aiConsent() === true}">Hey Tribe AI: ${aiConsent() === true ? "On" : "Off"}</button>${isParent()?`<button class="small" data-act="close-family" style="color:var(--rose-ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Delete this family</button>`:""}<button class="small" data-act="delete-account" style="color:var(--rose-ink);font-weight:600;text-decoration:underline;text-underline-offset:3px">Delete my account</button></div></div>`:""}`;
 }
 
@@ -2152,7 +2165,7 @@ document.addEventListener("click", async e => {
   const tc = e.target.closest("[data-tk-cat]"); if(tc){ const f = tc.closest("form"); f.querySelectorAll("[data-tk-cat]").forEach(x => x.classList.toggle("on", x === tc)); f.querySelector('input[name="category"]').value = tc.dataset.tkCat; return; }
   const b = e.target.closest("[data-act]"); if(!b) return;
   const id = b.dataset.id, act = b.dataset.act;
-  const needsDb = !["close","ai-yes","ai-no","ai-toggle","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal","tk-new","tk-open","pending-check","pending-cancel","export-data","delete-account","sitter-link","sitter-make","sitter-stop","cal-sub","cal-reset","rem-on","rem-off","rem-pref","rem-test","search","theme","setup-hide","ann-hide","install-app"].includes(act);
+  const needsDb = !["close","terms-agree","ai-yes","ai-no","ai-toggle","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal","tk-new","tk-open","pending-check","pending-cancel","export-data","delete-account","sitter-link","sitter-make","sitter-stop","cal-sub","cal-reset","rem-on","rem-off","rem-pref","rem-test","search","theme","setup-hide","ann-hide","install-app"].includes(act);
   if(needsDb && !db) return;
   switch(act){
     case "close": closeSheet(); break;
@@ -2177,6 +2190,7 @@ document.addEventListener("click", async e => {
     /* hey tribe */
     case "ht": htSheet(); break;
     case "ht-commit": htCommit(); break;
+    case "terms-agree": closeSheet(); await recordTerms("prompt"); toast("Thanks"); break;
     case "ai-yes": case "ai-no": store.set("ht-ai-ok", act === "ai-yes" ? "yes" : "no"); if(htAsked){ const t = htAsked; htAsked = ""; htUnderstand(t); } else render(); break;
     case "ai-toggle": store.set("ht-ai-ok", aiConsent() === true ? "no" : "yes"); toast(aiConsent() ? "AI is on for Hey Tribe" : "AI is off. Hey Tribe uses the built-in reader."); render(); break;
     case "ht-reset": { htPending = null; $("#ht-out").innerHTML = ""; const t = $("#ht-text"); if(t){ t.value = ""; t.focus(); } break; }
@@ -2523,7 +2537,32 @@ function connect(code){
 }
 
 /* ---------- boot ---------- */
+// Terms records: new accounts agreed on the sign-up screen; everyone else is asked once when the Terms or Privacy Policy change.
+let TERMS_ASKED = false;
+async function recordTerms(source){
+  if(!SESSION) return;
+  const r = await sb.from("terms_acceptances").insert({ terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION, source });
+  if(r.error && !/duplicate/i.test(r.error.message || "")) console.warn("terms", r.error.message);
+}
+async function checkTerms(){
+  if(!SESSION || TERMS_ASKED) return;
+  const now = await sb.from("terms_acceptances").select("terms_version").eq("terms_version", TERMS_VERSION).eq("privacy_version", PRIVACY_VERSION).limit(1);
+  if(now.error || (now.data || []).length) return; // agreed already (or the table isn't there yet)
+  TERMS_ASKED = true;
+  const ever = await sb.from("terms_acceptances").select("terms_version").limit(1);
+  const fresh = Date.now() - new Date(SESSION.user.created_at).getTime() < 864e5;
+  if(!ever.error && !(ever.data || []).length && fresh){ await recordTerms("sign_up"); return; }
+  if($("#scrim")) return;
+  openSheet(`<div class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">We updated our Terms</h2>
+    <p style="margin:0;line-height:1.5;color:var(--muted)">We changed the Terms and the Privacy Policy on November 6, 2026: plan prices, the free trial, and how phone app purchases work.</p>
+    <div class="row" style="gap:14px;flex-wrap:wrap"><a href="/terms.html" target="_blank" rel="noopener" style="font-weight:600">Read the Terms</a><a href="/privacy.html" target="_blank" rel="noopener" style="font-weight:600">Read the Privacy Policy</a></div>
+    <button class="btn primary" data-act="terms-agree">I agree</button>
+    <p class="small" style="margin:0;line-height:1.45">If you don't agree, you can delete your account in Family &amp; settings.</p>
+  </div>`);
+}
 async function afterLogin(){
+  setTimeout(() => { checkTerms().catch(() => {}); }, 1500);
   const h = (location.hash||"").slice(1);
   const del = await sb.rpc("my_deletion_pending");
   if(del && del.data === true){ await sb.auth.signOut(); UI.auth = "signin"; UI.authErr = "This account is being deleted. Write to hello@heytribe.app if that's a mistake."; S.status = "auth"; render(); return; }
@@ -2539,13 +2578,13 @@ async function afterLogin(){
   if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
-if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261106', document.body);
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261109', document.body);
 if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
 addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
 render();
 (async () => {
-  if(!window.supabase || !CFG.supabaseUrl || !CFG.supabaseAnonKey){ S.status = "offline"; render(); return; }
-  sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } });
+  if(!window.supabase || !CFG.supabaseUrl || !SB_KEY){ S.status = "offline"; render(); return; }
+  sb = window.supabase.createClient(CFG.supabaseUrl, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } });
   if(window.__trackAuth) window.__trackAuth(sb);
   db = makeDb(sb); assets = assetsApi; sampler = aiApi;
   const bq = /[?&]billing=(success|cancel)/.exec(location.search);
@@ -2558,6 +2597,10 @@ render();
   let first = true;
   sb.auth.onAuthStateChange((event, session) => {
     const was = SESSION?.user?.id; SESSION = session;
+    if(event === "SIGNED_IN" && session && session.provider_refresh_token && session.user?.app_metadata?.provider === "apple"){
+      const tok = session.provider_refresh_token;
+      setTimeout(() => { sb.rpc("apple_token_save", { p_token: tok }).then(() => {}, () => {}); }, 0);
+    }
     if(event === "PASSWORD_RECOVERY"){ UI.auth = "reset"; S.status = "auth"; render(); return; }
     if(event === "SIGNED_OUT"){ db.reset(); unsubs.forEach(u=>{ try{u();}catch(e){} }); unsubs = []; TRIBE = null; SUP.list = null; SUP.nagged = false; PLAN = null; Object.assign(S, EMPTY()); store.del("ht-tribe"); store.set("ht-tribes","[]"); try { Object.keys(localStorage).filter(k => /^ht-(me-|last-|view|snap-)/.test(k)).forEach(k => localStorage.removeItem(k)); } catch(e){} UI.view = "today"; UI.auth = "signin"; S.status = "auth"; render(); return; }
     if(event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;

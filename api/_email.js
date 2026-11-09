@@ -107,16 +107,20 @@ export async function send({ to, subject, html, text, replyTo }) {
 export async function sendQueued(rpc, secret) {
   if (!process.env.RESEND_API_KEY) return { emails: 0, skipped: "not set up" };
   const feed = await rpc("email_feed", { p_secret: secret });
+  // addresses that must not get email (Apple relay addresses whose forwarding was turned off)
+  let stops = new Set();
+  try { stops = new Set((await rpc("email_stops_list", { p_secret: secret })) || []); } catch (e) {}
+  const allowed = a => a && !stops.has(String(a).toLowerCase());
   const team = feed.team || [], reply = team[0], done = []; let count = 0;
   const go = async (key, to, mail, replyTo = reply) => {
-    const list = (Array.isArray(to) ? to : [to]).filter(Boolean);
+    const list = (Array.isArray(to) ? to : [to]).filter(allowed);
     if (!list.length) { done.push(key); return; }
     try { await send({ to: list, subject: mail.subject, html: mail.html, text: mail.text, replyTo }); done.push(key); count++; }
     catch (e) { console.error("email", key, e.message); }
   };
   for (const r of feed.replies || []) await go(r.key, r.to, T.supportReply(r), r.source === "app" ? undefined : reply);
   for (const t of feed.new_tickets || []) {
-    if (t.source === "website" && t.email) { try { await send({ to: [t.email], replyTo: reply, ...T.supportReceipt(t) }); } catch (e) { console.error("receipt", e.message); } }
+    if (t.source === "website" && allowed(t.email)) { try { await send({ to: [t.email], replyTo: reply, ...T.supportReceipt(t) }); } catch (e) { console.error("receipt", e.message); } }
     await go(t.key, team, T.teamAlert(t), t.email || undefined);
   }
   for (const w of feed.welcomes || []) await go(w.key, w.to, T.welcome(w));

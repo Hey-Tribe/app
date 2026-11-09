@@ -10,3 +10,7 @@
 ## Site
 - Marketing pages are plain HTML at the repo root (`styles.css`, `site.js`). Spanish text lives in `i18n/es-site.json`.
 - Fonts are self-hosted in `assets/fonts/`.
+
+## Database
+- Schema changes are new files in `supabase/migrations/` (see `supabase/README.md`), applied to production with the
+  same SQL. Then regenerate `supabase/types.ts` and run `npx supabase@2 test db`.
