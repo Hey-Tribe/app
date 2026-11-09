@@ -727,7 +727,18 @@ function supportCard(){
   const L = SUP.list || [];
   return `${secHead("Help and support")}<div class="paper col" style="padding:${L.length?"6px 16px 14px":"16px"};gap:10px">
     ${L.length ? `<div class="col">${L.slice(0,5).map(t => `<button class="tk-row" data-act="tk-open" data-id="${esc(t.id)}">${tkUnread(t)?`<span class="tk-dot" aria-label="New reply"></span>`:""}<span class="col grow" style="min-width:0"><b style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.subject)}</b><span class="small"><span data-no-tr>#${t.number}</span> · ${tkState(t)}</span></span>${ico("fwd",16,2)}</button>`).join("")}</div>` : `<p class="small" style="margin:0">Stuck, found a bug or have an idea? Write to us and a real person will answer, right here in the app.</p>`}
-    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="tk-new">${ico("note",18)} Contact support</button><a class="btn ghost" href="/help.html" target="_blank" rel="noopener">Help center</a></div></div>`;
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost" data-act="tk-new">${ico("note",18)} Contact support</button><button class="btn ghost" data-act="tk-report">Report a problem</button><a class="btn ghost" href="/help.html" target="_blank" rel="noopener">Help center</a></div></div>`;
+}
+// Report something someone shared, or someone's behavior (store rules for shared content). Goes to the support desk.
+function reportSheet(){
+  openSheet(`<form data-form="ticket" class="col" style="gap:14px">
+    <h2 class="serif" style="font-size:28px;margin:0">Report a problem</h2>
+    <p class="small" style="margin:0;line-height:1.5">Tell us about something a person shared or did in HeyTribe that shouldn't be there. We read every report, usually within a day. Parents can also remove someone right away under Who has access.</p>
+    <input type="hidden" name="category" value="other"><input type="hidden" name="report" value="1">
+    <input type="hidden" name="subject" value="Report">
+    <div class="field"><label for="rp-b">What happened?</label><textarea id="rp-b" name="body" rows="5" maxlength="5000" required placeholder="Who shared it, where it is in the app, and what's wrong"></textarea></div>
+    <p class="form-err small" id="tk-err" role="alert"></p>
+    <button class="btn primary" id="tk-go">Send report</button></form>`);
 }
 function ticketNewSheet(cat){
   openSheet(`<form data-form="ticket" class="col" style="gap:14px">
@@ -2165,7 +2176,7 @@ document.addEventListener("click", async e => {
   const tc = e.target.closest("[data-tk-cat]"); if(tc){ const f = tc.closest("form"); f.querySelectorAll("[data-tk-cat]").forEach(x => x.classList.toggle("on", x === tc)); f.querySelector('input[name="category"]').value = tc.dataset.tkCat; return; }
   const b = e.target.closest("[data-act]"); if(!b) return;
   const id = b.dataset.id, act = b.dataset.act;
-  const needsDb = !["close","terms-agree","ai-yes","ai-no","ai-toggle","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal","tk-new","tk-open","pending-check","pending-cancel","export-data","delete-account","sitter-link","sitter-make","sitter-stop","cal-sub","cal-reset","rem-on","rem-off","rem-pref","rem-test","search","theme","setup-hide","ann-hide","install-app"].includes(act);
+  const needsDb = !["close","terms-agree","ai-yes","ai-no","ai-toggle","calday","calweek","mealweek","list","chore-who","who","more","kid-pick","kid-go","kid-exit","onboard","back-tribe","copy","copy-code","copy-care","trip-open","auth-mode","try-sample","sample-exit","sign-out","lang","upgrade","billing-portal","tk-new","tk-report","tk-open","pending-check","pending-cancel","export-data","delete-account","sitter-link","sitter-make","sitter-stop","cal-sub","cal-reset","rem-on","rem-off","rem-pref","rem-test","search","theme","setup-hide","ann-hide","install-app"].includes(act);
   if(needsDb && !db) return;
   switch(act){
     case "close": closeSheet(); break;
@@ -2288,6 +2299,7 @@ document.addEventListener("click", async e => {
     case "member-new": if(!gate(S.members.length < 6, "Free tribes have room for 6 people. Premium makes room for everyone.")) break; memberSheet(); break;
     case "upgrade": if(!b.dataset.plan && BILLING){ upsell("Unlimited everything and every extra, for the whole family."); break; } billingGo("checkout", b); break;
     case "tk-new": ticketNewSheet(); break;
+    case "tk-report": reportSheet(); break;
     case "pending-check": { const l = await loadMemberships(); if(l && l.length){ UI.view = "today"; connect(l[0].code); } else toast("Still waiting for a parent to approve you"); break; }
     case "pending-cancel": { for(const c of PENDING) await sb.from("memberships").delete().match({ tribe_code: c, user_id: SESSION.user.id }); PENDING = []; UI.onboard = null; S.status = "welcome"; render(); break; }
     case "login-approve": manageLogin(b.dataset.u, "approve", b.dataset.role); break;
@@ -2355,9 +2367,9 @@ document.addEventListener("submit", async e => {
   if(kind === "ticket"){
     const err = $("#tk-err"), btn = $("#tk-go"); if(!String(v.body||"").trim()){ err.textContent = "Write a short message first."; return; }
     btn.disabled = true; btn.textContent = "Sending…";
-    const ctx = { view: UI.view, lang: (window.HTi18n && HTi18n.lang) || "en", plan: PLAN ? PLAN.status : null, device: innerWidth < 700 ? "phone" : innerWidth < 1024 ? "tablet" : "desktop", ua: navigator.userAgent.slice(0, 160), page: location.pathname };
+    const ctx = { report: v.report === "1" || undefined, view: UI.view, lang: (window.HTi18n && HTi18n.lang) || "en", plan: PLAN ? PLAN.status : null, device: innerWidth < 700 ? "phone" : innerWidth < 1024 ? "tablet" : "desktop", ua: navigator.userAgent.slice(0, 160), page: location.pathname };
     const r = await sb.rpc("create_ticket", { p_subject: v.subject || "", p_body: v.body, p_category: v.category || "question", p_tribe: TRIBE && TRIBE !== "SAMPLE" ? TRIBE : null, p_context: ctx });
-    if(r.error){ btn.disabled = false; btn.textContent = "Send"; err.textContent = /too many/.test(r.error.message||"") ? "You've sent a lot of requests today. We'll get to them soon." : "Couldn't send that. Check your connection and try again."; return; }
+    if(r.error){ btn.disabled = false; btn.textContent = v.report === "1" ? "Send report" : "Send"; err.textContent = /too many/.test(r.error.message||"") ? "You've sent a lot of requests today. We'll get to them soon." : "Couldn't send that. Check your connection and try again."; return; }
     closeSheet(); toast("Sent! Request #" + r.data.number + ". We'll reply here."); await loadTickets(); render(); return;
   }
   if(kind === "ticket-reply"){
@@ -2578,7 +2590,7 @@ async function afterLogin(){
   if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
-if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=20261109', document.body);
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=2026110902', document.body);
 if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
 addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
 render();
