@@ -96,6 +96,8 @@ const fmtT = m => { m = Number(m)||0; let h = Math.floor(m/60), mm = m%60; const
 const toHHMM = m => pad(Math.floor(m/60))+":"+pad(m%60);
 const fromHHMM = s => { const [h,m] = String(s||"").split(":").map(Number); return (h||0)*60+(m||0); };
 const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+// one-letter weekday for small headers; Spanish uses its own letters (L M X J V S D)
+const dl = i => (window.HTi18n && HTi18n.lang === "es") ? "LMXJVSD"[i] : DOW[i][0];
 const DOW_LONG = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const dowIdx = d => (d.getDay()+6)%7;
@@ -1277,7 +1279,7 @@ function today(){
   if(evs.length && !nowPlaced) tl += nowRow;
   return `
   <div class="between" style="align-items:flex-end">
-    <div><div class="eyebrow">${esc(S.tribe?.name || "")} · ${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}</div><h1 class="title" style="font-size:44px;margin-top:4px">${DOW_LONG[dowIdx(d)]}</h1></div>
+    <div><div class="eyebrow"><span>${esc(S.tribe?.name || "")}</span> · <span>${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}</span></div><h1 class="title" style="font-size:44px;margin-top:4px">${DOW_LONG[dowIdx(d)]}</h1></div>
     <div class="row" style="gap:10px"><button class="iconbtn" data-act="search" aria-label="Search everything">${ico("search",19,2)}</button><button data-go="family" aria-label="Family and settings">${face(me,46)}</button></div>
   </div>
   ${setupCard()}
@@ -1337,7 +1339,7 @@ function calendar(){
   const lanes = sorted(S.members), n = lanes.length || 1;
   const days = [...Array(7)].map((_,i)=>addDays(base,i)).map(dd => {
     const k = ymd(dd), evs = eventsOn(k), cols = [...new Set(evs.map(e=>e.member==="all"?"sage":okColor(mem(e.member)?.color)))].slice(0,3);
-    return `<button class="day ${k===sel?"on":""} ${k===key?"today":""}" data-act="calday" data-day="${k}" aria-label="${DOW_LONG[dowIdx(dd)]} ${dd.getDate()}"><span class="small" style="font-size:11px">${DOW[dowIdx(dd)][0]}</span><span class="n">${dd.getDate()}</span><span class="dots">${cols.map(c=>`<i style="background:var(--m-${c})"></i>`).join("")}</span>${(()=>{ const w = custodyOn(k); return w ? `<span class="cus" style="background:var(--m-${okColor(mem(w)?.color)})" title="With ${esc(memName(w))}"></span>` : ""; })()}</button>`;
+    return `<button class="day ${k===sel?"on":""} ${k===key?"today":""}" data-act="calday" data-day="${k}" aria-label="${DOW_LONG[dowIdx(dd)]} ${dd.getDate()}"><span class="small" style="font-size:11px" data-no-tr>${dl(dowIdx(dd))}</span><span class="n">${dd.getDate()}</span><span class="dots">${cols.map(c=>`<i style="background:var(--m-${c})"></i>`).join("")}</span>${(()=>{ const w = custodyOn(k); return w ? `<span class="cus" style="background:var(--m-${okColor(mem(w)?.color)})" title="With ${esc(memName(w))}"></span>` : ""; })()}</button>`;
   }).join("");
   const sd = fromYmd(sel), evs = eventsOn(sel);
   const laneW = `((100% - 38px) / ${n})`;
@@ -1348,7 +1350,7 @@ function calendar(){
   evs.filter(e => !e.allDay).forEach(e => {
     if(e.end/60 <= H0 || e.start/60 >= H1) return;
     const top = Math.max(0,(e.start/60-H0)*PX)+1, h = Math.max(24, ((Math.min(e.end, H1*60) - Math.max(e.start, H0*60))/60)*PX - 3);
-    if(e.member === "all"){ blocks += `<button class="blk all" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="left:38px;right:0;top:${top}px;height:${h}px;z-index:2"><span>${esc(e.title)} · everyone</span><span class="hand" style="font-size:15px">${fmtT(e.start)}</span></button>`; return; }
+    if(e.member === "all"){ blocks += `<button class="blk all" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="left:38px;right:0;top:${top}px;height:${h}px;z-index:2"><span>${esc(e.title)} · <span>everyone</span></span><span class="hand" style="font-size:15px">${fmtT(e.start)}</span></button>`; return; }
     const li = Math.max(0, lanes.findIndex(m=>m.id===e.member)), c = okColor(mem(e.member)?.color), cf = conflictFor(e, sel);
     blocks += `<button class="blk" data-act="event" data-id="${esc(e.id)}" data-day="${sel}" style="left:calc(38px + ${laneW} * ${li});width:calc(${laneW} - 4px);top:${top}px;height:${h}px;background:color-mix(in srgb, var(--m-${c}) 18%, var(--surface));border-color:var(--m-${c})">${esc(e.title)}${h>40?`<span class="s">${fmtT(e.start)}${e.driver?" · "+esc(memName(e.driver)):""}</span>`:""}${cf?`<span class="warn">${esc(memName(e.driver))} is busy!</span>`:""}</button>`;
   });
@@ -1394,7 +1396,7 @@ function chores(){
   return `
   ${pageHead("Chore chart", addBtn('data-act="chore-new"', "Add a chore"))}
   ${personChips(UI.choreMember, "chore-who", people)}
-  ${list.length ? `<div style="overflow-x:auto;margin-top:16px"><table class="chart"><thead><tr><th style="width:30%"></th>${DOW.map((d,i)=>`<th class="${i===tIdx?"today":""}">${d[0]}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`
+  ${list.length ? `<div style="overflow-x:auto;margin-top:16px"><table class="chart"><thead><tr><th style="width:30%"></th>${DOW.map((d,i)=>`<th class="${i===tIdx?"today":""}" data-no-tr>${dl(i)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`
     : `<div class="empty" style="margin-top:16px"><span class="hand">no chores for ${esc(m?.name||"them")} yet</span>Tap + to give them a job and start stamping.</div>`}
   <div class="paper jar" style="margin-top:20px">${jar}
     <div class="col grow"><span class="eyebrow">Saving up for</span>
@@ -1862,7 +1864,7 @@ function choreSheet(id){
     <h2 class="serif" style="font-size:28px;margin:0">${c?"Edit chore":"New chore"}</h2>
     <div class="field"><label for="ch-title">Chore</label><input id="ch-title" name="title" required maxlength="40" value="${esc(c?.title||"")}" placeholder="Feed the dog" autofocus></div>
     <div class="field"><label for="ch-who">Whose job</label><select id="ch-who" name="member">${memberOptions(c?.member||UI.choreMember)}</select></div>
-    <div class="field"><label>Which days</label><div class="daypick">${DOW.map((d,i)=>`<button type="button" class="${days.includes(i)?"on":""}" data-day-toggle="${i}" aria-pressed="${days.includes(i)}">${d[0]}</button>`).join("")}</div></div>
+    <div class="field"><label>Which days</label><div class="daypick">${DOW.map((d,i)=>`<button type="button" class="${days.includes(i)?"on":""}" data-day-toggle="${i}" aria-pressed="${days.includes(i)}" data-no-tr>${dl(i)}</button>`).join("")}</div></div>
     <div class="row" style="gap:10px">${c?`<button type="button" class="btn danger" data-act="chore-del" data-id="${esc(c.id)}">${ico("trash",18)} Delete</button>`:""}<button class="btn primary grow">${c?"Save":"Add chore"}</button></div></form>`);
 }
 function memberSheet(id){
@@ -2590,7 +2592,7 @@ async function afterLogin(){
   if(pick){ if(TRIBE !== pick.code || S.status !== "ready") connect(pick.code); }
   else { TRIBE = null; S.status = "welcome"; render(); }
 }
-if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=2026110902', document.body);
+if(window.HTi18n) HTi18n.start('/app/i18n/es-app.json?v=2026110904', document.body);
 if("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("/app/sw.js", { scope: "/app/" }).catch(() => {});
 addEventListener("online", () => { if(TRIBE && TRIBE !== "SAMPLE" && db){ db.refresh(); } });
 render();

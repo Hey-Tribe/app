@@ -1,6 +1,7 @@
 // Store screenshots from the sample family, no frame: mobile/store/screenshots/{ios,android}/{en,es}/NN-name.png
 // iPhone 6.9" = 1320 x 2868 (440 x 956 at 3x). Google Play phone = 1080 x 2160 (360 x 720 at 3x, 2:1).
 // Run: npm run build:app && node tools/store-screenshots.mjs
+// Spanish shots swap the sample family's own words (events, chores, lists...) using tools/sample-es.json.
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -16,11 +17,18 @@ const server = http.createServer((req, res) => {
 }).listen(0);
 const base = `http://localhost:${server.address().port}`;
 const SHOTS = [["01-today", "today"], ["02-calendar", "calendar"], ["03-chores", "chores"], ["04-lists", "lists"], ["05-dinner", "menu"], ["06-kid-view", "family", async p => { const b = await p.$('[data-act="kid-go"]'); if (b) { await b.click(); await p.waitForTimeout(800); } }]];
+const ES = JSON.parse(fs.readFileSync(path.join(root, "tools/sample-es.json"), "utf8"));
+const toEs = v => typeof v === "string" ? (ES[v] ?? v) : Array.isArray(v) ? v.map(toEs) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, toEs(x)])) : v;
 const SIZES = { ios: { width: 440, height: 956 }, android: { width: 360, height: 720 } };
 const browser = await chromium.launch();
 for (const [store, vp] of Object.entries(SIZES)) for (const lang of ["en", "es"]) {
   const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
   await ctx.route(/googletagmanager|google-analytics/, r => r.abort());
+  if (lang === "es") await ctx.route(/\/rest\/v1\/(docs|tribes)/, async r => {
+    const res = await r.fetch(); let body = await res.text();
+    try { body = JSON.stringify(toEs(JSON.parse(body))); } catch (e) {}
+    await r.fulfill({ response: res, body });
+  });
   const page = await ctx.newPage();
   await page.goto(`${base}/app/?lang=${lang}`); await page.waitForTimeout(1200);
   await page.click('[data-act="try-sample"]'); await page.waitForTimeout(3000);
