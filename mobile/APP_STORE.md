@@ -42,6 +42,7 @@ in `mobile/` changes (icon, plugins, permissions).
 8. **Build**: GitHub › Actions › "iPhone app to TestFlight" › Run workflow. The build shows up in TestFlight in about 20 minutes.
    Install TestFlight on your iPhone to try it.
 9. **Review account**: make a login for Apple's reviewers (for example review@heytribe.app) with a family that has a few
+   Ready to go: sign up as review@heytribe.app in the app, confirm the email, then run `tools/review-account.sql` in the Supabase SQL editor (or ask Claude). It gives that login a full copy of the sample family with Premium on. Use the same login for Google Play › App access.
    plans, chores and a list in it. Put the login in App Review Information.
 10. Add screenshots, fill in the listing below, and submit for review.
 
