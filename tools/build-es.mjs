@@ -80,6 +80,10 @@ async function main() {
       };
       for (const el of document.querySelectorAll("[href],[src],[poster],[data-src]")) for (const a of ["href", "src", "poster", "data-src"]) if (el.hasAttribute(a) && !(el.tagName === "LINK" && /canonical|alternate/.test(el.rel))) el.setAttribute(a, fix(el.getAttribute(a)));
       for (const el of document.querySelectorAll("[srcset],[data-srcset]")) for (const a of ["srcset", "data-srcset"]) if (el.hasAttribute(a)) el.setAttribute(a, el.getAttribute(a).split(",").map(s => { const [u, d] = s.trim().split(/\s+/); return fix(u) + (d ? " " + d : ""); }).join(", "));
+      // app screenshots: use the Spanish ones in the HTML itself (site.js used to swap them after load, which slowed the page)
+      for (const el of document.querySelectorAll("img,source,link[rel=preload]")) for (const a of ["src", "srcset", "data-src", "data-srcset", "href", "imagesrcset"]) {
+        const v = el.getAttribute(a); if (v && v.includes("assets/f/") && !v.includes("assets/f/es/")) el.setAttribute(a, v.replace(/assets\/f\//g, "assets/f/es/"));
+      }
       // head: language, addresses and the two-way language links
       document.documentElement.lang = "es";
       const en = SITE + "/" + (f === "index.html" ? "" : f), es = SITE + esHref(f);
