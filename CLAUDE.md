@@ -9,6 +9,9 @@
 
 ## Site
 - Marketing pages are plain HTML at the repo root (`styles.css`, `site.js`). Spanish text lives in `i18n/es-site.json`.
+- Spanish pages are built into `es/` from those English pages and `i18n/es-site.json`. After editing a page listed in
+  `tools/build-es.mjs` or the Spanish text, run `npm run build:es` (it also rebuilds `sitemap.xml`). Never edit `es/` by hand.
+- After adding or removing a public page, run `npm run sitemap`.
 - Fonts are self-hosted in `assets/fonts/`.
 
 ## Database

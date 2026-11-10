@@ -268,3 +268,21 @@ test("robots.txt keeps private areas out and points to the sitemap", () => {
   assert.match(r, /Sitemap: https:\/\/www\.heytribe\.app\/sitemap\.xml/);
   assert.doesNotMatch(r, /Disallow: \/\s*$/m, "the site itself is not blocked");
 });
+
+/* ---------- Search: Spanish pages ---------- */
+test("every Spanish page has its own address, lang, canonical and two-way hreflang (run npm run build:es after edits)", async () => {
+  const { ES_PAGES, enUrl, esUrl } = await import("../tools/build-es.mjs");
+  const read = f => fs.readFileSync(new URL("../" + f, import.meta.url), "utf8");
+  const head = h => ({ lang: (/<html lang="([^"]+)"/.exec(h) || [])[1], canon: (/<link rel="canonical" href="([^"]+)"/.exec(h) || [])[1],
+    alt: Object.fromEntries([...h.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)"/g)].map(m => [m[1], m[2]])) });
+  for (const f of ES_PAGES) {
+    const en = head(read(f)), es = head(read("es/" + f));
+    assert.equal(en.lang, "en", f); assert.equal(es.lang, "es", "es/" + f);
+    assert.equal(en.canon, enUrl(f), f); assert.equal(es.canon, esUrl(f), "es/" + f);
+    const want = { en: enUrl(f), es: esUrl(f), "x-default": enUrl(f) };
+    assert.deepEqual(en.alt, want, f); assert.deepEqual(es.alt, want, "es/" + f);
+  }
+  // English-only pages must not point at a Spanish version
+  for (const f of fs.readdirSync(new URL("..", import.meta.url)).filter(x => x.endsWith(".html") && !ES_PAGES.includes(x)))
+    assert.doesNotMatch(read(f), /hreflang="es"/, f);
+});

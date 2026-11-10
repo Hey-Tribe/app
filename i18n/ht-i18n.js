@@ -5,8 +5,12 @@
 (function(){
   "use strict";
   var KEY = "ht-lang";
+  // Website pages: the address decides the language (/es/... is Spanish), so every address always shows one language.
+  // The app, admin and sitter pages remember the person's choice instead.
+  var SITE_PAGE = !/^\/(app|admin|sitter)(\/|$)/.test(location.pathname || "/");
   function get(){
     try {
+      if(SITE_PAGE) return /^\/es(\/|$)/.test(location.pathname) || /[?&]lang=es\b/.test(location.search) ? "es" : "en";
       var q = /[?&]lang=(en|es)\b/.exec(location.search); if(q){ localStorage.setItem(KEY, q[1]); return q[1]; }
       return localStorage.getItem(KEY) === "es" ? "es" : "en";
     } catch(e){ return "en"; }
@@ -131,11 +135,19 @@
   window.HTi18n = {
     lang: LANG,
     _tr: tr, // used by tools/i18n-missing.mjs to find untranslated text
-    set: function(l){ try { localStorage.setItem(KEY, l); } catch(e){} location.reload(); },
+    set: function(l){
+      try { localStorage.setItem(KEY, l); } catch(e){}
+      if(SITE_PAGE){
+        // go to the same page in the other language when it has its own address
+        var alt = document.querySelector('link[rel="alternate"][hreflang="' + l + '"]');
+        if(alt){ location.href = alt.getAttribute("href").replace(/^https:\/\/www\.heytribe\.app/, ""); return; }
+        location.search = l === "es" ? "?lang=es" : ""; return;
+      }
+      location.reload();
+    },
     start: function(url, root){
       document.documentElement.lang = LANG;
       if(LANG !== "es"){ document.documentElement.classList.remove("es-wait"); return Promise.resolve(); }
-      try { var cl = document.querySelector('link[rel="canonical"]'); if(cl && /[?&]lang=es\b/.test(location.search)) cl.href = cl.href.split("?")[0] + "?lang=es"; } catch(e){}
       return load(url).then(function(dict){
         watch(dict, root || document.documentElement);
         document.title = tr(dict, document.title) || document.title;

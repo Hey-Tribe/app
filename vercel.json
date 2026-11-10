@@ -213,5 +213,53 @@
       "source": "/.well-known/assetlinks.json",
       "destination": "/api/assetlinks"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "es"
+        }
+      ],
+      "destination": "/es/",
+      "permanent": true
+    },
+    {
+      "source": "/index.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "es"
+        }
+      ],
+      "destination": "/es/",
+      "permanent": true
+    },
+    {
+      "source": "/:page(features|pricing|join|hey-tribe|about|contact|help|blog|post-chore-charts|post-mental-load|post-sunday-reset|login|privacy|terms|delete-account|licenses|feature-baby-log|feature-calendar|feature-chores|feature-contacts|feature-countdowns|feature-dinner-menu|feature-documents|feature-family-sharing|feature-fridge|feature-health|feature-home-bills|feature-kid-view|feature-lists|feature-routines|feature-school|feature-sitter-sheet|feature-today|feature-trips).html",
+      "has": [
+        {
+          "type": "query",
+          "key": "lang",
+          "value": "es"
+        }
+      ],
+      "destination": "/es/:page.html",
+      "permanent": true
+    },
+    {
+      "source": "/es/index.html",
+      "destination": "/es/",
+      "permanent": true
+    },
+    {
+      "source": "/es",
+      "destination": "/es/",
+      "permanent": true
+    }
   ]
 }

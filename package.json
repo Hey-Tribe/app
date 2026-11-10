@@ -19,7 +19,8 @@
     "og": "node tools/og-images.mjs",
     "i18n:check": "node tools/i18n-missing.mjs",
     "store-shots": "npm run build:app && node tools/store-screenshots.mjs",
-    "sitemap": "node tools/sitemap.mjs"
+    "sitemap": "node tools/sitemap.mjs",
+    "build:es": "node tools/build-es.mjs && node tools/sitemap.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.0",
