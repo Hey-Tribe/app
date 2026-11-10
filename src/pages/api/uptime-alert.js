@@ -1,4 +1,4 @@
-import { watch } from "./_watch.js";
+import { watch } from "../../lib/api/_watch.js";
 // Outage emails for the GitHub "Uptime" monitor, sent with the Resend key already in Vercel (no extra secret).
 // POST {"state":"down"} or {"state":"up"}. Nothing in the request is trusted:
 //  - "down" emails only if the newest GitHub issue labeled "outage" is open and under 15 minutes old,
@@ -6,8 +6,8 @@ import { watch } from "./_watch.js";
 //  - "up" emails only if the newest outage issue was closed in the last 15 minutes AND every check passes.
 // Each outage issue gets at most one email of each kind per server instance.
 // If Vercel itself is down this can't run; the GitHub issue (emailed by GitHub to repo watchers) still covers that.
-import { send, layout } from "./_email.js";
-import { checks, check } from "./_uptime.js";
+import { send, layout } from "../../lib/api/_email.js";
+import { checks, check } from "../../lib/api/_uptime.js";
 
 export const config = { maxDuration: 60 };
 const REPO = "Hey-Tribe/app";

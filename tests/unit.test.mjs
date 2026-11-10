@@ -15,7 +15,7 @@ const resMock = () => { const r = { code: 0, body: null, headers: {} }; r.status
 const withFetch = async (impl, fn) => { const old = globalThis.fetch; globalThis.fetch = impl; try { return await fn(); } finally { globalThis.fetch = old; } };
 
 /* ---------- reminders: what fires when ---------- */
-const { dueFor } = await import("../api/reminders.js");
+const { dueFor } = await import("../src/pages/api/reminders.js");
 const sub = { id: "s1", member: "m1", prefs: {} };
 const members = [{ col: "members", id: "m1", data: { name: "Leo" } }];
 test("a plan reminds 30 minutes before it starts", () => {
@@ -55,7 +55,7 @@ test("each reminder has a stable key so it is sent once", () => {
 });
 
 /* ---------- Apple signed purchases ---------- */
-const { verifyJws, txStatus } = await import("../api/_apple.js");
+const { verifyJws, txStatus } = await import("../src/lib/api/_apple.js");
 function fakeChain() {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), "ht-jws-")), sh = (...a) => execFileSync("openssl", a, { cwd: d, stdio: "pipe" });
   sh("ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", "root.key");
@@ -94,7 +94,7 @@ test("refunded or expired purchases don't give Premium", () => {
 /* ---------- API contracts ---------- */
 test("Hey Tribe AI needs a login and a family, and respects the free limit", async () => {
   process.env.ANTHROPIC_API_KEY = "x";
-  const { default: h } = await import("../api/heytribe.js");
+  const { default: h } = await import("../src/pages/api/heytribe.js");
   let r = resMock(); await h({ method: "POST", headers: {}, body: { text: "hi" } }, r); assert.equal(r.code, 401);
   await withFetch(async url => String(url).includes("/auth/v1/user") ? new Response(JSON.stringify({ id: "u" }), { status: 200 }) : new Response("false", { status: 200 }), async () => {
     r = resMock(); await h({ method: "POST", headers: { authorization: "Bearer t" }, body: { text: "hi", ctx: {} } }, r); assert.equal(r.code, 400, "no family");
@@ -103,7 +103,7 @@ test("Hey Tribe AI needs a login and a family, and respects the free limit", asy
   delete process.env.ANTHROPIC_API_KEY;
 });
 test("billing reports whether checkout and the yearly plan are on", async () => {
-  const { default: h } = await import("../api/billing.js");
+  const { default: h } = await import("../src/pages/api/billing.js");
   let r = resMock(); await h({ method: "GET", headers: {} }, r); assert.deepEqual(r.body, { enabled: false, yearly: false });
   Object.assign(process.env, { STRIPE_SECRET_KEY: "sk", STRIPE_PRICE_ID: "p", STRIPE_PRICE_ID_YEARLY: "py" });
   r = resMock(); await h({ method: "GET", headers: {} }, r); assert.deepEqual(r.body, { enabled: true, yearly: true });
@@ -112,7 +112,7 @@ test("billing reports whether checkout and the yearly plan are on", async () => 
 });
 test("Apple purchase check rejects bad input before touching the database", async () => {
   process.env.BILLING_SYNC_SECRET = "s";
-  const { default: h } = await import("../api/apple-verify.js");
+  const { default: h } = await import("../src/pages/api/apple-verify.js");
   let calls = 0;
   await withFetch(async () => { calls++; return new Response("{}", { status: 200 }); }, async () => {
     let r = resMock(); await h({ method: "POST", headers: {}, body: { jws: "a.b.c", code: "ABC123" } }, r); assert.equal(r.code, 400);
@@ -123,7 +123,7 @@ test("Apple purchase check rejects bad input before touching the database", asyn
 });
 test("Stripe webhook refuses unsigned events", async () => {
   process.env.STRIPE_WEBHOOK_SECRET = "whsec_test"; process.env.BILLING_SYNC_SECRET = "s";
-  const { POST } = await import("../api/stripe-webhook.js");
+  const { POST } = await import("../src/lib/api/stripe-webhook.js");
   const body = JSON.stringify({ type: "checkout.session.completed", data: { object: { mode: "subscription", client_reference_id: "ABC123" } } });
   let r = await POST(new Request("https://x/api/stripe-webhook", { method: "POST", body, headers: { "stripe-signature": "t=1,v1=bad" } }));
   assert.equal(r.status, 400);
@@ -138,7 +138,7 @@ test("Stripe webhook refuses unsigned events", async () => {
   assert.equal(r.status, 400, "replayed old event");
 });
 test("calendar feed builds a valid iCalendar file", async () => {
-  const { default: h } = await import("../api/calendar.js");
+  const { default: h } = await import("../src/pages/api/calendar.js");
   const feed = { tribe: "Rivera", members: [{ id: "m1", name: "Leo" }], events: [{ id: "e1", title: "Soccer, practice", date: "2026-10-26", start: 1020, end: 1080, member: "m1", repeat: "weekly" }], countdowns: [], trips: [] };
   const r = resMock();
   await withFetch(async () => new Response(JSON.stringify(feed), { status: 200 }), () => h({ query: { t: "abc" }, headers: {} }, r));
@@ -147,7 +147,7 @@ test("calendar feed builds a valid iCalendar file", async () => {
 });
 test("health check reports database status without leaking values", async () => {
   process.env.RESEND_API_KEY = "re_secret_value";
-  const { default: h } = await import("../api/health.js");
+  const { default: h } = await import("../src/pages/api/health.js");
   const r = resMock();
   await withFetch(async () => new Response("[]", { status: 200 }), () => h({}, r));
   assert.equal(r.code, 200); assert.equal(r.body.configured.email, true);
@@ -159,7 +159,7 @@ test("health check reports database status without leaking values", async () => 
 test("Android reminders go to Firebase with the right token and mark dead tokens", async () => {
   const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
   process.env.FCM_SERVICE_ACCOUNT = JSON.stringify({ project_id: "heytribe-test", client_email: "push@heytribe-test.iam.gserviceaccount.com", private_key: privateKey.export({ type: "pkcs8", format: "pem" }), token_uri: "https://oauth2.googleapis.com/token" });
-  const { fcmSend } = await import("../api/_fcm.js");
+  const { fcmSend } = await import("../src/lib/api/_fcm.js");
   const sent = [];
   let r = await withFetch(async (url, o) => {
     if (String(url).includes("oauth2")) return new Response(JSON.stringify({ access_token: "at", expires_in: 3600 }), { status: 200 });
@@ -178,7 +178,7 @@ test("Android reminders go to Firebase with the right token and mark dead tokens
 });
 
 /* ---------- uptime alerts: only email for a real, fresh outage ---------- */
-const { default: uptimeAlert } = await import("../api/uptime-alert.js");
+const { default: uptimeAlert } = await import("../src/pages/api/uptime-alert.js");
 test("uptime alert ignores calls without a fresh outage issue", async () => {
   process.env.RESEND_API_KEY = "re_test";
   const sentMail = [];
@@ -213,7 +213,7 @@ test("uptime alert emails when a fresh outage is confirmed from the server", asy
 });
 
 /* ---------- Sign in with Apple: revoke on deletion, server notifications ---------- */
-const AS = await import("../api/_applesignin.js");
+const AS = await import("../src/lib/api/_applesignin.js");
 test("the Apple client secret is a valid ES256 token for our Services ID", () => {
   const { privateKey, publicKey } = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
   Object.assign(process.env, { APPLE_TEAM_ID: "TEAM123", APPLE_SIGNIN_KEY_ID: "KEY123", APPLE_SIGNIN_KEY_P8: privateKey.export({ type: "pkcs8", format: "pem" }) });
@@ -246,7 +246,7 @@ test("Apple notifications are accepted only with Apple's signature and our audie
   for (const k of ["APPLE_TEAM_ID", "APPLE_SIGNIN_KEY_ID", "APPLE_SIGNIN_KEY_P8"]) delete process.env[k];
 });
 test("app-version reads the minimum from the database and never locks people out on errors", async () => {
-  const { default: appVersion } = await import("../api/app-version.js");
+  const { default: appVersion } = await import("../src/pages/api/app-version.js");
   await withFetch(async url => new Response(JSON.stringify(String(url).includes("platform=eq.android") ? [{ min_version: "1.2.0" }] : []), { status: 200 }), async () => {
     const a = resMock(); await appVersion({ query: { platform: "android" } }, a); assert.equal(a.body.min, "1.2.0");
     const i = resMock(); await appVersion({ query: { platform: "ios" } }, i); assert.equal(i.body.min, "0.0.0");
@@ -257,13 +257,13 @@ test("app-version reads the minimum from the database and never locks people out
 /* ---------- Search: sitemap and robots ---------- */
 test("sitemap.xml lists every public page and nothing else (run node tools/sitemap.mjs after adding pages)", async () => {
   const { publicPages, urlFor } = await import("../tools/sitemap.mjs");
-  const sm = fs.readFileSync(new URL("../sitemap.xml", import.meta.url), "utf8");
+  const sm = fs.readFileSync(new URL("../public/sitemap.xml", import.meta.url), "utf8");
   const locs = [...sm.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1]).sort();
   assert.deepEqual(locs, publicPages().map(urlFor).sort());
   assert.ok(!/<priority>|<changefreq>/.test(sm), "no priority or changefreq");
 });
 test("robots.txt keeps private areas out and points to the sitemap", () => {
-  const r = fs.readFileSync(new URL("../robots.txt", import.meta.url), "utf8");
+  const r = fs.readFileSync(new URL("../public/robots.txt", import.meta.url), "utf8");
   for (const p of ["/admin/", "/api/", "/app/", "/sitter/"]) assert.match(r, new RegExp("Disallow: " + p));
   assert.match(r, /Sitemap: https:\/\/www\.heytribe\.app\/sitemap\.xml/);
   assert.doesNotMatch(r, /Disallow: \/\s*$/m, "the site itself is not blocked");
@@ -272,7 +272,7 @@ test("robots.txt keeps private areas out and points to the sitemap", () => {
 /* ---------- Search: Spanish pages ---------- */
 test("every Spanish page has its own address, lang, canonical and two-way hreflang (run npm run build:es after edits)", async () => {
   const { ES_PAGES, enUrl, esUrl } = await import("../tools/build-es.mjs");
-  const read = f => fs.readFileSync(new URL("../" + f, import.meta.url), "utf8");
+  const read = f => fs.readFileSync(new URL("../content/" + f, import.meta.url), "utf8");
   const head = h => ({ lang: (/<html lang="([^"]+)"/.exec(h) || [])[1], canon: (/<link rel="canonical" href="([^"]+)"/.exec(h) || [])[1],
     alt: Object.fromEntries([...h.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)"/g)].map(m => [m[1], m[2]])) });
   for (const f of ES_PAGES) {
@@ -283,6 +283,6 @@ test("every Spanish page has its own address, lang, canonical and two-way hrefla
     assert.deepEqual(en.alt, want, f); assert.deepEqual(es.alt, want, "es/" + f);
   }
   // English-only pages must not point at a Spanish version
-  for (const f of fs.readdirSync(new URL("..", import.meta.url)).filter(x => x.endsWith(".html") && !ES_PAGES.includes(x)))
+  for (const f of fs.readdirSync(new URL("../content", import.meta.url)).filter(x => x.endsWith(".html") && !ES_PAGES.includes(x)))
     assert.doesNotMatch(read(f), /hreflang="es"/, f);
 });

@@ -5,7 +5,7 @@ The family planning app and its marketing site, in one Vercel project backed by 
 | Path | What it is |
 | --- | --- |
 | `/` | Marketing site (static HTML, `styles.css`, `site.js`) |
-| `/app/` | The HeyTribe app. Source in `app/src/`; run `npm run build:app` after editing (see CLAUDE.md). `app/config.js` holds the public Supabase settings |
+| `/app/` | The HeyTribe app. Source in `spa/`; run `npm run build:app` after editing (see CLAUDE.md). `public/app/config.js` holds the public Supabase settings |
 | `/api/forms` | Saves waitlist and contact form posts to Supabase |
 | `/api/heytribe` | Hey Tribe AI: turns a typed note into plans, list items and chores (optional) |
 | `supabase/` | Database schema, security rules and the sample family |
@@ -22,7 +22,7 @@ The family planning app and its marketing site, in one Vercel project backed by 
 
 1. **Supabase:** run `supabase/migrations/0001_heytribe.sql`, then `supabase/seed.sql`.
 2. **Supabase Auth → URL configuration:** set *Site URL* to your domain and add `https://YOUR-DOMAIN/app/**` to the redirect URLs, so confirmation and password-reset emails land in the app.
-3. **`app/config.js`:** fill in the project URL and anon key.
+3. **`public/app/config.js`:** fill in the project URL and anon key.
 4. **Vercel environment variables:**
    - `SUPABASE_URL` and `SUPABASE_ANON_KEY` (needed by both API routes)
    - `ANTHROPIC_API_KEY` (optional; without it Hey Tribe uses the built-in parser)

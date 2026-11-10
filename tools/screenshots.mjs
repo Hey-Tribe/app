@@ -1,6 +1,7 @@
 // Makes the phone screenshots used on the website (assets/f, assets/f/sm, assets/f/es, assets/f/es/sm)
 // from the sample family in the real app, framed as a phone. Run: npm run build:app && node tools/screenshots.mjs [names...]
 // Then convert: python3 tools/screenshots-webp.py
+import { siteFile } from "./site-file.mjs";
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -13,7 +14,7 @@ const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/cs
 const server = http.createServer((req, res) => {
   if (req.url.startsWith("/__frame?")) { res.writeHead(200, { "content-type": "text/html" }); return res.end(FRAME(new URL(req.url, "http://x").searchParams.get("src"))); }
   let p = decodeURIComponent(req.url.split("?")[0]); if (p.endsWith("/")) p += "index.html";
-  const f = path.join(root, p);
+  const f = siteFile(root, p);
   if (!f.startsWith(root) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { "content-type": types[path.extname(f)] || "application/octet-stream" }); fs.createReadStream(f).pipe(res);
 }).listen(0);
@@ -60,7 +61,7 @@ for (const lang of ["en", "es"]) {
   // start the sample family once so it is stored for this browser
   await page.goto(`${base}/app/?lang=${lang}`); await page.waitForTimeout(1200);
   await page.click('[data-act="try-sample"]'); await page.waitForTimeout(2500);
-  const outDir = path.join(root, "assets/f", lang === "es" ? "es" : "");
+  const outDir = path.join(root, "public/assets/f", lang === "es" ? "es" : "");
   fs.mkdirSync(path.join(outDir, "sm"), { recursive: true });
   const only = process.argv.slice(2);
   for (const [name, view, step] of SHOTS.filter(x => !only.length || only.includes(x[0]))) {

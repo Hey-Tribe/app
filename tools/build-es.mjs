@@ -1,4 +1,4 @@
-// Builds the Spanish site: es/<page>.html for every page in ES_PAGES, translated from i18n/es-site.json with the same
+// Builds the Spanish site: content/es/<page>.html for every page in ES_PAGES, translated from i18n/es-site.json with the same
 // rules the browser uses (i18n/ht-i18n.js). Each Spanish page gets its own address, <html lang="es">, its own canonical,
 // hreflang links both ways, and translated title, description, social tags and structured data.
 // Run after editing a page in ES_PAGES or i18n/es-site.json:  npm run build:es   (then npm run sitemap)
@@ -31,20 +31,20 @@ export function fixEnglishHead(html, f) {
 
 async function main() {
   const { chromium } = createRequire(import.meta.url)("playwright");
-  const dict = JSON.parse(fs.readFileSync(path.join(root, "i18n/es-site.json"), "utf8"));
-  const i18nSrc = fs.readFileSync(path.join(root, "i18n/ht-i18n.js"), "utf8");
-  fs.mkdirSync(path.join(root, "es"), { recursive: true });
+  const dict = JSON.parse(fs.readFileSync(path.join(root, "public/i18n/es-site.json"), "utf8"));
+  const i18nSrc = fs.readFileSync(path.join(root, "public/i18n/ht-i18n.js"), "utf8");
+  fs.mkdirSync(path.join(root, "content/es"), { recursive: true });
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ javaScriptEnabled: false });
   const page = await ctx.newPage();
   let n = 0;
-  for (const f of fs.readdirSync(root).filter(x => x.endsWith(".html"))) {
-    const src = fs.readFileSync(path.join(root, f), "utf8");
+  for (const f of fs.readdirSync(path.join(root, "content")).filter(x => x.endsWith(".html"))) {
+    const src = fs.readFileSync(path.join(root, "content", f), "utf8");
     const fixed = fixEnglishHead(src, f);
-    if (fixed !== src) fs.writeFileSync(path.join(root, f), fixed);
+    if (fixed !== src) fs.writeFileSync(path.join(root, "content", f), fixed);
   }
   for (const f of ES_PAGES) {
-    const src = fs.readFileSync(path.join(root, f), "utf8");
+    const src = fs.readFileSync(path.join(root, "content", f), "utf8");
     await page.setContent(src, { waitUntil: "domcontentloaded" });
     const out = await page.evaluate(({ i18nSrc, dict, f, SITE, ES_PAGES }) => {
       // load the translator without running the rest of the site
@@ -112,7 +112,7 @@ async function main() {
       for (const s of document.querySelectorAll('script[type="application/ld+json"]')) { try { s.textContent = JSON.stringify(ld(JSON.parse(s.textContent))); } catch (e) {} }
       return "<!doctype html>\n" + document.documentElement.outerHTML + "\n";
     }, { i18nSrc, dict, f, SITE, ES_PAGES });
-    fs.writeFileSync(path.join(root, "es", f), out);
+    fs.writeFileSync(path.join(root, "content/es", f), out);
     n++;
   }
   await browser.close();

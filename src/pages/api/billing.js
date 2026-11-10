@@ -1,10 +1,10 @@
-import { watch } from "./_watch.js";
+import { watch } from "../../lib/api/_watch.js";
 // Premium billing with Stripe.
 // GET  /api/billing                                  -> { enabled } (true once Stripe keys are set in Vercel)
 // POST /api/billing { action: "checkout"|"portal", code } with the signed-in user's token
 // Needs: STRIPE_SECRET_KEY, STRIPE_PRICE_ID (the $4.99/month price), SUPABASE_URL, SUPABASE_ANON_KEY.
 // Optional: STRIPE_PRICE_ID_YEARLY (the $39.99/year price). When set, people can pick yearly: POST { ..., plan: "year" }.
-import { sbKey } from "./_sb.js";
+import { sbKey } from "../../lib/api/_sb.js";
 const SITE = process.env.SITE_URL || "https://www.heytribe.app";
 
 async function stripe(path, params) {

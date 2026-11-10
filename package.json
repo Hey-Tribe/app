@@ -8,13 +8,20 @@
   },
   "dependencies": {
     "@sentry/node": "^11.11.0",
+    "next": "15.5.28",
+    "node-html-parser": "7.1.0",
+    "react": "19.1.10",
+    "react-dom": "19.1.10",
     "web-push": "3.6.7"
   },
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "build:app": "node tools/build-app.mjs",
     "test": "node --test tests/unit.test.mjs",
     "test:e2e": "node tests/smoke.mjs",
-    "check": "npm run build:app && git diff --exit-code -- app/index.html app/sw.js app/assets && npm test",
+    "check": "npm run build:app && git diff --exit-code -- public/app/index.html public/app/sw.js public/app/assets && npm test",
     "screenshots": "npm run build:app && node tools/screenshots.mjs && python3 tools/screenshots-webp.py",
     "og": "node tools/og-images.mjs",
     "i18n:check": "node tools/i18n-missing.mjs",
@@ -24,6 +31,7 @@
   },
   "devDependencies": {
     "esbuild": "0.24.0",
-    "playwright": "1.56.0"
+    "playwright": "1.56.0",
+    "wait-on": "8.0.5"
   }
 }

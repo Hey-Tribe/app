@@ -1,4 +1,4 @@
-import { watch } from "./_watch.js";
+import { watch } from "../../lib/api/_watch.js";
 // Universal links for the iPhone app: served at /.well-known/apple-app-site-association.
 // Needs APPLE_TEAM_ID (10 characters, from developer.apple.com › Membership). Until it's set, no links open in the app.
 function handler(req, res) {

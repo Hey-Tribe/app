@@ -1,9 +1,9 @@
-import { watch } from "./_watch.js";
+import { watch } from "../../lib/api/_watch.js";
 // Hey Tribe: turns a quick note ("Dentist for Leo Tuesday at 3, Maria drives") into app actions.
 // Needs ANTHROPIC_API_KEY. Without it the app quietly uses its built-in parser instead.
 // Only signed-in HeyTribe users can call it, and the prompt is built here, not by the browser.
 
-import { sbKey } from "./_sb.js";
+import { sbKey } from "../../lib/api/_sb.js";
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
 
 async function signedInUser(req) {

@@ -1,6 +1,6 @@
-import { watch } from "./_watch.js";
+import { watch } from "../../lib/api/_watch.js";
 // Marketing site forms (waitlist and contact). Saves into the Supabase table site_submissions.
-import { sbHeaders } from "./_sb.js";
+import { sbHeaders } from "../../lib/api/_sb.js";
 const clip = (v, n) => (v == null ? null : String(v).trim().slice(0, n) || null);
 
 async function handler(req, res) {

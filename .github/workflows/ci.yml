@@ -17,11 +17,17 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Built app matches source
-        run: npm run build:app && git diff --exit-code -- app/index.html app/sw.js app/assets
+        run: npm run build:app && git diff --exit-code -- public/app/index.html public/app/sw.js public/app/assets
       - name: Server tests
         run: npm test
-      - name: Browser smoke test
-        run: npx playwright install --with-deps chromium && npm run test:e2e
+      - name: Next.js build
+        run: npm run build
+      - name: Browser smoke test (against the Next.js server)
+        run: |
+          npx playwright install --with-deps chromium
+          (npm start > /tmp/next.log 2>&1 &)
+          npx wait-on -t 60000 http://localhost:3000/ || (cat /tmp/next.log; exit 1)
+          SITE_URL=http://localhost:3000 npm run test:e2e
 
   # Database: start a fresh local Supabase from supabase/migrations, run the row level security tests,
   # and check the committed types (supabase/types.ts) match. With the SUPABASE_ACCESS_TOKEN secret it also

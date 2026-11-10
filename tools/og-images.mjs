@@ -6,16 +6,16 @@ import { createRequire } from "node:module";
 const { chromium } = createRequire(import.meta.url)("playwright");
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-const font = fs.readFileSync(path.join(root, "assets/fonts/atkinson.woff2")).toString("base64");
+const font = fs.readFileSync(path.join(root, "public/assets/fonts/atkinson.woff2")).toString("base64");
 const tone = { Chores: "#F3E6E2", Routines: "#F3E6E2", Teens: "#F3E6E2", "Kids and school": "#DEE7EE", School: "#DEE7EE", Planning: "#DEE7EE", Travel: "#DEE7EE", "New baby": "#E9EBDC", Childcare: "#E9EBDC", "Meal planning": "#F4EBDA", Home: "#E6EEE9", "Home admin": "#E6EEE9", "Home care": "#E6EEE9", Safety: "#E6EEE9", "Family life": "#F4EBDA" };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const only = process.argv.slice(2);
-const slugs = fs.readdirSync(path.join(root, "og")).filter(f => f.endsWith(".jpg")).map(f => f.slice(0, -4)).filter(s => !only.length || only.includes(s));
+const slugs = fs.readdirSync(path.join(root, "public/og")).filter(f => f.endsWith(".jpg")).map(f => f.slice(0, -4)).filter(s => !only.length || only.includes(s));
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1200, height: 630 } });
 for (const slug of slugs) {
-  const html = fs.readFileSync(path.join(root, slug + ".html"), "utf8");
+  const html = fs.readFileSync(path.join(root, "content", slug + ".html"), "utf8");
   const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
   const cat = (html.match(/<span class="eyebrow">([^<]+)<\/span>/) || [, "Guide"])[1].trim();
   const bg = tone[cat] || "#E6EEE9";
@@ -29,7 +29,7 @@ h1{margin:22px 0 0;font-size:${h1.length > 70 ? 58 : 66}px;line-height:1.08;font
 .f b{color:#46705F;font-size:34px;font-weight:800;letter-spacing:-.5px}.f b span{font-weight:400}
 </style></head><body><div class="c"><div class="k">${esc(cat)}</div><h1>${esc(h1)}</h1><div class="f"><span>heytribe.app/guides</span><b><span>hey</span>tribe</b></div></div></body></html>`);
   await page.waitForTimeout(50);
-  await page.screenshot({ path: path.join(root, "og", slug + ".jpg"), type: "jpeg", quality: 86 });
+  await page.screenshot({ path: path.join(root, "public/og", slug + ".jpg"), type: "jpeg", quality: 86 });
 }
 await browser.close();
 console.log(slugs.length, "images");

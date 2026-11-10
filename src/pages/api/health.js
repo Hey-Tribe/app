@@ -1,7 +1,7 @@
-import { watch } from "./_watch.js";
+import { watch } from "../../lib/api/_watch.js";
 // Health check for uptime monitoring: GET /api/health -> 200 when the database answers, 503 when it doesn't.
 // Shows which services are configured (true/false only, never values).
-import { sbHeaders } from "./_sb.js";
+import { sbHeaders } from "../../lib/api/_sb.js";
 async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
   // Test hook for Sentry: GET /api/health?sentry-test=1 with the x-cron-secret header throws one deliberate error.
