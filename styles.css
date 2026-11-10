@@ -276,7 +276,7 @@ details p{margin:12px 0 0;color:var(--muted);max-width:62ch}
 .choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:18px;margin-top:36px}
 .choice{position:relative;border-radius:22px;padding:30px 28px 26px;text-decoration:none;display:flex;flex-direction:column;gap:14px;min-height:330px;transition:transform .3s cubic-bezier(.3,1.4,.5,1)}
 .choice:hover{transform:translateY(-6px)}
-.choice h3{font-family:var(--f-display);font-weight:700;font-size:clamp(28px,3vw,34px);line-height:1.05;letter-spacing:-.02em}
+.choice h2,.choice h3{font-family:var(--f-display);font-weight:700;font-size:clamp(28px,3vw,34px);line-height:1.05;letter-spacing:-.02em}
 .choice p{margin:0;color:var(--muted);max-width:34ch}
 .choice .note{position:absolute;top:20px;right:22px;font-size:22px;line-height:1;transform:none}
 .choice .faces{min-height:46px}
