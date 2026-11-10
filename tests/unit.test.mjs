@@ -286,3 +286,12 @@ test("every Spanish page has its own address, lang, canonical and two-way hrefla
   for (const f of fs.readdirSync(new URL("../content", import.meta.url)).filter(x => x.endsWith(".html") && !ES_PAGES.includes(x)))
     assert.doesNotMatch(read(f), /hreflang="es"/, f);
 });
+
+test("page titles reach React as plain text, so & and ' are not escaped twice", async () => {
+  const { loadPage, pageFiles } = await import("../src/lib/pages.js");
+  for (const lang of ["en", "es"]) for (const f of ["index.html", ...pageFiles(lang)]) {
+    const title = loadPage(lang, f).head.find(n => n.tag === "title");
+    assert.ok(title && title.text, lang + "/" + f + " has a title");
+    assert.doesNotMatch(title.text, /&(amp|#x?[0-9a-f]+|quot|apos|lt|gt);/i, lang + "/" + f);
+  }
+});

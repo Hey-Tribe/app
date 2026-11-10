@@ -30,7 +30,9 @@ export function loadPage(lang, file) {
     const attrs = el.attributes;
     // Next.js writes the charset and viewport tags itself
     if (tag === "meta" && (attrs.charset || attrs.name === "viewport")) continue;
-    nodes.push({ tag, attrs, text: tag === "script" || tag === "style" || tag === "title" ? el.rawText || el.text : "" });
+    // script and style keep their raw source; the title is text, so entities like &amp; are decoded (React escapes it again)
+    const text = tag === "script" || tag === "style" ? el.rawText : tag === "title" ? el.text : "";
+    nodes.push({ tag, attrs, text });
   }
   const page = { lang: (html && html.getAttribute("lang")) || (lang === "es" ? "es" : "en"), head: nodes, body: body ? body.innerHTML : "" };
   cache.set(key, page);
