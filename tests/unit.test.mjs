@@ -253,3 +253,18 @@ test("app-version reads the minimum from the database and never locks people out
   });
   await withFetch(async () => { throw new Error("offline"); }, async () => { const r = resMock(); await appVersion({ query: {} }, r); assert.equal(r.body.min, "0.0.0"); });
 });
+
+/* ---------- Search: sitemap and robots ---------- */
+test("sitemap.xml lists every public page and nothing else (run node tools/sitemap.mjs after adding pages)", async () => {
+  const { publicPages, urlFor } = await import("../tools/sitemap.mjs");
+  const sm = fs.readFileSync(new URL("../sitemap.xml", import.meta.url), "utf8");
+  const locs = [...sm.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1]).sort();
+  assert.deepEqual(locs, publicPages().map(urlFor).sort());
+  assert.ok(!/<priority>|<changefreq>/.test(sm), "no priority or changefreq");
+});
+test("robots.txt keeps private areas out and points to the sitemap", () => {
+  const r = fs.readFileSync(new URL("../robots.txt", import.meta.url), "utf8");
+  for (const p of ["/admin/", "/api/", "/app/", "/sitter/"]) assert.match(r, new RegExp("Disallow: " + p));
+  assert.match(r, /Sitemap: https:\/\/www\.heytribe\.app\/sitemap\.xml/);
+  assert.doesNotMatch(r, /Disallow: \/\s*$/m, "the site itself is not blocked");
+});
