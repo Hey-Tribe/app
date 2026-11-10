@@ -1,4 +1,4 @@
-import { watch } from "./_watch.js";
+import { watch } from "../../lib/api/_watch.js";
 // Android App Links: served at /.well-known/assetlinks.json so www.heytribe.app/app links open the Android app.
 // Needs ANDROID_CERT_SHA256: the app signing certificate's SHA-256 fingerprint from Play Console › App integrity
 // (comma-separate several, e.g. the Play key and the upload key). Until it's set, links open in the browser.

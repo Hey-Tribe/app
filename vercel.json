@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "cleanUrls": false,
+  "framework": "nextjs",
   "headers": [
     {
       "source": "/(.*)",
@@ -202,16 +202,6 @@
           "value": "noindex"
         }
       ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/.well-known/apple-app-site-association",
-      "destination": "/api/aasa"
-    },
-    {
-      "source": "/.well-known/assetlinks.json",
-      "destination": "/api/assetlinks"
     }
   ],
   "redirects": [

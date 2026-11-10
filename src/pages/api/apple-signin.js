@@ -1,6 +1,6 @@
-import { watch } from "./_watch.js";
-import { sbHeaders, sbKey } from "./_sb.js";
-import { verifyNotification, exchangeCode, appleSigninReady, IOS_ID } from "./_applesignin.js";
+import { watch } from "../../lib/api/_watch.js";
+import { sbHeaders, sbKey } from "../../lib/api/_sb.js";
+import { verifyNotification, exchangeCode, appleSigninReady, IOS_ID } from "../../lib/api/_applesignin.js";
 // Sign in with Apple, two jobs at one address:
 // 1. Apple's server-to-server notifications. Set https://www.heytribe.app/api/apple-signin in the Apple Developer
 //    account (Identifiers > app.heytribe.web > Sign in with Apple > Server-to-Server Notification Endpoint).

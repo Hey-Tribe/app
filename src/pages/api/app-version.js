@@ -1,5 +1,5 @@
-import { watch } from "./_watch.js";
-import { sbHeaders } from "./_sb.js";
+import { watch } from "../../lib/api/_watch.js";
+import { sbHeaders } from "../../lib/api/_sb.js";
 // The oldest phone app version still allowed: GET /api/app-version?platform=ios|android -> { min }.
 // Source of truth is the app_versions table in Supabase (editable in the admin). MIN_SUPPORTED_APP_VERSION in
 // Vercel overrides it in an emergency. Any failure answers "0.0.0" so the app is never locked out by mistake.

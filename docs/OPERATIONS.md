@@ -7,7 +7,7 @@ How HeyTribe is built, deployed, monitored and recovered. Keep this next to the 
 | Piece | Where | Notes |
 |---|---|---|
 | Marketing site (`*.html`, `styles.css`, `site.js`) | Vercel, static | Spanish text in `i18n/es-site.json` |
-| Family app (`/app`) | Vercel, static, built from `app/src` | Offline shell in `app/sw.js` |
+| Family app (`/app`) | Vercel (Next.js), built from `spa/` into `public/app` | Offline shell in `public/app/sw.js` |
 | Admin dashboard (`admin.heytribe.app`) | Vercel, same project | `middleware.js` serves `/admin/index.html` on that host |
 | Sitter page (`/sitter`) | Vercel, static | Read-only, token link |
 | Server functions (`api/*.js`) | Vercel functions (Node 20+) | Billing, Apple, reminders, email, AI, calendar feed, health |
@@ -24,7 +24,7 @@ Trust boundaries: the browser and phone are untrusted. Everything they can do is
 ```
 git clone https://github.com/Hey-Tribe/app && cd app
 npm ci
-npm run build:app        # builds app/src into app/index.html + app/assets
+npm run build:app        # builds spa/ into public/app/index.html + public/app/assets
 npm test                 # server tests (no network needed)
 npm run test:e2e         # browser smoke test (needs: npx playwright install chromium)
 python3 -m http.server 8080   # then open http://localhost:8080/ and /app/
@@ -65,7 +65,7 @@ GitHub repository secrets for the TestFlight build: APPLE_TEAM_ID, ASC_KEY_ID, A
 
 ## 4. Deploying
 
-1. Edit source. For the app, edit `app/src/*` and run `npm run build:app`. Never hand-edit `app/index.html` or `app/assets/`.
+1. Edit source. For the app, edit `spa/*` and run `npm run build:app`. Never hand-edit `public/app/index.html` or `public/app/assets/`.
 2. `npm test` and `npm run test:e2e`.
 3. Commit (including built files) and push to `main`. GitHub Actions ("Checks") runs the same tests. Vercel deploys `main` to production automatically.
 4. Check `https://www.heytribe.app/api/health` returns `"ok": true`, and open the app.

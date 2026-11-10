@@ -7,3 +7,5 @@ mobile/node_modules/
 mobile/ios/App/Pods/
 mobile/ios/DerivedData/
 mobile/ios/App/build/
+.next/
+next-env.d.ts

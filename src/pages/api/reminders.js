@@ -1,13 +1,13 @@
-import { watch } from "./_watch.js";
+import { watch } from "../../lib/api/_watch.js";
 // Phone reminders (web push). Called every 5 minutes by a schedule in Supabase (pg_cron) with the cron secret.
 // Sends: plans 30 min before (all-day plans at 7:30am), medicine at dose time, bills on the due day and 3 days before (9am),
 // school forms the evening before they're due (6pm), and countdowns on the big day (8am). Each reminder is sent once.
-import { sbHeaders } from "./_sb.js";
+import { sbHeaders } from "../../lib/api/_sb.js";
 import webpush from "web-push";
-import { sendQueued } from "./_email.js";
-import { apnsReady, apnsClient } from "./_apns.js";
-import { fcmReady, fcmSend } from "./_fcm.js";
-import { appleSigninReady, revokePending } from "./_applesignin.js";
+import { sendQueued } from "../../lib/api/_email.js";
+import { apnsReady, apnsClient } from "../../lib/api/_apns.js";
+import { fcmReady, fcmSend } from "../../lib/api/_fcm.js";
+import { appleSigninReady, revokePending } from "../../lib/api/_applesignin.js";
 
 const pad = n => String(n).padStart(2, "0");
 function localNow(tz) {

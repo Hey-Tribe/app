@@ -2,6 +2,7 @@
 // Run: node tools/i18n-missing.mjs [page.html ...]   (defaults to every .html page at the repo root, plus sitter)
 // Serves the repo on a local port, opens each page in English and checks every text node and label the same way the
 // translator does. Prints "page: text" lines; exit code 1 if anything is missing.
+import { siteFile } from "./site-file.mjs";
 import { createRequire } from "node:module";
 const { chromium } = createRequire(import.meta.url)("playwright");
 import http from "node:http";
@@ -12,13 +13,13 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..")
 const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json" };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split("?")[0]); if (p.endsWith("/")) p += "index.html";
-  const f = path.join(root, p);
+  const f = siteFile(root, p);
   if (!f.startsWith(root) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { "content-type": types[path.extname(f)] || "application/octet-stream" }); fs.createReadStream(f).pipe(res);
 }).listen(0);
 const port = server.address().port;
-const pages = process.argv.slice(2).length ? process.argv.slice(2) : fs.readdirSync(root).filter(f => f.endsWith(".html") && f !== "404.html").sort();
-const dict = JSON.parse(fs.readFileSync(path.join(root, "i18n/es-site.json"), "utf8"));
+const pages = process.argv.slice(2).length ? process.argv.slice(2) : fs.readdirSync(path.join(root, "content")).filter(f => f.endsWith(".html") && f !== "404.html").sort();
+const dict = JSON.parse(fs.readFileSync(path.join(root, "public/i18n/es-site.json"), "utf8"));
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext();

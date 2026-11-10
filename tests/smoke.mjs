@@ -1,5 +1,6 @@
-// End-to-end smoke test: serves the repo like Vercel does (static files) and clicks through the site and the
-// sample family in a real browser. Fails on any page error or a missing key element. Run: npm run test:e2e
+// End-to-end smoke test: clicks through the site and the sample family in a real browser. With SITE_URL set
+// (for example the Next.js server, `npm start`) it tests that; otherwise it serves the files directly. Fails on any page error or a missing key element. Run: npm run test:e2e
+import { siteFile } from "../tools/site-file.mjs";
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -11,12 +12,12 @@ const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/cs
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(new URL(req.url, "http://x").pathname);
   if (p.endsWith("/")) p += "index.html";
-  const f = path.join(root, p);
+  const f = siteFile(root, p);
   if (!f.startsWith(root) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end("not found"); }
   res.writeHead(200, { "content-type": types[path.extname(f)] || "application/octet-stream" });
   fs.createReadStream(f).pipe(res);
 }).listen(0);
-const base = `http://localhost:${server.address().port}`;
+const base = process.env.SITE_URL || `http://localhost:${server.address().port}`;
 
 const fails = [];
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) fails.push(what); };
